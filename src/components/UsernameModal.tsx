@@ -1,13 +1,25 @@
-import { useState } from "react";
-import { MessageCircle, User } from "lucide-react";
+import { useState, useRef } from "react";
+import { MessageCircle, User, Camera } from "lucide-react";
 
 interface UsernameModalProps {
-  onJoin: (username: string) => void;
+  onJoin: (username: string, avatar?: string) => void;
 }
 
 const UsernameModal = ({ onJoin }: UsernameModalProps) => {
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAvatar(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +36,7 @@ const UsernameModal = ({ onJoin }: UsernameModalProps) => {
       setError("الاسم يجب أن لا يتجاوز 20 حرفاً");
       return;
     }
-    onJoin(trimmed);
+    onJoin(trimmed, avatar ?? undefined);
   };
 
   return (
@@ -39,13 +51,37 @@ const UsernameModal = ({ onJoin }: UsernameModalProps) => {
             boxShadow: "var(--shadow-card)",
           }}
         >
-          {/* Icon */}
+          {/* Avatar picker */}
           <div className="flex justify-center mb-6">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center glow-primary"
-              style={{ background: "var(--gradient-primary)" }}
-            >
-              <MessageCircle className="w-8 h-8" style={{ color: "hsl(var(--primary-foreground))" }} />
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden transition-all duration-200 hover:opacity-80 glow-primary"
+                style={{
+                  background: avatar ? "transparent" : "var(--gradient-primary)",
+                  border: "2px solid hsl(var(--primary) / 0.5)",
+                }}
+              >
+                {avatar ? (
+                  <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <MessageCircle className="w-8 h-8" style={{ color: "hsl(var(--primary-foreground))" }} />
+                )}
+              </button>
+              <div
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center"
+                style={{ background: "hsl(var(--primary))" }}
+              >
+                <Camera className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary-foreground))" }} />
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarChange}
+              />
             </div>
           </div>
 
@@ -53,7 +89,7 @@ const UsernameModal = ({ onJoin }: UsernameModalProps) => {
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold mb-2 text-gradient">مرحباً بك في الدردشة العامة</h1>
             <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-              أدخل اسمك للانضمام إلى المحادثة
+              {avatar ? "صورتك جاهزة! أدخل اسمك للانضمام" : "أضف صورتك واكتب اسمك للانضمام"}
             </p>
           </div>
 

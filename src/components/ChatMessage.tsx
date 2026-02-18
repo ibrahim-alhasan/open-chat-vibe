@@ -15,6 +15,7 @@ export interface Message {
 interface ChatMessageProps {
   message: Message;
   currentUsername: string;
+  currentAvatar?: string | null;
   onReply: (message: Message) => void;
 }
 
@@ -40,7 +41,7 @@ const getUserColor = (username: string) => {
 const getInitials = (username: string) =>
   username.slice(0, 2).toUpperCase();
 
-const ChatMessage = ({ message, currentUsername, onReply }: ChatMessageProps) => {
+const ChatMessage = ({ message, currentUsername, currentAvatar, onReply }: ChatMessageProps) => {
   const isOwn = message.username === currentUsername;
   const userColor = getUserColor(message.username);
 
@@ -54,16 +55,25 @@ const ChatMessage = ({ message, currentUsername, onReply }: ChatMessageProps) =>
       className={`flex gap-3 group animate-fade-in ${isOwn ? "flex-row-reverse" : "flex-row"}`}
     >
       {/* Avatar */}
-      <div
-        className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-1"
-        style={{
-          background: `${userColor}22`,
-          border: `2px solid ${userColor}55`,
-          color: userColor,
-        }}
-      >
-        {getInitials(message.username)}
-      </div>
+      {isOwn && currentAvatar ? (
+        <img
+          src={currentAvatar}
+          alt="avatar"
+          className="w-9 h-9 rounded-full flex-shrink-0 object-cover mt-1"
+          style={{ border: `2px solid ${userColor}55` }}
+        />
+      ) : (
+        <div
+          className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-1"
+          style={{
+            background: `${userColor}22`,
+            border: `2px solid ${userColor}55`,
+            color: userColor,
+          }}
+        >
+          {getInitials(message.username)}
+        </div>
+      )}
 
       {/* Message content */}
       <div className={`max-w-[70%] space-y-1 ${isOwn ? "items-end" : "items-start"} flex flex-col`}>

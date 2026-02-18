@@ -2,11 +2,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import ChatMessage, { Message } from "@/components/ChatMessage";
 import UsernameModal from "@/components/UsernameModal";
-import { Send, X, MessageCircle, Users, CornerUpLeft } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, LogOut } from "lucide-react";
 
 const Index = () => {
   const [username, setUsername] = useState<string | null>(() =>
-    sessionStorage.getItem("chat_username")
+    localStorage.getItem("chat_username")
+  );
+  const [avatar, setAvatar] = useState<string | null>(() =>
+    localStorage.getItem("chat_avatar")
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -90,9 +93,11 @@ const Index = () => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  const handleJoin = (name: string) => {
-    sessionStorage.setItem("chat_username", name);
+  const handleJoin = (name: string, avatarDataUrl?: string) => {
+    localStorage.setItem("chat_username", name);
+    if (avatarDataUrl) localStorage.setItem("chat_avatar", avatarDataUrl);
     setUsername(name);
+    setAvatar(avatarDataUrl ?? null);
   };
 
   const handleSend = async () => {
@@ -119,6 +124,13 @@ const Index = () => {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleLeave = () => {
+    localStorage.removeItem("chat_username");
+    localStorage.removeItem("chat_avatar");
+    setUsername(null);
+    setAvatar(null);
   };
 
   if (!username) {
@@ -173,6 +185,23 @@ const Index = () => {
           >
             {username}
           </span>
+          {/* Avatar in header */}
+          {avatar && (
+            <img
+              src={avatar}
+              alt="avatar"
+              className="w-8 h-8 rounded-full object-cover"
+              style={{ border: "2px solid hsl(var(--primary) / 0.5)" }}
+            />
+          )}
+          <button
+            onClick={handleLeave}
+            title="تغيير الاسم"
+            className="p-1.5 rounded-lg transition-colors hover:opacity-70"
+            style={{ color: "hsl(var(--muted-foreground))" }}
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
@@ -213,6 +242,7 @@ const Index = () => {
               key={msg.id}
               message={msg}
               currentUsername={username}
+              currentAvatar={avatar}
               onReply={setReplyTo}
             />
           ))
