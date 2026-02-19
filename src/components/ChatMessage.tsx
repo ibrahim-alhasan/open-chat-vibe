@@ -71,9 +71,9 @@ const ChatMessage = ({
   const [showReplyIndicator, setShowReplyIndicator] = useState(false);
   
   const messageRef = useRef<HTMLDivElement>(null);
-  const touchStartRef = useRef<number | null>(null);
-  const touchStartXRef = useRef<number | null>(null);
+  const touchStartRef = useRef<{ x: number; time: number } | null>(null);
   const swipeContainerRef = useRef<HTMLDivElement>(null);
+  const isClickOnButtonRef = useRef(false);
 
   const timeAgo = formatDistanceToNow(new Date(message.created_at), {
     addSuffix: true,
@@ -134,24 +134,33 @@ const ChatMessage = ({
 
   // معالج بدء السحب
   const handleTouchStart = (e: React.TouchEvent) => {
+    // التحقق مما إذا كان النقر على زر
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) {
+      isClickOnButtonRef.current = true;
+      return;
+    }
+    
     const touch = e.touches[0];
-    touchStartXRef.current = touch.clientX;
-    touchStartRef.current = Date.now();
+    touchStartRef.current = {
+      x: touch.clientX,
+      time: Date.now()
+    };
     setIsSwiping(true);
   };
 
   // معالج حركة السحب
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStartXRef.current || !isSwiping) return;
+    if (!touchStartRef.current || !isSwiping || isClickOnButtonRef.current) return;
 
     const touch = e.touches[0];
-    const deltaX = touch.clientX - touchStartXRef.current;
+    const deltaX = touch.clientX - touchStartRef.current.x;
     
-    // السماح فقط بالسحب لليمين (للرسائل العادية) أو لليسار (للرسائل الخاصة بالمستخدم)
-    // في الواتساب، السحب لليمين دائماً للرد
+    // السماح فقط بالسحب لليمين
     const maxSwipe = 100; // أقصى مسافة سحب بالبكسل
     
     if (deltaX > 0) { // سحب لليمين فقط
+      e.preventDefault(); // منع التمرير أثناء السحب
       const newOffset = Math.min(deltaX, maxSwipe);
       setSwipeOffset(newOffset);
       setShowReplyIndicator(newOffset > 30); // إظهار مؤشر الرد عند تجاوز 30 بكسل
@@ -160,17 +169,25 @@ const ChatMessage = ({
 
   // معالج نهاية السحب
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStartXRef.current || !isSwiping) return;
+    if (isClickOnButtonRef.current) {
+      isClickOnButtonRef.current = false;
+      setIsSwiping(false);
+      return;
+    }
+
+    if (!touchStartRef.current || !isSwiping) {
+      setIsSwiping(false);
+      return;
+    }
 
     const touchEndTime = Date.now();
-    const touchDuration = touchStartRef.current ? touchEndTime - touchStartRef.current : 0;
+    const touchDuration = touchEndTime - touchStartRef.current.time;
     
     if (swipeOffset > 50 && touchDuration < 500) { // إذا تم السحب لمسافة كافية وفي وقت مناسب
       onReply(message); // تنفيذ الرد
     }
     
     // إعادة تعيين قيم السحب
-    touchStartXRef.current = null;
     touchStartRef.current = null;
     setIsSwiping(false);
     setSwipeOffset(0);
@@ -179,18 +196,28 @@ const ChatMessage = ({
 
   // معالج السحب بالفأرة (لأجهزة الكمبيوتر)
   const handleMouseDown = (e: React.MouseEvent) => {
+    // التحقق مما إذا كان النقر على زر
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) {
+      isClickOnButtonRef.current = true;
+      return;
+    }
+    
     e.preventDefault();
-    touchStartXRef.current = e.clientX;
-    touchStartRef.current = Date.now();
+    touchStartRef.current = {
+      x: e.clientX,
+      time: Date.now()
+    };
     setIsSwiping(true);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!touchStartXRef.current || !isSwiping) return;
+    if (!touchStartRef.current || !isSwiping || isClickOnButtonRef.current) return;
 
-    const deltaX = e.clientX - touchStartXRef.current;
+    const deltaX = e.clientX - touchStartRef.current.x;
     
     if (deltaX > 0) {
+      e.preventDefault();
       const newOffset = Math.min(deltaX, 100);
       setSwipeOffset(newOffset);
       setShowReplyIndicator(newOffset > 30);
@@ -198,16 +225,24 @@ const ChatMessage = ({
   };
 
   const handleMouseUp = (e: React.MouseEvent) => {
-    if (!touchStartXRef.current || !isSwiping) return;
+    if (isClickOnButtonRef.current) {
+      isClickOnButtonRef.current = false;
+      setIsSwiping(false);
+      return;
+    }
+
+    if (!touchStartRef.current || !isSwiping) {
+      setIsSwiping(false);
+      return;
+    }
 
     const touchEndTime = Date.now();
-    const touchDuration = touchStartRef.current ? touchEndTime - touchStartRef.current : 0;
+    const touchDuration = touchEndTime - touchStartRef.current.time;
     
     if (swipeOffset > 50 && touchDuration < 500) {
       onReply(message);
     }
     
-    touchStartXRef.current = null;
     touchStartRef.current = null;
     setIsSwiping(false);
     setSwipeOffset(0);
@@ -216,12 +251,33 @@ const ChatMessage = ({
 
   const handleMouseLeave = () => {
     if (isSwiping) {
-      touchStartXRef.current = null;
       touchStartRef.current = null;
       setIsSwiping(false);
       setSwipeOffset(0);
       setShowReplyIndicator(false);
+      isClickOnButtonRef.current = false;
     }
+  };
+
+  // معالج النقر على زر التفاعل
+  const handleEmojiButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setShowEmojiPicker(!showEmojiPicker);
+  };
+
+  // معالج النقر على زر الرد
+  const handleReplyButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onReply(message);
+  };
+
+  // معالج النقر على التفاعل
+  const handleReactionClick = (e: React.MouseEvent, emoji: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    handleReaction(emoji);
   };
 
   return (
@@ -268,7 +324,7 @@ const ChatMessage = ({
         style={{
           transform: `translateX(${swipeOffset}px)`,
           transition: isSwiping ? 'none' : 'transform 0.2s ease',
-          cursor: isSwiping ? 'grabbing' : 'grab',
+          cursor: isSwiping ? 'grabbing' : 'default',
         }}
       >
         {/* Reply indicator أثناء السحب */}
@@ -347,7 +403,7 @@ const ChatMessage = ({
           {/* Emoji picker (appears above the bubble) */}
           {showEmojiPicker && (
             <div
-              className={`absolute -top-12 flex gap-1 p-2 rounded-2xl z-20 animate-fade-in ${
+              className={`absolute -top-12 flex gap-1 p-2 rounded-2xl z-50 animate-fade-in ${
                 isOwn ? "right-0" : "left-0"
               }`}
               style={{
@@ -364,10 +420,7 @@ const ChatMessage = ({
                 return (
                   <button
                     key={emoji}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleReaction(emoji);
-                    }}
+                    onClick={(e) => handleReactionClick(e, emoji)}
                     className="w-9 h-9 flex items-center justify-center rounded-xl text-lg transition-all hover:scale-125 active:scale-90"
                     style={{
                       background: myReaction
@@ -390,11 +443,8 @@ const ChatMessage = ({
             <>
               {/* Emoji button */}
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowEmojiPicker(!showEmojiPicker);
-                }}
-                className={`absolute top-1 transition-all duration-150 p-1.5 rounded-lg ${
+                onClick={handleEmojiButtonClick}
+                className={`absolute top-1 transition-all duration-150 p-1.5 rounded-lg z-10 ${
                   isOwn ? "-left-8" : "-right-8"
                 }`}
                 style={{
@@ -409,11 +459,8 @@ const ChatMessage = ({
 
               {/* Reply button */}
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onReply(message);
-                }}
-                className={`absolute top-10 transition-all duration-150 p-1.5 rounded-lg ${
+                onClick={handleReplyButtonClick}
+                className={`absolute top-10 transition-all duration-150 p-1.5 rounded-lg z-10 ${
                   isOwn ? "-left-8" : "-right-8"
                 }`}
                 style={{
@@ -441,10 +488,7 @@ const ChatMessage = ({
               return (
                 <button
                   key={emoji}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleReaction(emoji);
-                  }}
+                  onClick={(e) => handleReactionClick(e, emoji)}
                   className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all hover:scale-105 active:scale-95"
                   style={{
                     background: myReaction
