@@ -131,6 +131,9 @@
     animation: pulseDot 2s ease-in-out infinite;
   }
 }
+#lovable-badge{
+  display: none;
+}
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
