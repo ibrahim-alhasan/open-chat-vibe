@@ -250,14 +250,7 @@ const Index = () => {
           >
             <Settings className="w-4 h-4" />
           </button>
-          <button
-            onClick={handleLeave}
-            title="تسجيل الخروج"
-            className="p-1.5 rounded-lg transition-colors hover:opacity-70"
-            style={{ color: "hsl(var(--muted-foreground))" }}
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          
         </div>
       </header>
 
