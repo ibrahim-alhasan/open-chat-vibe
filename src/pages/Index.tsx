@@ -390,9 +390,7 @@ const Index = () => {
             />
           </button>
         </div>
-        <p className="text-center text-xs mt-2" style={{ color: "hsl(var(--muted-foreground))" }}>
-          اضغط Enter للإرسال • Shift+Enter لسطر جديد
-        </p>
+
       </div>
 
       {/* Settings modal */}
