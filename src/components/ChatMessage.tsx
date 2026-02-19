@@ -66,7 +66,14 @@ const ChatMessage = ({
   const userColor = getUserColor(message.username);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const [showReplyIndicator, setShowReplyIndicator] = useState(false);
+  
   const messageRef = useRef<HTMLDivElement>(null);
+  const touchStartRef = useRef<number | null>(null);
+  const touchStartXRef = useRef<number | null>(null);
+  const swipeContainerRef = useRef<HTMLDivElement>(null);
 
   const timeAgo = formatDistanceToNow(new Date(message.created_at), {
     addSuffix: true,
@@ -114,12 +121,118 @@ const ChatMessage = ({
     };
   }, []);
 
+  // إعادة تعيين السحب عند التوقف
+  useEffect(() => {
+    if (!isSwiping && swipeOffset > 0) {
+      const timer = setTimeout(() => {
+        setSwipeOffset(0);
+        setShowReplyIndicator(false);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [isSwiping, swipeOffset]);
+
+  // معالج بدء السحب
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartXRef.current = touch.clientX;
+    touchStartRef.current = Date.now();
+    setIsSwiping(true);
+  };
+
+  // معالج حركة السحب
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartXRef.current || !isSwiping) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartXRef.current;
+    
+    // السماح فقط بالسحب لليمين (للرسائل العادية) أو لليسار (للرسائل الخاصة بالمستخدم)
+    // في الواتساب، السحب لليمين دائماً للرد
+    const maxSwipe = 100; // أقصى مسافة سحب بالبكسل
+    
+    if (deltaX > 0) { // سحب لليمين فقط
+      const newOffset = Math.min(deltaX, maxSwipe);
+      setSwipeOffset(newOffset);
+      setShowReplyIndicator(newOffset > 30); // إظهار مؤشر الرد عند تجاوز 30 بكسل
+    }
+  };
+
+  // معالج نهاية السحب
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartXRef.current || !isSwiping) return;
+
+    const touchEndTime = Date.now();
+    const touchDuration = touchStartRef.current ? touchEndTime - touchStartRef.current : 0;
+    
+    if (swipeOffset > 50 && touchDuration < 500) { // إذا تم السحب لمسافة كافية وفي وقت مناسب
+      onReply(message); // تنفيذ الرد
+    }
+    
+    // إعادة تعيين قيم السحب
+    touchStartXRef.current = null;
+    touchStartRef.current = null;
+    setIsSwiping(false);
+    setSwipeOffset(0);
+    setShowReplyIndicator(false);
+  };
+
+  // معالج السحب بالفأرة (لأجهزة الكمبيوتر)
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    touchStartXRef.current = e.clientX;
+    touchStartRef.current = Date.now();
+    setIsSwiping(true);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!touchStartXRef.current || !isSwiping) return;
+
+    const deltaX = e.clientX - touchStartXRef.current;
+    
+    if (deltaX > 0) {
+      const newOffset = Math.min(deltaX, 100);
+      setSwipeOffset(newOffset);
+      setShowReplyIndicator(newOffset > 30);
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (!touchStartXRef.current || !isSwiping) return;
+
+    const touchEndTime = Date.now();
+    const touchDuration = touchStartRef.current ? touchEndTime - touchStartRef.current : 0;
+    
+    if (swipeOffset > 50 && touchDuration < 500) {
+      onReply(message);
+    }
+    
+    touchStartXRef.current = null;
+    touchStartRef.current = null;
+    setIsSwiping(false);
+    setSwipeOffset(0);
+    setShowReplyIndicator(false);
+  };
+
+  const handleMouseLeave = () => {
+    if (isSwiping) {
+      touchStartXRef.current = null;
+      touchStartRef.current = null;
+      setIsSwiping(false);
+      setSwipeOffset(0);
+      setShowReplyIndicator(false);
+    }
+  };
+
   return (
     <div
       ref={messageRef}
       className={`flex gap-3 group animate-fade-in ${isOwn ? "flex-row-reverse" : "flex-row"}`}
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        handleMouseLeave();
+      }}
     >
       {/* Avatar */}
       {avatarUrl ? (
@@ -142,8 +255,33 @@ const ChatMessage = ({
         </div>
       )}
 
-      {/* Message content */}
-      <div className={`max-w-[70%] space-y-1 ${isOwn ? "items-end" : "items-start"} flex flex-col`}>
+      {/* Message content with swipe functionality */}
+      <div 
+        ref={swipeContainerRef}
+        className={`max-w-[70%] space-y-1 ${isOwn ? "items-end" : "items-start"} flex flex-col relative`}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        style={{
+          transform: `translateX(${swipeOffset}px)`,
+          transition: isSwiping ? 'none' : 'transform 0.2s ease',
+          cursor: isSwiping ? 'grabbing' : 'grab',
+        }}
+      >
+        {/* Reply indicator أثناء السحب */}
+        {showReplyIndicator && (
+          <div 
+            className="absolute -right-12 top-1/2 transform -translate-y-1/2 flex items-center gap-1 text-primary animate-pulse"
+            style={{ direction: 'ltr' }}
+          >
+            <Reply className="w-4 h-4" />
+            <span className="text-xs font-medium">رد</span>
+          </div>
+        )}
+
         {/* Username & time */}
         <div className={`flex items-center gap-2 px-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
           <span className="text-xs font-semibold" style={{ color: userColor }}>
@@ -196,8 +334,12 @@ const ChatMessage = ({
           <div
             className={`px-4 py-3 rounded-2xl text-sm leading-relaxed break-words select-none ${
               isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"
-            }`}
-            style={{ direction: "rtl", textAlign: "right" }}
+            } ${isSwiping ? 'opacity-80' : ''}`}
+            style={{ 
+              direction: "rtl", 
+              textAlign: "right",
+              boxShadow: isSwiping ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
+            }}
           >
             {message.content}
           </div>
@@ -243,8 +385,8 @@ const ChatMessage = ({
             </div>
           )}
 
-          {/* Action buttons (تظهر عند التحويم) */}
-          {isHovered && (
+          {/* Action buttons (تظهر عند التحويم) - مخفية أثناء السحب */}
+          {isHovered && !isSwiping && (
             <>
               {/* Emoji button */}
               <button
