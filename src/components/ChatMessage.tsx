@@ -29,8 +29,6 @@ interface ChatMessageProps {
   reactions: Reaction[];
   profilesMap: Record<string, string | null>;
   onReply: (message: Message) => void;
-  activeMessageId: string | null;
-  setActiveMessageId: (id: string | null) => void;
 }
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
@@ -63,8 +61,6 @@ const ChatMessage = ({
   reactions,
   profilesMap,
   onReply,
-  activeMessageId,
-  setActiveMessageId,
 }: ChatMessageProps) => {
   const isOwn = message.username === currentUsername;
   const userColor = getUserColor(message.username);
@@ -118,14 +114,6 @@ const ChatMessage = ({
     };
   }, []);
 
-  const handleMessageClick = () => {
-    if (activeMessageId === message.id) {
-      setActiveMessageId(null); // إخفاء التفاعلات إذا كانت نفس الرسالة
-    } else {
-      setActiveMessageId(message.id); // إظهار تفاعلات هذه الرسالة
-    }
-  };
-
   return (
     <div
       ref={messageRef}
@@ -138,19 +126,17 @@ const ChatMessage = ({
         <img
           src={avatarUrl}
           alt="avatar"
-          className="w-9 h-9 rounded-full flex-shrink-0 object-cover mt-1 cursor-pointer"
+          className="w-9 h-9 rounded-full flex-shrink-0 object-cover mt-1"
           style={{ border: `2px solid ${userColor}55` }}
-          onClick={handleMessageClick}
         />
       ) : (
         <div
-          className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-1 cursor-pointer"
+          className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-1"
           style={{
             background: `${userColor}22`,
             border: `2px solid ${userColor}55`,
             color: userColor,
           }}
-          onClick={handleMessageClick}
         >
           {getInitials(message.username)}
         </div>
@@ -159,10 +145,7 @@ const ChatMessage = ({
       {/* Message content */}
       <div className={`max-w-[70%] space-y-1 ${isOwn ? "items-end" : "items-start"} flex flex-col`}>
         {/* Username & time */}
-        <div
-          className={`flex items-center gap-2 px-1 cursor-pointer ${isOwn ? "flex-row-reverse" : "flex-row"}`}
-          onClick={handleMessageClick}
-        >
+        <div className={`flex items-center gap-2 px-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
           <span className="text-xs font-semibold" style={{ color: userColor }}>
             {isOwn ? "أنت" : message.username}
           </span>
@@ -174,7 +157,7 @@ const ChatMessage = ({
         {/* Reply preview */}
         {message.reply_to && message.reply_to_username && (
           <div
-            className={`px-3 py-2 rounded-lg text-xs flex items-start gap-2 cursor-pointer ${
+            className={`px-3 py-2 rounded-lg text-xs flex items-start gap-2 ${
               isOwn ? "flex-row-reverse" : "flex-row"
             }`}
             style={{
@@ -188,7 +171,6 @@ const ChatMessage = ({
                 : undefined,
               maxWidth: "100%",
             }}
-            onClick={handleMessageClick}
           >
             <CornerUpLeft
               className="w-3 h-3 mt-0.5 flex-shrink-0"
@@ -210,12 +192,11 @@ const ChatMessage = ({
 
         {/* Bubble + action buttons */}
         <div className="relative">
-          {/* Clickable bubble */}
+          {/* Message bubble */}
           <div
-            onClick={handleMessageClick}
-            className={`px-4 py-3 rounded-2xl text-sm leading-relaxed break-words cursor-pointer select-none transition-all active:opacity-70 ${
-              activeMessageId === message.id ? "ring-2 ring-primary/50" : ""
-            } ${isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"}`}
+            className={`px-4 py-3 rounded-2xl text-sm leading-relaxed break-words select-none ${
+              isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"
+            }`}
             style={{ direction: "rtl", textAlign: "right" }}
           >
             {message.content}
@@ -262,8 +243,8 @@ const ChatMessage = ({
             </div>
           )}
 
-          {/* Action buttons (تظهر عند التحويم أو عندما تكون الرسالة نشطة) */}
-          {(isHovered || activeMessageId === message.id) && (
+          {/* Action buttons (تظهر عند التحويم) */}
+          {isHovered && (
             <>
               {/* Emoji button */}
               <button
@@ -306,8 +287,8 @@ const ChatMessage = ({
           )}
         </div>
 
-        {/* Reactions display - تظهر فقط عندما تكون الرسالة نشطة */}
-        {activeMessageId === message.id && Object.keys(reactionGroups).length > 0 && (
+        {/* Reactions display - تظهر دائماً أسفل كل رسالة */}
+        {Object.keys(reactionGroups).length > 0 && (
           <div
             className={`flex flex-wrap gap-1 px-1 ${
               isOwn ? "justify-end" : "justify-start"
