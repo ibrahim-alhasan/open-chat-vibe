@@ -20,6 +20,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [onlineCount, setOnlineCount] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -32,10 +33,11 @@ const Index = () => {
   // Fetch initial messages
   useEffect(() => {
     const fetchAll = async () => {
-      const [messagesRes, reactionsRes, profilesRes] = await Promise.all([
+      const [messagesRes, reactionsRes, profilesRes, totalCountRes] = await Promise.all([
         supabase.from("messages").select("*").order("created_at", { ascending: true }).limit(100),
         supabase.from("reactions").select("*"),
         supabase.from("profiles").select("*"),
+        supabase.from("profiles").select("*", { count: 'exact', head: true }),
       ]);
 
       if (!messagesRes.error && messagesRes.data) setMessages(messagesRes.data as Message[]);
@@ -47,6 +49,12 @@ const Index = () => {
         });
         setProfilesMap(map);
       }
+      
+      // تعيين إجمالي عدد المستخدمين
+      if (!totalCountRes.error) {
+        setTotalUsers(totalCountRes.count || 0);
+      }
+      
       setLoading(false);
     };
 
@@ -78,6 +86,18 @@ const Index = () => {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "profiles" }, (payload) => {
         const p = payload.new as { username: string; avatar_url: string | null };
         setProfilesMap((prev) => ({ ...prev, [p.username]: p.avatar_url }));
+        // تحديث العدد الإجمالي
+        setTotalUsers(prev => prev + 1);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "profiles" }, (payload) => {
+        const p = payload.old as { username: string };
+        setProfilesMap((prev) => {
+          const newMap = { ...prev };
+          delete newMap[p.username];
+          return newMap;
+        });
+        // تحديث العدد الإجمالي (ناقص)
+        setTotalUsers(prev => Math.max(0, prev - 1));
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles" }, (payload) => {
         const p = payload.new as { username: string; avatar_url: string | null };
@@ -135,12 +155,24 @@ const Index = () => {
     if (url) localStorage.setItem("chat_avatar_url", url);
     else localStorage.removeItem("chat_avatar_url");
 
-    // Save profile
+    // التحقق من وجود المستخدم قبل الإدراج
+    const { data: existingUser } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("username", name)
+      .maybeSingle();
+
+    // حفظ الملف الشخصي
     await supabase.from("profiles").upsert({
       username: name,
       avatar_url: url,
       updated_at: new Date().toISOString(),
     });
+
+    // إذا كان مستخدم جديد، قم بزيادة العدد الإجمالي
+    if (!existingUser) {
+      setTotalUsers(prev => prev + 1);
+    }
 
     setUsername(name);
     setAvatarUrl(url);
@@ -212,14 +244,22 @@ const Index = () => {
             <h1 className="font-bold text-sm" style={{ color: "hsl(var(--foreground))" }}>
               الدردشة العامة
             </h1>
-            <div className="flex items-center gap-1.5">
-              <span
-                className="w-2 h-2 rounded-full animate-pulse-dot"
-                style={{ background: "hsl(var(--chat-online))" }}
-              />
-              <span className="text-xs" style={{ color: "hsl(var(--chat-online))" }}>
-                {onlineCount} متصل الآن
-              </span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="w-2 h-2 rounded-full animate-pulse-dot"
+                  style={{ background: "hsl(var(--chat-online))" }}
+                />
+                <span className="text-xs" style={{ color: "hsl(var(--chat-online))" }}>
+                  {onlineCount} متصل
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Users className="w-3 h-3" style={{ color: "hsl(var(--muted-foreground))" }} />
+                <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  {totalUsers} إجمالي
+                </span>
+              </div>
             </div>
           </div>
         </div>
