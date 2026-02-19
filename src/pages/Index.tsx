@@ -23,6 +23,7 @@ const Index = () => {
   const [showSettings, setShowSettings] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
 
   const scrollToBottom = useCallback((smooth = true) => {
     bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
@@ -287,16 +288,18 @@ const Index = () => {
           </div>
         ) : (
           messages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={msg}
-              currentUsername={username}
-              currentAvatarUrl={avatarUrl}
-              reactions={reactions.filter((r) => r.message_id === msg.id)}
-              profilesMap={profilesMap}
-              onReply={setReplyTo}
-            />
-          ))
+  <ChatMessage
+    key={msg.id}
+    message={msg}
+    currentUsername={username}
+    currentAvatarUrl={avatarUrl}
+    reactions={reactions.filter((r) => r.message_id === msg.id)}
+    profilesMap={profilesMap}
+    onReply={setReplyTo}
+    activeMessageId={activeMessageId}
+    setActiveMessageId={setActiveMessageId}
+  />
+))
         )}
         <div ref={bottomRef} />
       </div>
