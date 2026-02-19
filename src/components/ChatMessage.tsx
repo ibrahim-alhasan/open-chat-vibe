@@ -1,4 +1,5 @@
 import { Reply, CornerUpLeft } from "lucide-react";
+
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useState } from "react";
@@ -159,8 +160,10 @@ const ChatMessage = ({
 
         {/* Bubble + action buttons */}
         <div className="relative">
+          {/* Clickable bubble */}
           <div
-            className={`px-4 py-3 rounded-2xl text-sm leading-relaxed break-words ${
+            onClick={() => setShowEmojiPicker((v) => !v)}
+            className={`px-4 py-3 rounded-2xl text-sm leading-relaxed break-words cursor-pointer select-none transition-opacity active:opacity-70 ${
               isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"
             }`}
             style={{ direction: "rtl", textAlign: "right" }}
@@ -168,74 +171,54 @@ const ChatMessage = ({
             {message.content}
           </div>
 
-          {/* Action buttons (reply + emoji) */}
-          <div
-            className={`absolute top-1 opacity-0 group-hover:opacity-100 transition-all duration-150 flex gap-1 ${
-              isOwn ? "-left-16" : "-right-16"
-            }`}
-          >
-            {/* Emoji picker trigger */}
-            <div className="relative">
-              <button
-                onClick={() => setShowEmojiPicker((v) => !v)}
-                className="p-1.5 rounded-lg text-sm transition-colors"
-                style={{
-                  background: "hsl(var(--secondary))",
-                  border: "1px solid hsl(var(--border))",
-                  color: "hsl(var(--muted-foreground))",
-                }}
-                title="تفاعل"
-              >
-                😊
-              </button>
-
-              {showEmojiPicker && (
-                <div
-                  className={`absolute bottom-9 flex gap-1 p-2 rounded-xl z-10 animate-fade-in ${
-                    isOwn ? "right-0" : "left-0"
-                  }`}
-                  style={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    boxShadow: "0 8px 32px hsl(220 16% 4% / 0.5)",
-                  }}
-                >
-                  {EMOJIS.map((emoji) => {
-                    const myReaction = reactions.find(
-                      (r) => r.emoji === emoji && r.username === currentUsername
-                    );
-                    return (
-                      <button
-                        key={emoji}
-                        onClick={() => handleReaction(emoji)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-base transition-all hover:scale-125 active:scale-95"
-                        style={{
-                          background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent",
-                          border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent",
-                        }}
-                      >
-                        {emoji}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Reply button */}
-            <button
-              onClick={() => onReply(message)}
-              className="p-1.5 rounded-lg transition-colors"
+          {/* Emoji picker (appears above the bubble) */}
+          {showEmojiPicker && (
+            <div
+              className={`absolute -top-12 flex gap-1 p-2 rounded-2xl z-20 animate-fade-in ${
+                isOwn ? "right-0" : "left-0"
+              }`}
               style={{
-                background: "hsl(var(--secondary))",
+                background: "hsl(var(--card))",
                 border: "1px solid hsl(var(--border))",
-                color: "hsl(var(--muted-foreground))",
+                boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)",
               }}
-              title="رد"
             >
-              <Reply className="w-3.5 h-3.5" />
-            </button>
-          </div>
+              {EMOJIS.map((emoji) => {
+                const myReaction = reactions.find(
+                  (r) => r.emoji === emoji && r.username === currentUsername
+                );
+                return (
+                  <button
+                    key={emoji}
+                    onClick={(e) => { e.stopPropagation(); handleReaction(emoji); }}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl text-lg transition-all hover:scale-125 active:scale-90"
+                    style={{
+                      background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent",
+                      border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent",
+                    }}
+                  >
+                    {emoji}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Reply button (on hover) */}
+          <button
+            onClick={() => onReply(message)}
+            className={`absolute top-1 opacity-0 group-hover:opacity-100 transition-all duration-150 p-1.5 rounded-lg ${
+              isOwn ? "-left-8" : "-right-8"
+            }`}
+            style={{
+              background: "hsl(var(--secondary))",
+              border: "1px solid hsl(var(--border))",
+              color: "hsl(var(--muted-foreground))",
+            }}
+            title="رد"
+          >
+            <Reply className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         {/* Reactions display */}
