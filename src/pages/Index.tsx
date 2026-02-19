@@ -1,22 +1,26 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import ChatMessage, { Message } from "@/components/ChatMessage";
+import ChatMessage, { Message, Reaction } from "@/components/ChatMessage";
 import UsernameModal from "@/components/UsernameModal";
-import { Send, X, MessageCircle, Users, CornerUpLeft, LogOut } from "lucide-react";
+import SettingsModal from "@/components/SettingsModal";
+import { Send, X, MessageCircle, Users, CornerUpLeft, LogOut, Settings } from "lucide-react";
 
 const Index = () => {
   const [username, setUsername] = useState<string | null>(() =>
     localStorage.getItem("chat_username")
   );
-  const [avatar, setAvatar] = useState<string | null>(() =>
-    localStorage.getItem("chat_avatar")
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() =>
+    localStorage.getItem("chat_avatar_url")
   );
   const [messages, setMessages] = useState<Message[]>([]);
+  const [reactions, setReactions] = useState<Reaction[]>([]);
+  const [profilesMap, setProfilesMap] = useState<Record<string, string | null>>({});
   const [input, setInput] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [onlineCount, setOnlineCount] = useState(1);
+  const [showSettings, setShowSettings] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -26,42 +30,61 @@ const Index = () => {
 
   // Fetch initial messages
   useEffect(() => {
-    const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("*")
-        .order("created_at", { ascending: true })
-        .limit(100);
+    const fetchAll = async () => {
+      const [messagesRes, reactionsRes, profilesRes] = await Promise.all([
+        supabase.from("messages").select("*").order("created_at", { ascending: true }).limit(100),
+        supabase.from("reactions").select("*"),
+        supabase.from("profiles").select("*"),
+      ]);
 
-      if (!error && data) {
-        setMessages(data as Message[]);
+      if (!messagesRes.error && messagesRes.data) setMessages(messagesRes.data as Message[]);
+      if (!reactionsRes.error && reactionsRes.data) setReactions(reactionsRes.data as Reaction[]);
+      if (!profilesRes.error && profilesRes.data) {
+        const map: Record<string, string | null> = {};
+        profilesRes.data.forEach((p: { username: string; avatar_url: string | null }) => {
+          map[p.username] = p.avatar_url;
+        });
+        setProfilesMap(map);
       }
       setLoading(false);
     };
 
-    fetchMessages();
+    fetchAll();
   }, []);
 
-  // Realtime subscription
+  // Realtime subscriptions
   useEffect(() => {
     const channel = supabase
-      .channel("public-chat")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const newMessage = payload.new as Message;
-          setMessages((prev) => {
-            if (prev.find((m) => m.id === newMessage.id)) return prev;
-            return [...prev, newMessage];
-          });
-        }
-      )
+      .channel("public-chat-all")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        const newMessage = payload.new as Message;
+        setMessages((prev) => {
+          if (prev.find((m) => m.id === newMessage.id)) return prev;
+          return [...prev, newMessage];
+        });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reactions" }, (payload) => {
+        const r = payload.new as Reaction;
+        setReactions((prev) => {
+          if (prev.find((x) => x.id === r.id)) return prev;
+          return [...prev, r];
+        });
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "reactions" }, (payload) => {
+        const deleted = payload.old as { id: string };
+        setReactions((prev) => prev.filter((r) => r.id !== deleted.id));
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "profiles" }, (payload) => {
+        const p = payload.new as { username: string; avatar_url: string | null };
+        setProfilesMap((prev) => ({ ...prev, [p.username]: p.avatar_url }));
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles" }, (payload) => {
+        const p = payload.new as { username: string; avatar_url: string | null };
+        setProfilesMap((prev) => ({ ...prev, [p.username]: p.avatar_url }));
+      })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   // Presence for online count
@@ -83,9 +106,7 @@ const Index = () => {
         }
       });
 
-    return () => {
-      supabase.removeChannel(presenceChannel);
-    };
+    return () => { supabase.removeChannel(presenceChannel); };
   }, [username]);
 
   // Scroll on new messages
@@ -93,11 +114,36 @@ const Index = () => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  const handleJoin = (name: string, avatarDataUrl?: string) => {
+  const handleJoin = async (name: string, avatarFile?: File | null) => {
     localStorage.setItem("chat_username", name);
-    if (avatarDataUrl) localStorage.setItem("chat_avatar", avatarDataUrl);
+    let url: string | null = null;
+
+    if (avatarFile) {
+      const ext = avatarFile.name.split(".").pop();
+      const fileName = `${name}_${Date.now()}.${ext}`;
+      const { data, error } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, avatarFile, { upsert: true });
+
+      if (!error && data) {
+        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(data.path);
+        url = urlData.publicUrl;
+      }
+    }
+
+    if (url) localStorage.setItem("chat_avatar_url", url);
+    else localStorage.removeItem("chat_avatar_url");
+
+    // Save profile
+    await supabase.from("profiles").upsert({
+      username: name,
+      avatar_url: url,
+      updated_at: new Date().toISOString(),
+    });
+
     setUsername(name);
-    setAvatar(avatarDataUrl ?? null);
+    setAvatarUrl(url);
+    setProfilesMap((prev) => ({ ...prev, [name]: url }));
   };
 
   const handleSend = async () => {
@@ -128,9 +174,15 @@ const Index = () => {
 
   const handleLeave = () => {
     localStorage.removeItem("chat_username");
-    localStorage.removeItem("chat_avatar");
+    localStorage.removeItem("chat_avatar_url");
     setUsername(null);
-    setAvatar(null);
+    setAvatarUrl(null);
+  };
+
+  const handleSettingsSave = (newUsername: string, newAvatarUrl: string | null) => {
+    setUsername(newUsername);
+    setAvatarUrl(newAvatarUrl);
+    setProfilesMap((prev) => ({ ...prev, [newUsername]: newAvatarUrl }));
   };
 
   if (!username) {
@@ -138,10 +190,7 @@ const Index = () => {
   }
 
   return (
-    <div
-      className="flex flex-col h-screen"
-      style={{ background: "hsl(var(--chat-bg))" }}
-    >
+    <div className="flex flex-col h-screen" style={{ background: "hsl(var(--chat-bg))" }}>
       {/* Header */}
       <header
         className="flex-shrink-0 px-4 py-3 flex items-center justify-between"
@@ -178,25 +227,32 @@ const Index = () => {
           <Users className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
           <span
             className="text-xs px-2 py-1 rounded-lg"
-            style={{
-              background: "hsl(var(--secondary))",
-              color: "hsl(var(--secondary-foreground))",
-            }}
+            style={{ background: "hsl(var(--secondary))", color: "hsl(var(--secondary-foreground))" }}
           >
             {username}
           </span>
           {/* Avatar in header */}
-          {avatar && (
+          {avatarUrl ? (
             <img
-              src={avatar}
+              src={avatarUrl}
               alt="avatar"
-              className="w-8 h-8 rounded-full object-cover"
+              className="w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
               style={{ border: "2px solid hsl(var(--primary) / 0.5)" }}
+              onClick={() => setShowSettings(true)}
             />
-          )}
+          ) : null}
+          {/* Settings button */}
+          <button
+            onClick={() => setShowSettings(true)}
+            title="الإعدادات"
+            className="p-1.5 rounded-lg transition-colors hover:opacity-70"
+            style={{ color: "hsl(var(--muted-foreground))" }}
+          >
+            <Settings className="w-4 h-4" />
+          </button>
           <button
             onClick={handleLeave}
-            title="تغيير الاسم"
+            title="تسجيل الخروج"
             className="p-1.5 rounded-lg transition-colors hover:opacity-70"
             style={{ color: "hsl(var(--muted-foreground))" }}
           >
@@ -242,7 +298,9 @@ const Index = () => {
               key={msg.id}
               message={msg}
               currentUsername={username}
-              currentAvatar={avatar}
+              currentAvatarUrl={avatarUrl}
+              reactions={reactions.filter((r) => r.message_id === msg.id)}
+              profilesMap={profilesMap}
               onReply={setReplyTo}
             />
           ))
@@ -282,10 +340,7 @@ const Index = () => {
       )}
 
       {/* Input area */}
-      <div
-        className="flex-shrink-0 px-4 pb-4"
-        style={{ paddingTop: replyTo ? "0" : "0.5rem" }}
-      >
+      <div className="flex-shrink-0 px-4 pb-4" style={{ paddingTop: replyTo ? "0" : "0.5rem" }}>
         <div
           className="flex items-end gap-3 p-3 rounded-2xl"
           style={{
@@ -343,6 +398,16 @@ const Index = () => {
           اضغط Enter للإرسال • Shift+Enter لسطر جديد
         </p>
       </div>
+
+      {/* Settings modal */}
+      {showSettings && (
+        <SettingsModal
+          currentUsername={username}
+          currentAvatarUrl={avatarUrl}
+          onClose={() => setShowSettings(false)}
+          onSave={handleSettingsSave}
+        />
+      )}
     </div>
   );
 };
