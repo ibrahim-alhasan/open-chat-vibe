@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import ChatMessage, { Message, Reaction } from "@/components/ChatMessage";
 import UsernameModal from "@/components/UsernameModal";
 import SettingsModal from "@/components/SettingsModal";
-import { Send, X, MessageCircle, Users, CornerUpLeft, LogOut, Settings } from "lucide-react";
+import UserProfileModal from "@/components/UserProfileModal";
+import DirectMessages from "@/pages/DirectMessages";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare } from "lucide-react";
 
 const Index = () => {
   const [username, setUsername] = useState<string | null>(() =>
@@ -22,13 +24,52 @@ const Index = () => {
   const [onlineCount, setOnlineCount] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDMs, setShowDMs] = useState(false);
+  const [dmInitialUser, setDmInitialUser] = useState<string | null>(null);
+  const [profileModal, setProfileModal] = useState<string | null>(null);
+  const [unreadDMs, setUnreadDMs] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
 
   const scrollToBottom = useCallback((smooth = true) => {
     bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
   }, []);
+
+  // Fetch unread DMs count
+  useEffect(() => {
+    if (!username) return;
+    const fetchUnread = async () => {
+      const { count } = await supabase
+        .from("direct_messages")
+        .select("*", { count: "exact", head: true })
+        .eq("receiver_username", username)
+        .eq("is_read", false);
+      setUnreadDMs(count || 0);
+    };
+    fetchUnread();
+  }, [username]);
+
+  // Realtime unread DMs
+  useEffect(() => {
+    if (!username) return;
+    const channel = supabase
+      .channel(`unread-dm-${username}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, (payload) => {
+        const msg = payload.new as { receiver_username: string; is_read: boolean };
+        if (msg.receiver_username === username && !msg.is_read) {
+          setUnreadDMs((prev) => prev + 1);
+        }
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "direct_messages" }, (payload) => {
+        const msg = payload.new as { receiver_username: string; is_read: boolean };
+        const old = payload.old as { is_read: boolean };
+        if (msg.receiver_username === username && !old.is_read && msg.is_read) {
+          setUnreadDMs((prev) => Math.max(0, prev - 1));
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [username]);
 
   // Fetch initial messages
   useEffect(() => {
@@ -50,7 +91,6 @@ const Index = () => {
         setProfilesMap(map);
       }
       
-      // تعيين إجمالي عدد المستخدمين
       if (!totalCountRes.error) {
         setTotalUsers(totalCountRes.count || 0);
       }
@@ -222,6 +262,17 @@ const Index = () => {
     return <UsernameModal onJoin={handleJoin} />;
   }
 
+  if (showDMs) {
+    return (
+      <DirectMessages
+        currentUsername={username}
+        profilesMap={profilesMap}
+        initialConversation={dmInitialUser}
+        onBack={() => { setShowDMs(false); setDmInitialUser(null); setUnreadDMs(0); }}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen" style={{ background: "hsl(var(--chat-bg))" }}>
       {/* Header */}
@@ -265,13 +316,28 @@ const Index = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Users className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
-          <span
-            className="text-xs px-2 py-1 rounded-lg"
-            style={{ background: "hsl(var(--secondary))", color: "hsl(var(--secondary-foreground))" }}
+          {/* DMs button */}
+          <button
+            onClick={() => { setDmInitialUser(null); setShowDMs(true); }}
+            title="الرسائل الخاصة"
+            className="relative p-1.5 rounded-lg transition-colors hover:opacity-70"
+            style={{ color: "hsl(var(--muted-foreground))" }}
           >
-            {username}
-          </span>
+            <MessageSquare className="w-4 h-4" />
+            {unreadDMs > 0 && (
+              <span
+                className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full text-xs font-bold flex items-center justify-center px-0.5"
+                style={{
+                  background: "hsl(var(--primary))",
+                  color: "hsl(var(--primary-foreground))",
+                  fontSize: "10px",
+                }}
+              >
+                {unreadDMs}
+              </span>
+            )}
+          </button>
+
           {/* Avatar in header */}
           {avatarUrl ? (
             <img
@@ -291,7 +357,6 @@ const Index = () => {
           >
             <Settings className="w-4 h-4" />
           </button>
-          
         </div>
       </header>
 
@@ -336,8 +401,7 @@ const Index = () => {
     reactions={reactions.filter((r) => r.message_id === msg.id)}
     profilesMap={profilesMap}
     onReply={setReplyTo}
-    activeMessageId={activeMessageId}
-    setActiveMessageId={setActiveMessageId}
+    onUsernameClick={(u) => setProfileModal(u)}
   />
 ))
         )}
@@ -442,8 +506,24 @@ const Index = () => {
           onSave={handleSettingsSave}
         />
       )}
+
+      {/* User Profile Modal */}
+      {profileModal && (
+        <UserProfileModal
+          username={profileModal}
+          avatarUrl={profilesMap[profileModal]}
+          currentUsername={username}
+          onClose={() => setProfileModal(null)}
+          onStartDM={(u) => {
+            setDmInitialUser(u);
+            setShowDMs(true);
+            setProfileModal(null);
+          }}
+        />
+      )}
     </div>
   );
 };
 
 export default Index;
+

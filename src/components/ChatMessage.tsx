@@ -29,6 +29,7 @@ interface ChatMessageProps {
   reactions: Reaction[];
   profilesMap: Record<string, string | null>;
   onReply: (message: Message) => void;
+  onUsernameClick?: (username: string) => void;
 }
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
@@ -61,6 +62,7 @@ const ChatMessage = ({
   reactions,
   profilesMap,
   onReply,
+  onUsernameClick,
 }: ChatMessageProps) => {
   const isOwn = message.username === currentUsername;
   const userColor = getUserColor(message.username);
@@ -340,7 +342,11 @@ const ChatMessage = ({
 
         {/* Username & time */}
         <div className={`flex items-center gap-2 px-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
-          <span className="text-xs font-semibold" style={{ color: userColor }}>
+          <span
+            className={`text-xs font-semibold ${!isOwn ? "cursor-pointer hover:underline" : ""}`}
+            style={{ color: userColor }}
+            onClick={!isOwn && onUsernameClick ? (e) => { e.stopPropagation(); onUsernameClick(message.username); } : undefined}
+          >
             {isOwn ? "أنت" : message.username}
           </span>
           <span className="text-xs" style={{ color: "hsl(var(--chat-timestamp))" }}>
