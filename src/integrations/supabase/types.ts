@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      direct_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_read: boolean
+          receiver_username: string
+          sender_username: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          receiver_username: string
+          sender_username: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          receiver_username?: string
+          sender_username?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
