@@ -5,11 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 interface SettingsModalProps {
   currentUsername: string;
   currentAvatarUrl: string | null;
+  userId: string;
   onClose: () => void;
   onSave: (newUsername: string, newAvatarUrl: string | null) => void;
 }
 
-const SettingsModal = ({ currentUsername, currentAvatarUrl, onClose, onSave }: SettingsModalProps) => {
+const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onSave }: SettingsModalProps) => {
   const [username, setUsername] = useState(currentUsername);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(currentAvatarUrl);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -39,7 +40,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, onClose, onSave }: S
     // Upload new avatar if changed
     if (avatarFile) {
       const ext = avatarFile.name.split(".").pop();
-      const fileName = `${trimmed}_${Date.now()}.${ext}`;
+      const fileName = `${userId}_${Date.now()}.${ext}`;
       const { data, error: uploadError } = await supabase.storage
         .from("avatars")
         .upload(fileName, avatarFile, { upsert: true });
@@ -52,12 +53,11 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, onClose, onSave }: S
       }
     }
 
-    // Upsert profile
-    await supabase.from("profiles").upsert({
-      username: trimmed,
-      avatar_url: avatarUrl,
-      updated_at: new Date().toISOString(),
-    });
+    // Upsert profile by user_id
+    await supabase.from("profiles").upsert(
+      { user_id: userId, username: trimmed, avatar_url: avatarUrl, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
 
     // Update localStorage
     localStorage.setItem("chat_username", trimmed);

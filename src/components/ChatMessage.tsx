@@ -297,17 +297,19 @@ const ChatMessage = ({
         <img
           src={avatarUrl}
           alt="avatar"
-          className="w-9 h-9 rounded-full flex-shrink-0 object-cover mt-1"
+          className={`w-9 h-9 rounded-full flex-shrink-0 object-cover mt-1 ${!isOwn && onUsernameClick ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
           style={{ border: `2px solid ${userColor}55` }}
+          onClick={!isOwn && onUsernameClick ? (e) => { e.stopPropagation(); onUsernameClick(message.username); } : undefined}
         />
       ) : (
         <div
-          className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-1"
+          className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-1 ${!isOwn && onUsernameClick ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
           style={{
             background: `${userColor}22`,
             border: `2px solid ${userColor}55`,
             color: userColor,
           }}
+          onClick={!isOwn && onUsernameClick ? (e) => { e.stopPropagation(); onUsernameClick(message.username); } : undefined}
         >
           {getInitials(message.username)}
         </div>

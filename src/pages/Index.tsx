@@ -8,6 +8,16 @@ import DirectMessages from "@/pages/DirectMessages";
 import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare } from "lucide-react";
 
 const Index = () => {
+  // Generate or retrieve a persistent unique user ID
+  const [userId] = useState<string>(() => {
+    let id = localStorage.getItem("chat_user_id");
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem("chat_user_id", id);
+    }
+    return id;
+  });
+
   const [username, setUsername] = useState<string | null>(() =>
     localStorage.getItem("chat_username")
   );
@@ -181,7 +191,7 @@ const Index = () => {
 
     if (avatarFile) {
       const ext = avatarFile.name.split(".").pop();
-      const fileName = `${name}_${Date.now()}.${ext}`;
+      const fileName = `${userId}_${Date.now()}.${ext}`;
       const { data, error } = await supabase.storage
         .from("avatars")
         .upload(fileName, avatarFile, { upsert: true });
@@ -195,24 +205,19 @@ const Index = () => {
     if (url) localStorage.setItem("chat_avatar_url", url);
     else localStorage.removeItem("chat_avatar_url");
 
-    // التحقق من وجود المستخدم قبل الإدراج
+    // Upsert profile by user_id (prevents duplicate usernames for same device)
     const { data: existingUser } = await supabase
       .from("profiles")
       .select("username")
-      .eq("username", name)
+      .eq("user_id", userId)
       .maybeSingle();
 
-    // حفظ الملف الشخصي
-    await supabase.from("profiles").upsert({
-      username: name,
-      avatar_url: url,
-      updated_at: new Date().toISOString(),
-    });
+    await supabase.from("profiles").upsert(
+      { user_id: userId, username: name, avatar_url: url, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
 
-    // إذا كان مستخدم جديد، قم بزيادة العدد الإجمالي
-    if (!existingUser) {
-      setTotalUsers(prev => prev + 1);
-    }
+    if (!existingUser) setTotalUsers(prev => prev + 1);
 
     setUsername(name);
     setAvatarUrl(url);
@@ -228,6 +233,7 @@ const Index = () => {
 
     await supabase.from("messages").insert({
       username,
+      user_id: userId,
       content,
       reply_to: replyTo?.id ?? null,
       reply_to_username: replyTo?.username ?? null,
@@ -502,6 +508,7 @@ const Index = () => {
         <SettingsModal
           currentUsername={username}
           currentAvatarUrl={avatarUrl}
+          userId={userId}
           onClose={() => setShowSettings(false)}
           onSave={handleSettingsSave}
         />
