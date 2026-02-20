@@ -20,7 +20,9 @@ export type Database = {
           created_at: string
           id: string
           is_read: boolean
+          receiver_user_id: string | null
           receiver_username: string
+          sender_user_id: string | null
           sender_username: string
         }
         Insert: {
@@ -28,7 +30,9 @@ export type Database = {
           created_at?: string
           id?: string
           is_read?: boolean
+          receiver_user_id?: string | null
           receiver_username: string
+          sender_user_id?: string | null
           sender_username: string
         }
         Update: {
@@ -36,7 +40,9 @@ export type Database = {
           created_at?: string
           id?: string
           is_read?: boolean
+          receiver_user_id?: string | null
           receiver_username?: string
+          sender_user_id?: string | null
           sender_username?: string
         }
         Relationships: []
@@ -49,6 +55,7 @@ export type Database = {
           reply_to: string | null
           reply_to_content: string | null
           reply_to_username: string | null
+          user_id: string | null
           username: string
         }
         Insert: {
@@ -58,6 +65,7 @@ export type Database = {
           reply_to?: string | null
           reply_to_content?: string | null
           reply_to_username?: string | null
+          user_id?: string | null
           username: string
         }
         Update: {
@@ -67,6 +75,7 @@ export type Database = {
           reply_to?: string | null
           reply_to_content?: string | null
           reply_to_username?: string | null
+          user_id?: string | null
           username?: string
         }
         Relationships: [
@@ -83,16 +92,19 @@ export type Database = {
         Row: {
           avatar_url: string | null
           updated_at: string
+          user_id: string | null
           username: string
         }
         Insert: {
           avatar_url?: string | null
           updated_at?: string
+          user_id?: string | null
           username: string
         }
         Update: {
           avatar_url?: string | null
           updated_at?: string
+          user_id?: string | null
           username?: string
         }
         Relationships: []
