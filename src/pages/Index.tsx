@@ -303,7 +303,13 @@ const Index = () => {
         profilesMap={profilesMap}
         onlineUsers={onlineUsers}
         initialConversationUserId={dmInitialUserId}
-        onBack={() => { setShowDMs(false); setDmInitialUserId(null); setUnreadDMs(0); }}
+        onBack={() => { 
+          setShowDMs(false); 
+          setDmInitialUserId(null); 
+          setUnreadDMs(0);
+          // إعادة تعيين الـ history عند العودة
+          window.history.replaceState({ page: 'public-chat' }, '', '/');
+        }}
       />
     );
   }
@@ -352,7 +358,10 @@ const Index = () => {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => { setDmInitialUserId(null); setShowDMs(true); }}
+            onClick={() => { 
+              setDmInitialUserId(null); 
+              setShowDMs(true); 
+            }}
             title="الرسائل الخاصة"
             className="relative p-1.5 rounded-lg transition-colors hover:opacity-70"
             style={{ color: "hsl(var(--muted-foreground))" }}
