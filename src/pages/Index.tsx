@@ -8,7 +8,6 @@ import DirectMessages from "@/pages/DirectMessages";
 import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare } from "lucide-react";
 
 const Index = () => {
-  // Generate or retrieve a persistent unique user ID
   const [userId] = useState<string>(() => {
     let id = localStorage.getItem("chat_user_id");
     if (!id) {
@@ -26,62 +25,69 @@ const Index = () => {
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
-  const [profilesMap, setProfilesMap] = useState<Record<string, string | null>>({});
+  const [profilesMap, setProfilesMap] = useState<Record<string, { username: string; avatar_url: string | null }>>({});
   const [input, setInput] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [onlineCount, setOnlineCount] = useState(1);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [totalUsers, setTotalUsers] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [showDMs, setShowDMs] = useState(false);
-  const [dmInitialUser, setDmInitialUser] = useState<string | null>(null);
-  const [profileModal, setProfileModal] = useState<string | null>(null);
+  const [dmInitialUserId, setDmInitialUserId] = useState<string | null>(null);
+  const [profileModal, setProfileModal] = useState<string | null>(null); // user_id
   const [unreadDMs, setUnreadDMs] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const scrollToBottom = useCallback((smooth = true) => {
     bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
   }, []);
 
-  // Fetch unread DMs count
+  // Helper to get profile info by user_id
+  const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
+
+  // Fetch unread DMs count by user_id
   useEffect(() => {
-    if (!username) return;
+    if (!userId) return;
     const fetchUnread = async () => {
       const { count } = await supabase
         .from("direct_messages")
         .select("*", { count: "exact", head: true })
-        .eq("receiver_username", username)
+        .eq("receiver_user_id", userId)
         .eq("is_read", false);
       setUnreadDMs(count || 0);
     };
     fetchUnread();
-  }, [username]);
+  }, [userId]);
 
-  // Realtime unread DMs
+  // Realtime unread DMs by user_id
   useEffect(() => {
-    if (!username) return;
+    if (!userId) return;
     const channel = supabase
-      .channel(`unread-dm-${username}`)
+      .channel(`unread-dm-${userId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, (payload) => {
-        const msg = payload.new as { receiver_username: string; is_read: boolean };
-        if (msg.receiver_username === username && !msg.is_read) {
+        const msg = payload.new as { receiver_user_id: string | null; is_read: boolean };
+        if (msg.receiver_user_id === userId && !msg.is_read) {
           setUnreadDMs((prev) => prev + 1);
         }
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "direct_messages" }, (payload) => {
-        const msg = payload.new as { receiver_username: string; is_read: boolean };
+        const msg = payload.new as { receiver_user_id: string | null; is_read: boolean };
         const old = payload.old as { is_read: boolean };
-        if (msg.receiver_username === username && !old.is_read && msg.is_read) {
+        if (msg.receiver_user_id === userId && !old.is_read && msg.is_read) {
           setUnreadDMs((prev) => Math.max(0, prev - 1));
         }
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [username]);
+  }, [userId]);
 
-  // Fetch initial messages
+  // Fetch initial data
   useEffect(() => {
     const fetchAll = async () => {
       const [messagesRes, reactionsRes, profilesRes, totalCountRes] = await Promise.all([
@@ -94,20 +100,17 @@ const Index = () => {
       if (!messagesRes.error && messagesRes.data) setMessages(messagesRes.data as Message[]);
       if (!reactionsRes.error && reactionsRes.data) setReactions(reactionsRes.data as Reaction[]);
       if (!profilesRes.error && profilesRes.data) {
-        const map: Record<string, string | null> = {};
-        profilesRes.data.forEach((p: { username: string; avatar_url: string | null }) => {
-          map[p.username] = p.avatar_url;
+        const map: Record<string, { username: string; avatar_url: string | null }> = {};
+        profilesRes.data.forEach((p: { user_id: string | null; username: string; avatar_url: string | null }) => {
+          if (p.user_id) {
+            map[p.user_id] = { username: p.username, avatar_url: p.avatar_url };
+          }
         });
         setProfilesMap(map);
       }
-      
-      if (!totalCountRes.error) {
-        setTotalUsers(totalCountRes.count || 0);
-      }
-      
+      if (!totalCountRes.error) setTotalUsers(totalCountRes.count || 0);
       setLoading(false);
     };
-
     fetchAll();
   }, []);
 
@@ -133,57 +136,85 @@ const Index = () => {
         const deleted = payload.old as { id: string };
         setReactions((prev) => prev.filter((r) => r.id !== deleted.id));
       })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "profiles" }, (payload) => {
-        const p = payload.new as { username: string; avatar_url: string | null };
-        setProfilesMap((prev) => ({ ...prev, [p.username]: p.avatar_url }));
-        // تحديث العدد الإجمالي
-        setTotalUsers(prev => prev + 1);
-      })
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "profiles" }, (payload) => {
-        const p = payload.old as { username: string };
-        setProfilesMap((prev) => {
-          const newMap = { ...prev };
-          delete newMap[p.username];
-          return newMap;
-        });
-        // تحديث العدد الإجمالي (ناقص)
-        setTotalUsers(prev => Math.max(0, prev - 1));
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles" }, (payload) => {
-        const p = payload.new as { username: string; avatar_url: string | null };
-        setProfilesMap((prev) => ({ ...prev, [p.username]: p.avatar_url }));
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, (payload) => {
+        if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
+          const p = payload.new as { user_id: string | null; username: string; avatar_url: string | null };
+          if (p.user_id) {
+            setProfilesMap((prev) => ({ ...prev, [p.user_id!]: { username: p.username, avatar_url: p.avatar_url } }));
+          }
+          if (payload.eventType === "INSERT") setTotalUsers(prev => prev + 1);
+        }
+        if (payload.eventType === "DELETE") {
+          const p = payload.old as { user_id: string | null };
+          if (p.user_id) {
+            setProfilesMap((prev) => {
+              const newMap = { ...prev };
+              delete newMap[p.user_id!];
+              return newMap;
+            });
+          }
+          setTotalUsers(prev => Math.max(0, prev - 1));
+        }
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Presence for online count
+  // Presence for online count + typing
   useEffect(() => {
-    if (!username) return;
+    if (!username || !userId) return;
 
     const presenceChannel = supabase.channel("presence-chat", {
-      config: { presence: { key: username } },
+      config: { presence: { key: userId } },
     });
 
     presenceChannel
       .on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();
-        setOnlineCount(Object.keys(state).length);
+        const keys = Object.keys(state);
+        setOnlineCount(keys.length);
+        setOnlineUsers(new Set(keys));
+        
+        // Check typing status
+        const typing = new Set<string>();
+        keys.forEach(key => {
+          const presences = state[key] as any[];
+          if (presences && presences.length > 0 && presences[0].is_typing && key !== userId) {
+            typing.add(key);
+          }
+        });
+        setTypingUsers(typing);
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          await presenceChannel.track({ username, online_at: new Date().toISOString() });
+          await presenceChannel.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
         }
       });
 
-    return () => { supabase.removeChannel(presenceChannel); };
-  }, [username]);
+    presenceChannelRef.current = presenceChannel;
+
+    return () => { 
+      supabase.removeChannel(presenceChannel);
+      presenceChannelRef.current = null;
+    };
+  }, [username, userId]);
 
   // Scroll on new messages
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  // Handle typing indicator
+  const handleTyping = () => {
+    if (!presenceChannelRef.current) return;
+    presenceChannelRef.current.track({ user_id: userId, username, is_typing: true, online_at: new Date().toISOString() });
+    
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
+    }, 2000);
+  };
 
   const handleJoin = async (name: string, avatarFile?: File | null) => {
     localStorage.setItem("chat_username", name);
@@ -195,7 +226,6 @@ const Index = () => {
       const { data, error } = await supabase.storage
         .from("avatars")
         .upload(fileName, avatarFile, { upsert: true });
-
       if (!error && data) {
         const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(data.path);
         url = urlData.publicUrl;
@@ -205,23 +235,14 @@ const Index = () => {
     if (url) localStorage.setItem("chat_avatar_url", url);
     else localStorage.removeItem("chat_avatar_url");
 
-    // Upsert profile by user_id (prevents duplicate usernames for same device)
-    const { data: existingUser } = await supabase
-      .from("profiles")
-      .select("username")
-      .eq("user_id", userId)
-      .maybeSingle();
-
     await supabase.from("profiles").upsert(
       { user_id: userId, username: name, avatar_url: url, updated_at: new Date().toISOString() },
       { onConflict: "user_id" }
     );
 
-    if (!existingUser) setTotalUsers(prev => prev + 1);
-
     setUsername(name);
     setAvatarUrl(url);
-    setProfilesMap((prev) => ({ ...prev, [name]: url }));
+    setProfilesMap((prev) => ({ ...prev, [userId]: { username: name, avatar_url: url } }));
   };
 
   const handleSend = async () => {
@@ -231,12 +252,15 @@ const Index = () => {
     setReplyTo(null);
     setSending(true);
 
+    // Stop typing
+    presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
+
     await supabase.from("messages").insert({
       username,
       user_id: userId,
       content,
       reply_to: replyTo?.id ?? null,
-      reply_to_username: replyTo?.username ?? null,
+      reply_to_username: replyTo ? getProfile(replyTo.user_id || "").username : null,
       reply_to_content: replyTo?.content?.slice(0, 80) ?? null,
     });
 
@@ -261,8 +285,11 @@ const Index = () => {
   const handleSettingsSave = (newUsername: string, newAvatarUrl: string | null) => {
     setUsername(newUsername);
     setAvatarUrl(newAvatarUrl);
-    setProfilesMap((prev) => ({ ...prev, [newUsername]: newAvatarUrl }));
+    setProfilesMap((prev) => ({ ...prev, [userId]: { username: newUsername, avatar_url: newAvatarUrl } }));
   };
+
+  // Get typing users names
+  const typingNames = Array.from(typingUsers).map(uid => getProfile(uid).username).filter(Boolean);
 
   if (!username) {
     return <UsernameModal onJoin={handleJoin} />;
@@ -271,16 +298,18 @@ const Index = () => {
   if (showDMs) {
     return (
       <DirectMessages
+        currentUserId={userId}
         currentUsername={username}
         profilesMap={profilesMap}
-        initialConversation={dmInitialUser}
-        onBack={() => { setShowDMs(false); setDmInitialUser(null); setUnreadDMs(0); }}
+        onlineUsers={onlineUsers}
+        initialConversationUserId={dmInitialUserId}
+        onBack={() => { setShowDMs(false); setDmInitialUserId(null); setUnreadDMs(0); }}
       />
     );
   }
 
   return (
-    <div className="flex flex-col h-screen" style={{ background: "hsl(var(--chat-bg))" }}>
+    <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
       {/* Header */}
       <header
         className="flex-shrink-0 px-4 py-3 flex items-center justify-between"
@@ -322,9 +351,8 @@ const Index = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* DMs button */}
           <button
-            onClick={() => { setDmInitialUser(null); setShowDMs(true); }}
+            onClick={() => { setDmInitialUserId(null); setShowDMs(true); }}
             title="الرسائل الخاصة"
             className="relative p-1.5 rounded-lg transition-colors hover:opacity-70"
             style={{ color: "hsl(var(--muted-foreground))" }}
@@ -344,7 +372,6 @@ const Index = () => {
             )}
           </button>
 
-          {/* Avatar in header */}
           {avatarUrl ? (
             <img
               src={avatarUrl}
@@ -354,7 +381,6 @@ const Index = () => {
               onClick={() => setShowSettings(true)}
             />
           ) : null}
-          {/* Settings button */}
           <button
             onClick={() => setShowSettings(true)}
             title="الإعدادات"
@@ -398,21 +424,44 @@ const Index = () => {
             </div>
           </div>
         ) : (
-          messages.map((msg) => (
-  <ChatMessage
-    key={msg.id}
-    message={msg}
-    currentUsername={username}
-    currentAvatarUrl={avatarUrl}
-    reactions={reactions.filter((r) => r.message_id === msg.id)}
-    profilesMap={profilesMap}
-    onReply={setReplyTo}
-    onUsernameClick={(u) => setProfileModal(u)}
-  />
-))
+          messages.map((msg) => {
+            const msgProfile = msg.user_id ? getProfile(msg.user_id) : { username: msg.username, avatar_url: null };
+            return (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                currentUserId={userId}
+                currentUsername={username}
+                currentAvatarUrl={avatarUrl}
+                reactions={reactions.filter((r) => r.message_id === msg.id)}
+                profilesMap={profilesMap}
+                isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false}
+                onReply={setReplyTo}
+                onUsernameClick={(uid) => setProfileModal(uid)}
+              />
+            );
+          })
         )}
         <div ref={bottomRef} />
       </div>
+
+      {/* Typing indicator */}
+      {typingNames.length > 0 && (
+        <div className="flex-shrink-0 px-6 py-1.5 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <div className="flex gap-0.5">
+              <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "hsl(var(--primary))", animationDelay: "0ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "hsl(var(--primary))", animationDelay: "150ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "hsl(var(--primary))", animationDelay: "300ms" }} />
+            </div>
+            <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+              {typingNames.length === 1
+                ? `${typingNames[0]} يكتب...`
+                : `${typingNames.join(" و ")} يكتبون...`}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Reply preview */}
       {replyTo && (
@@ -428,7 +477,7 @@ const Index = () => {
             <CornerUpLeft className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
             <div className="min-w-0">
               <p className="text-xs font-semibold" style={{ color: "hsl(var(--primary))" }}>
-                رد على {replyTo.username}
+                رد على {replyTo.user_id ? getProfile(replyTo.user_id).username : replyTo.username}
               </p>
               <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
                 {replyTo.content}
@@ -470,12 +519,13 @@ const Index = () => {
               setInput(e.target.value);
               e.target.style.height = "auto";
               e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+              handleTyping();
             }}
             onKeyDown={handleKeyDown}
             placeholder="اكتب رسالتك هنا..."
             rows={1}
             maxLength={500}
-            className="flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed"
+            className="flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed select-text"
             style={{
               color: "hsl(var(--foreground))",
               minHeight: "24px",
@@ -500,7 +550,6 @@ const Index = () => {
             />
           </button>
         </div>
-
       </div>
 
       {/* Settings modal */}
@@ -517,12 +566,14 @@ const Index = () => {
       {/* User Profile Modal */}
       {profileModal && (
         <UserProfileModal
-          username={profileModal}
-          avatarUrl={profilesMap[profileModal]}
-          currentUsername={username}
+          userId={profileModal}
+          username={getProfile(profileModal).username}
+          avatarUrl={getProfile(profileModal).avatar_url}
+          currentUserId={userId}
+          isOnline={onlineUsers.has(profileModal)}
           onClose={() => setProfileModal(null)}
-          onStartDM={(u) => {
-            setDmInitialUser(u);
+          onStartDM={(uid) => {
+            setDmInitialUserId(uid);
             setShowDMs(true);
             setProfileModal(null);
           }}
@@ -533,4 +584,3 @@ const Index = () => {
 };
 
 export default Index;
-
