@@ -36,15 +36,23 @@ const Index = () => {
   const [dmInitialUserId, setDmInitialUserId] = useState<string | null>(null);
   const [profileModal, setProfileModal] = useState<string | null>(null);
   const [unreadDMs, setUnreadDMs] = useState(0);
-  const [isReturningFromDMs, setIsReturningFromDMs] = useState(false); // Added this state
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [isReturningFromDMs, setIsReturningFromDMs] = useState(false);
+  
+  // Refs
+  const messagesEndRef = useRef<HTMLDivElement>(null); // Renamed to make purpose clear
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null); // Added ref for messages container
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const isFirstLoadRef = useRef(true); // Track first load
 
   const scrollToBottom = useCallback((smooth = true) => {
-    bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: smooth ? "smooth" : "auto",
+        block: "end" // Ensure it scrolls to the end
+      });
+    }
   }, []);
 
   // Force scroll to bottom immediately when returning from DMs
@@ -52,11 +60,26 @@ const Index = () => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
-    bottomRef.current?.scrollIntoView({ behavior: "auto" });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: "auto",
+        block: "end"
+      });
+    }
   }, []);
 
   const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
   const isCurrentUserAdmin = adminIds.has(userId);
+
+  // Scroll to bottom on first load
+  useEffect(() => {
+    if (!loading && messages.length > 0 && isFirstLoadRef.current) {
+      setTimeout(() => {
+        forceScrollToBottom();
+        isFirstLoadRef.current = false;
+      }, 100);
+    }
+  }, [loading, messages.length, forceScrollToBottom]);
 
   // Fetch unread DMs
   useEffect(() => {
@@ -173,12 +196,12 @@ const Index = () => {
     return () => { supabase.removeChannel(presenceChannel); presenceChannelRef.current = null; };
   }, [username, userId]);
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when new messages arrive (but not on first load)
   useEffect(() => { 
-    if (!isReturningFromDMs) {
-      scrollToBottom(); 
+    if (!loading && !isFirstLoadRef.current && !isReturningFromDMs) {
+      scrollToBottom(true);
     }
-  }, [messages, scrollToBottom, isReturningFromDMs]);
+  }, [messages, scrollToBottom, loading, isReturningFromDMs]);
 
   // Handle returning from DMs - force scroll to bottom immediately
   useEffect(() => {
@@ -186,18 +209,20 @@ const Index = () => {
       // Use multiple strategies to ensure scroll to bottom
       forceScrollToBottom();
       
-      // Also try after a short delay to ensure DOM is fully updated
+      // Also try after short delays to ensure DOM is fully updated
       const timeout1 = setTimeout(forceScrollToBottom, 50);
       const timeout2 = setTimeout(forceScrollToBottom, 150);
+      const timeout3 = setTimeout(forceScrollToBottom, 300);
       
       // Reset the flag after scrolling
       const resetTimeout = setTimeout(() => {
         setIsReturningFromDMs(false);
-      }, 200);
+      }, 400);
       
       return () => {
         clearTimeout(timeout1);
         clearTimeout(timeout2);
+        clearTimeout(timeout3);
         clearTimeout(resetTimeout);
       };
     }
@@ -338,7 +363,7 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Messages area - added ref */}
+      {/* Messages area */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {loading ? (
           <div className="flex justify-center items-center h-full">
@@ -358,25 +383,28 @@ const Index = () => {
             </div>
           </div>
         ) : (
-          messages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={msg}
-              currentUserId={userId}
-              currentUsername={username}
-              currentAvatarUrl={avatarUrl}
-              reactions={reactions.filter((r) => r.message_id === msg.id)}
-              profilesMap={profilesMap}
-              isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false}
-              isAdmin={msg.user_id ? adminIds.has(msg.user_id) : false}
-              isCurrentUserAdmin={isCurrentUserAdmin}
-              onReply={setReplyTo}
-              onUsernameClick={(uid) => setProfileModal(uid)}
-              onDelete={handleDeleteMessage}
-            />
-          ))
+          <>
+            {messages.map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                currentUserId={userId}
+                currentUsername={username}
+                currentAvatarUrl={avatarUrl}
+                reactions={reactions.filter((r) => r.message_id === msg.id)}
+                profilesMap={profilesMap}
+                isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false}
+                isAdmin={msg.user_id ? adminIds.has(msg.user_id) : false}
+                isCurrentUserAdmin={isCurrentUserAdmin}
+                onReply={setReplyTo}
+                onUsernameClick={(uid) => setProfileModal(uid)}
+                onDelete={handleDeleteMessage}
+              />
+            ))}
+            {/* This div is at the END of messages, so scrolling to it goes to bottom */}
+            <div ref={messagesEndRef} />
+          </>
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/* Typing indicator */}
