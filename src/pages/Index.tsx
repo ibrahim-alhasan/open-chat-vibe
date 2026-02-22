@@ -17,15 +17,12 @@ const Index = () => {
     return id;
   });
 
-  const [username, setUsername] = useState<string | null>(() =>
-    localStorage.getItem("chat_username")
-  );
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(() =>
-    localStorage.getItem("chat_avatar_url")
-  );
+  const [username, setUsername] = useState<string | null>(() => localStorage.getItem("chat_username"));
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => localStorage.getItem("chat_avatar_url"));
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
-  const [profilesMap, setProfilesMap] = useState<Record<string, { username: string; avatar_url: string | null }>>({});
+  const [profilesMap, setProfilesMap] = useState<Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }>>({});
+  const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
   const [input, setInput] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +34,7 @@ const Index = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showDMs, setShowDMs] = useState(false);
   const [dmInitialUserId, setDmInitialUserId] = useState<string | null>(null);
-  const [profileModal, setProfileModal] = useState<string | null>(null); // user_id
+  const [profileModal, setProfileModal] = useState<string | null>(null);
   const [unreadDMs, setUnreadDMs] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -48,40 +45,31 @@ const Index = () => {
     bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
   }, []);
 
-  // Helper to get profile info by user_id
   const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
+  const isCurrentUserAdmin = adminIds.has(userId);
 
-  // Fetch unread DMs count by user_id
+  // Fetch unread DMs
   useEffect(() => {
     if (!userId) return;
     const fetchUnread = async () => {
-      const { count } = await supabase
-        .from("direct_messages")
-        .select("*", { count: "exact", head: true })
-        .eq("receiver_user_id", userId)
-        .eq("is_read", false);
+      const { count } = await supabase.from("direct_messages").select("*", { count: "exact", head: true }).eq("receiver_user_id", userId).eq("is_read", false);
       setUnreadDMs(count || 0);
     };
     fetchUnread();
   }, [userId]);
 
-  // Realtime unread DMs by user_id
+  // Realtime unread DMs
   useEffect(() => {
     if (!userId) return;
-    const channel = supabase
-      .channel(`unread-dm-${userId}`)
+    const channel = supabase.channel(`unread-dm-${userId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, (payload) => {
         const msg = payload.new as { receiver_user_id: string | null; is_read: boolean };
-        if (msg.receiver_user_id === userId && !msg.is_read) {
-          setUnreadDMs((prev) => prev + 1);
-        }
+        if (msg.receiver_user_id === userId && !msg.is_read) setUnreadDMs((prev) => prev + 1);
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "direct_messages" }, (payload) => {
         const msg = payload.new as { receiver_user_id: string | null; is_read: boolean };
         const old = payload.old as { is_read: boolean };
-        if (msg.receiver_user_id === userId && !old.is_read && msg.is_read) {
-          setUnreadDMs((prev) => Math.max(0, prev - 1));
-        }
+        if (msg.receiver_user_id === userId && !old.is_read && msg.is_read) setUnreadDMs((prev) => Math.max(0, prev - 1));
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -90,25 +78,27 @@ const Index = () => {
   // Fetch initial data
   useEffect(() => {
     const fetchAll = async () => {
-      const [messagesRes, reactionsRes, profilesRes, totalCountRes] = await Promise.all([
+      const [messagesRes, reactionsRes, profilesRes, totalCountRes, adminsRes] = await Promise.all([
         supabase.from("messages").select("*").order("created_at", { ascending: true }).limit(100),
         supabase.from("reactions").select("*"),
         supabase.from("profiles").select("*"),
         supabase.from("profiles").select("*", { count: 'exact', head: true }),
+        supabase.from("admins").select("user_id"),
       ]);
 
       if (!messagesRes.error && messagesRes.data) setMessages(messagesRes.data as Message[]);
       if (!reactionsRes.error && reactionsRes.data) setReactions(reactionsRes.data as Reaction[]);
       if (!profilesRes.error && profilesRes.data) {
-        const map: Record<string, { username: string; avatar_url: string | null }> = {};
-        profilesRes.data.forEach((p: { user_id: string | null; username: string; avatar_url: string | null }) => {
-          if (p.user_id) {
-            map[p.user_id] = { username: p.username, avatar_url: p.avatar_url };
-          }
+        const map: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }> = {};
+        profilesRes.data.forEach((p: any) => {
+          if (p.user_id) map[p.user_id] = { username: p.username, avatar_url: p.avatar_url, allow_dms: p.allow_dms ?? true };
         });
         setProfilesMap(map);
       }
       if (!totalCountRes.error) setTotalUsers(totalCountRes.count || 0);
+      if (!adminsRes.error && adminsRes.data) {
+        setAdminIds(new Set(adminsRes.data.map((a: any) => a.user_id)));
+      }
       setLoading(false);
     };
     fetchAll();
@@ -116,21 +106,18 @@ const Index = () => {
 
   // Realtime subscriptions
   useEffect(() => {
-    const channel = supabase
-      .channel("public-chat-all")
+    const channel = supabase.channel("public-chat-all")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
         const newMessage = payload.new as Message;
-        setMessages((prev) => {
-          if (prev.find((m) => m.id === newMessage.id)) return prev;
-          return [...prev, newMessage];
-        });
+        setMessages((prev) => prev.find((m) => m.id === newMessage.id) ? prev : [...prev, newMessage]);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "messages" }, (payload) => {
+        const deleted = payload.old as { id: string };
+        setMessages((prev) => prev.filter((m) => m.id !== deleted.id));
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "reactions" }, (payload) => {
         const r = payload.new as Reaction;
-        setReactions((prev) => {
-          if (prev.find((x) => x.id === r.id)) return prev;
-          return [...prev, r];
-        });
+        setReactions((prev) => prev.find((x) => x.id === r.id) ? prev : [...prev, r]);
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "reactions" }, (payload) => {
         const deleted = payload.old as { id: string };
@@ -138,78 +125,49 @@ const Index = () => {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, (payload) => {
         if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-          const p = payload.new as { user_id: string | null; username: string; avatar_url: string | null };
-          if (p.user_id) {
-            setProfilesMap((prev) => ({ ...prev, [p.user_id!]: { username: p.username, avatar_url: p.avatar_url } }));
-          }
+          const p = payload.new as any;
+          if (p.user_id) setProfilesMap((prev) => ({ ...prev, [p.user_id]: { username: p.username, avatar_url: p.avatar_url, allow_dms: p.allow_dms ?? true } }));
           if (payload.eventType === "INSERT") setTotalUsers(prev => prev + 1);
         }
         if (payload.eventType === "DELETE") {
-          const p = payload.old as { user_id: string | null };
-          if (p.user_id) {
-            setProfilesMap((prev) => {
-              const newMap = { ...prev };
-              delete newMap[p.user_id!];
-              return newMap;
-            });
-          }
+          const p = payload.old as any;
+          if (p.user_id) setProfilesMap((prev) => { const m = { ...prev }; delete m[p.user_id]; return m; });
           setTotalUsers(prev => Math.max(0, prev - 1));
         }
       })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Presence for online count + typing
+  // Presence
   useEffect(() => {
     if (!username || !userId) return;
-
-    const presenceChannel = supabase.channel("presence-chat", {
-      config: { presence: { key: userId } },
-    });
-
+    const presenceChannel = supabase.channel("presence-chat", { config: { presence: { key: userId } } });
     presenceChannel
       .on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();
         const keys = Object.keys(state);
         setOnlineCount(keys.length);
         setOnlineUsers(new Set(keys));
-        
-        // Check typing status
         const typing = new Set<string>();
         keys.forEach(key => {
           const presences = state[key] as any[];
-          if (presences && presences.length > 0 && presences[0].is_typing && key !== userId) {
-            typing.add(key);
-          }
+          if (presences?.[0]?.is_typing && key !== userId) typing.add(key);
         });
         setTypingUsers(typing);
       })
       .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
-          await presenceChannel.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
-        }
+        if (status === "SUBSCRIBED") await presenceChannel.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
       });
-
     presenceChannelRef.current = presenceChannel;
-
-    return () => { 
-      supabase.removeChannel(presenceChannel);
-      presenceChannelRef.current = null;
-    };
+    return () => { supabase.removeChannel(presenceChannel); presenceChannelRef.current = null; };
   }, [username, userId]);
 
-  // Scroll on new messages
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
-  // Handle typing indicator
   const handleTyping = () => {
     if (!presenceChannelRef.current) return;
     presenceChannelRef.current.track({ user_id: userId, username, is_typing: true, online_at: new Date().toISOString() });
-    
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
@@ -219,27 +177,18 @@ const Index = () => {
   const handleJoin = async (name: string, avatarFile?: File | null) => {
     localStorage.setItem("chat_username", name);
     let url: string | null = null;
-
     if (avatarFile) {
       const ext = avatarFile.name.split(".").pop();
       const fileName = `${userId}_${Date.now()}.${ext}`;
-      const { data, error } = await supabase.storage
-        .from("avatars")
-        .upload(fileName, avatarFile, { upsert: true });
+      const { data, error } = await supabase.storage.from("avatars").upload(fileName, avatarFile, { upsert: true });
       if (!error && data) {
         const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(data.path);
         url = urlData.publicUrl;
       }
     }
-
     if (url) localStorage.setItem("chat_avatar_url", url);
     else localStorage.removeItem("chat_avatar_url");
-
-    await supabase.from("profiles").upsert(
-      { user_id: userId, username: name, avatar_url: url, updated_at: new Date().toISOString() },
-      { onConflict: "user_id" }
-    );
-
+    await supabase.from("profiles").upsert({ user_id: userId, username: name, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
     setUsername(name);
     setAvatarUrl(url);
     setProfilesMap((prev) => ({ ...prev, [userId]: { username: name, avatar_url: url } }));
@@ -251,28 +200,24 @@ const Index = () => {
     setInput("");
     setReplyTo(null);
     setSending(true);
-
-    // Stop typing
     presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
-
     await supabase.from("messages").insert({
-      username,
-      user_id: userId,
-      content,
+      username, user_id: userId, content,
       reply_to: replyTo?.id ?? null,
       reply_to_username: replyTo ? getProfile(replyTo.user_id || "").username : null,
       reply_to_content: replyTo?.content?.slice(0, 80) ?? null,
     });
-
     setSending(false);
     inputRef.current?.focus();
   };
 
+  const handleDeleteMessage = async (messageId: string) => {
+    await supabase.from("messages").delete().eq("id", messageId);
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
   const handleLeave = () => {
@@ -285,15 +230,12 @@ const Index = () => {
   const handleSettingsSave = (newUsername: string, newAvatarUrl: string | null) => {
     setUsername(newUsername);
     setAvatarUrl(newAvatarUrl);
-    setProfilesMap((prev) => ({ ...prev, [userId]: { username: newUsername, avatar_url: newAvatarUrl } }));
+    setProfilesMap((prev) => ({ ...prev, [userId]: { username: newUsername, avatar_url: newAvatarUrl, allow_dms: prev[userId]?.allow_dms } }));
   };
 
-  // Get typing users names
   const typingNames = Array.from(typingUsers).map(uid => getProfile(uid).username).filter(Boolean);
 
-  if (!username) {
-    return <UsernameModal onJoin={handleJoin} />;
-  }
+  if (!username) return <UsernameModal onJoin={handleJoin} />;
 
   if (showDMs) {
     return (
@@ -303,13 +245,7 @@ const Index = () => {
         profilesMap={profilesMap}
         onlineUsers={onlineUsers}
         initialConversationUserId={dmInitialUserId}
-        onBack={() => { 
-          setShowDMs(false); 
-          setDmInitialUserId(null); 
-          setUnreadDMs(0);
-          // إعادة تعيين الـ history عند العودة
-          window.history.replaceState({ page: 'public-chat' }, '', '/');
-        }}
+        onBack={() => { setShowDMs(false); setDmInitialUserId(null); setUnreadDMs(0); window.history.replaceState({ page: 'public-chat' }, '', '/'); }}
       />
     );
   }
@@ -317,85 +253,40 @@ const Index = () => {
   return (
     <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
       {/* Header */}
-      <header
-        className="flex-shrink-0 px-4 py-3 flex items-center justify-between"
-        style={{
-          background: "hsl(var(--chat-header))",
-          borderBottom: "1px solid hsl(var(--border))",
-          boxShadow: "0 1px 20px hsl(220 16% 4% / 0.4)",
-        }}
-      >
+      <header className="flex-shrink-0 px-4 py-3 flex items-center justify-between"
+        style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))", boxShadow: "0 1px 20px hsl(220 16% 4% / 0.4)" }}>
         <div className="flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center glow-primary"
-            style={{ background: "var(--gradient-primary)" }}
-          >
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center glow-primary" style={{ background: "var(--gradient-primary)" }}>
             <MessageCircle className="w-5 h-5" style={{ color: "hsl(var(--primary-foreground))" }} />
           </div>
           <div>
-            <h1 className="font-bold text-sm" style={{ color: "hsl(var(--foreground))" }}>
-              الدردشة العامة
-            </h1>
+            <h1 className="font-bold text-sm" style={{ color: "hsl(var(--foreground))" }}>الدردشة العامة</h1>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
-                <span
-                  className="w-2 h-2 rounded-full animate-pulse-dot"
-                  style={{ background: "hsl(var(--chat-online))" }}
-                />
-                <span className="text-xs" style={{ color: "hsl(var(--chat-online))" }}>
-                  {onlineCount} متصل
-                </span>
+                <span className="w-2 h-2 rounded-full animate-pulse-dot" style={{ background: "hsl(var(--chat-online))" }} />
+                <span className="text-xs" style={{ color: "hsl(var(--chat-online))" }}>{onlineCount} متصل</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Users className="w-3 h-3" style={{ color: "hsl(var(--muted-foreground))" }} />
-                <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                  {totalUsers} إجمالي
-                </span>
+                <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{totalUsers} إجمالي</span>
               </div>
             </div>
           </div>
         </div>
-
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => { 
-              setDmInitialUserId(null); 
-              setShowDMs(true); 
-            }}
-            title="الرسائل الخاصة"
-            className="relative p-1.5 rounded-lg transition-colors hover:opacity-70"
-            style={{ color: "hsl(var(--muted-foreground))" }}
-          >
+          <button onClick={() => { setDmInitialUserId(null); setShowDMs(true); }} title="الرسائل الخاصة"
+            className="relative p-1.5 rounded-lg transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
             <MessageSquare className="w-4 h-4" />
             {unreadDMs > 0 && (
-              <span
-                className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full text-xs font-bold flex items-center justify-center px-0.5"
-                style={{
-                  background: "hsl(var(--primary))",
-                  color: "hsl(var(--primary-foreground))",
-                  fontSize: "10px",
-                }}
-              >
-                {unreadDMs}
-              </span>
+              <span className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full text-xs font-bold flex items-center justify-center px-0.5"
+                style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))", fontSize: "10px" }}>{unreadDMs}</span>
             )}
           </button>
-
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt="avatar"
-              className="w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-              style={{ border: "2px solid hsl(var(--primary) / 0.5)" }}
-              onClick={() => setShowSettings(true)}
-            />
-          ) : null}
-          <button
-            onClick={() => setShowSettings(true)}
-            title="الإعدادات"
-            className="p-1.5 rounded-lg transition-colors hover:opacity-70"
-            style={{ color: "hsl(var(--muted-foreground))" }}
-          >
+          {avatarUrl && (
+            <img src={avatarUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+              style={{ border: "2px solid hsl(var(--primary) / 0.5)" }} onClick={() => setShowSettings(true)} />
+          )}
+          <button onClick={() => setShowSettings(true)} title="الإعدادات" className="p-1.5 rounded-lg transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
             <Settings className="w-4 h-4" />
           </button>
         </div>
@@ -406,50 +297,38 @@ const Index = () => {
         {loading ? (
           <div className="flex justify-center items-center h-full">
             <div className="text-center space-y-3">
-              <div
-                className="w-10 h-10 rounded-full border-2 border-t-transparent mx-auto animate-spin"
-                style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }}
-              />
-              <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-                جارٍ تحميل الرسائل...
-              </p>
+              <div className="w-10 h-10 rounded-full border-2 border-t-transparent mx-auto animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
+              <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>جارٍ تحميل الرسائل...</p>
             </div>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center"
-              style={{ background: "hsl(var(--secondary))" }}
-            >
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: "hsl(var(--secondary))" }}>
               <MessageCircle className="w-8 h-8" style={{ color: "hsl(var(--muted-foreground))" }} />
             </div>
             <div>
-              <p className="font-medium" style={{ color: "hsl(var(--foreground))" }}>
-                لا توجد رسائل بعد
-              </p>
-              <p className="text-sm mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                كن أول من يبدأ المحادثة! 👋
-              </p>
+              <p className="font-medium" style={{ color: "hsl(var(--foreground))" }}>لا توجد رسائل بعد</p>
+              <p className="text-sm mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>كن أول من يبدأ المحادثة! 👋</p>
             </div>
           </div>
         ) : (
-          messages.map((msg) => {
-            const msgProfile = msg.user_id ? getProfile(msg.user_id) : { username: msg.username, avatar_url: null };
-            return (
-              <ChatMessage
-                key={msg.id}
-                message={msg}
-                currentUserId={userId}
-                currentUsername={username}
-                currentAvatarUrl={avatarUrl}
-                reactions={reactions.filter((r) => r.message_id === msg.id)}
-                profilesMap={profilesMap}
-                isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false}
-                onReply={setReplyTo}
-                onUsernameClick={(uid) => setProfileModal(uid)}
-              />
-            );
-          })
+          messages.map((msg) => (
+            <ChatMessage
+              key={msg.id}
+              message={msg}
+              currentUserId={userId}
+              currentUsername={username}
+              currentAvatarUrl={avatarUrl}
+              reactions={reactions.filter((r) => r.message_id === msg.id)}
+              profilesMap={profilesMap}
+              isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false}
+              isAdmin={msg.user_id ? adminIds.has(msg.user_id) : false}
+              isCurrentUserAdmin={isCurrentUserAdmin}
+              onReply={setReplyTo}
+              onUsernameClick={(uid) => setProfileModal(uid)}
+              onDelete={handleDeleteMessage}
+            />
+          ))
         )}
         <div ref={bottomRef} />
       </div>
@@ -464,9 +343,7 @@ const Index = () => {
               <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "hsl(var(--primary))", animationDelay: "300ms" }} />
             </div>
             <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-              {typingNames.length === 1
-                ? `${typingNames[0]} يكتب...`
-                : `${typingNames.join(" و ")} يكتبون...`}
+              {typingNames.length === 1 ? `${typingNames[0]} يكتب...` : `${typingNames.join(" و ")} يكتبون...`}
             </span>
           </div>
         </div>
@@ -474,30 +351,16 @@ const Index = () => {
 
       {/* Reply preview */}
       {replyTo && (
-        <div
-          className="flex-shrink-0 mx-4 mb-2 px-3 py-2 rounded-xl flex items-center justify-between gap-3 animate-fade-in"
-          style={{
-            background: "hsl(var(--chat-reply-bg))",
-            border: "1px solid hsl(var(--border))",
-            borderRight: "3px solid hsl(var(--primary))",
-          }}
-        >
+        <div className="flex-shrink-0 mx-4 mb-2 px-3 py-2 rounded-xl flex items-center justify-between gap-3 animate-fade-in"
+          style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: "3px solid hsl(var(--primary))" }}>
           <div className="flex items-center gap-2 min-w-0">
             <CornerUpLeft className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
             <div className="min-w-0">
-              <p className="text-xs font-semibold" style={{ color: "hsl(var(--primary))" }}>
-                رد على {replyTo.user_id ? getProfile(replyTo.user_id).username : replyTo.username}
-              </p>
-              <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
-                {replyTo.content}
-              </p>
+              <p className="text-xs font-semibold" style={{ color: "hsl(var(--primary))" }}>رد على {replyTo.user_id ? getProfile(replyTo.user_id).username : replyTo.username}</p>
+              <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{replyTo.content}</p>
             </div>
           </div>
-          <button
-            onClick={() => setReplyTo(null)}
-            className="flex-shrink-0 p-1 rounded-lg transition-colors"
-            style={{ color: "hsl(var(--muted-foreground))" }}
-          >
+          <button onClick={() => setReplyTo(null)} className="flex-shrink-0 p-1 rounded-lg" style={{ color: "hsl(var(--muted-foreground))" }}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -505,74 +368,30 @@ const Index = () => {
 
       {/* Input area */}
       <div className="flex-shrink-0 px-4 pb-4" style={{ paddingTop: replyTo ? "0" : "0.5rem" }}>
-        <div
-          className="flex items-end gap-3 p-3 rounded-2xl"
-          style={{
-            background: "hsl(var(--chat-input-bg))",
-            border: "1px solid hsl(var(--border))",
-            transition: "border-color 0.2s",
-          }}
-          onFocusCapture={(e) => {
-            (e.currentTarget as HTMLElement).style.borderColor = "hsl(var(--primary))";
-            (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 3px hsl(var(--primary) / 0.1)";
-          }}
-          onBlurCapture={(e) => {
-            (e.currentTarget as HTMLElement).style.borderColor = "hsl(var(--border))";
-            (e.currentTarget as HTMLElement).style.boxShadow = "none";
-          }}
-        >
+        <div className="flex items-end gap-3 p-3 rounded-2xl"
+          style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))", transition: "border-color 0.2s" }}
+          onFocusCapture={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "hsl(var(--primary))"; (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 3px hsl(var(--primary) / 0.1)"; }}
+          onBlurCapture={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "hsl(var(--border))"; (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}>
           <textarea
             ref={inputRef}
             value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              e.target.style.height = "auto";
-              e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
-              handleTyping();
-            }}
+            onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; handleTyping(); }}
             onKeyDown={handleKeyDown}
             placeholder="اكتب رسالتك هنا..."
-            rows={1}
-            maxLength={500}
+            rows={1} maxLength={500}
             className="flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed select-text"
-            style={{
-              color: "hsl(var(--foreground))",
-              minHeight: "24px",
-              maxHeight: "120px",
-              direction: "rtl",
-              textAlign: "right",
-            }}
+            style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
           />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || sending}
+          <button onClick={handleSend} disabled={!input.trim() || sending}
             className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed glow-primary"
-            style={{
-              background: input.trim() && !sending ? "var(--gradient-primary)" : "hsl(var(--secondary))",
-            }}
-          >
-            <Send
-              className="w-4 h-4"
-              style={{
-                color: input.trim() && !sending ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))",
-              }}
-            />
+            style={{ background: input.trim() && !sending ? "var(--gradient-primary)" : "hsl(var(--secondary))" }}>
+            <Send className="w-4 h-4" style={{ color: input.trim() && !sending ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))" }} />
           </button>
         </div>
       </div>
 
-      {/* Settings modal */}
-      {showSettings && (
-        <SettingsModal
-          currentUsername={username}
-          currentAvatarUrl={avatarUrl}
-          userId={userId}
-          onClose={() => setShowSettings(false)}
-          onSave={handleSettingsSave}
-        />
-      )}
+      {showSettings && <SettingsModal currentUsername={username} currentAvatarUrl={avatarUrl} userId={userId} onClose={() => setShowSettings(false)} onSave={handleSettingsSave} />}
 
-      {/* User Profile Modal */}
       {profileModal && (
         <UserProfileModal
           userId={profileModal}
@@ -580,12 +399,10 @@ const Index = () => {
           avatarUrl={getProfile(profileModal).avatar_url}
           currentUserId={userId}
           isOnline={onlineUsers.has(profileModal)}
+          isAdmin={adminIds.has(profileModal)}
+          allowDms={profilesMap[profileModal]?.allow_dms ?? true}
           onClose={() => setProfileModal(null)}
-          onStartDM={(uid) => {
-            setDmInitialUserId(uid);
-            setShowDMs(true);
-            setProfileModal(null);
-          }}
+          onStartDM={(uid) => { setDmInitialUserId(uid); setShowDMs(true); setProfileModal(null); }}
         />
       )}
     </div>

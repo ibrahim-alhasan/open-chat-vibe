@@ -1,4 +1,4 @@
-import { X, MessageSquare } from "lucide-react";
+import { X, MessageSquare, ShieldCheck, MessageSquareOff } from "lucide-react";
 
 interface UserProfileModalProps {
   userId: string;
@@ -6,6 +6,8 @@ interface UserProfileModalProps {
   avatarUrl?: string | null;
   currentUserId: string;
   isOnline?: boolean;
+  isAdmin?: boolean;
+  allowDms?: boolean;
   onClose: () => void;
   onStartDM: (userId: string) => void;
 }
@@ -21,8 +23,8 @@ const getUserColor = (username: string) => {
   return colors[Math.abs(hash) % colors.length];
 };
 
-const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline, onClose, onStartDM }: UserProfileModalProps) => {
-  const userColor = getUserColor(username);
+const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline, isAdmin, allowDms = true, onClose, onStartDM }: UserProfileModalProps) => {
+  const userColor = isAdmin ? "hsl(45, 93%, 58%)" : getUserColor(username);
   const isOwnProfile = userId === currentUserId;
 
   return (
@@ -40,12 +42,9 @@ const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline
           <X className="w-4 h-4" />
         </button>
 
-        {/* Avatar with online indicator */}
         <div className="relative">
-          <div
-            className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold overflow-hidden"
-            style={{ border: `3px solid ${userColor}`, boxShadow: `0 0 24px ${userColor}44` }}
-          >
+          <div className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold overflow-hidden"
+            style={{ border: `3px solid ${userColor}`, boxShadow: `0 0 24px ${userColor}44` }}>
             {avatarUrl ? (
               <img src={avatarUrl} alt={username} className="w-full h-full object-cover" />
             ) : (
@@ -55,33 +54,36 @@ const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline
             )}
           </div>
           {isOnline !== undefined && (
-            <span
-              className="absolute bottom-1 right-1 w-5 h-5 rounded-full border-3"
-              style={{
-                background: isOnline ? "hsl(var(--chat-online))" : "hsl(var(--muted-foreground))",
-                borderColor: "hsl(var(--card))",
-                borderWidth: "3px",
-              }}
-            />
+            <span className="absolute bottom-1 right-1 w-5 h-5 rounded-full" style={{ background: isOnline ? "hsl(var(--chat-online))" : "hsl(var(--muted-foreground))", borderWidth: "3px", borderColor: "hsl(var(--card))" }} />
           )}
         </div>
 
         <div className="text-center">
-          <h2 className="text-xl font-bold" style={{ color: "hsl(var(--foreground))" }}>{username}</h2>
+          <div className="flex items-center justify-center gap-1.5">
+            {isAdmin && <ShieldCheck className="w-5 h-5" style={{ color: "hsl(var(--chat-admin))" }} />}
+            <h2 className="text-xl font-bold" style={{ color: isAdmin ? "hsl(var(--chat-admin))" : "hsl(var(--foreground))" }}>{username}</h2>
+          </div>
+          {isAdmin && <span className="text-xs px-2 py-0.5 rounded-full font-bold mt-1 inline-block" style={{ background: "hsl(var(--chat-admin) / 0.15)", color: "hsl(var(--chat-admin))" }}>مشرف</span>}
           <p className="text-xs mt-1" style={{ color: isOnline ? "hsl(var(--chat-online))" : "hsl(var(--muted-foreground))" }}>
             {isOwnProfile ? "هذا أنت" : isOnline ? "متصل الآن" : "غير متصل"}
           </p>
         </div>
 
         {!isOwnProfile && (
-          <button
-            onClick={() => { onStartDM(userId); onClose(); }}
-            className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-2xl text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
-            style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))", boxShadow: "0 4px 16px hsl(var(--primary) / 0.3)" }}
-          >
-            <MessageSquare className="w-4 h-4" />
-            تواصل على الخاص
-          </button>
+          allowDms ? (
+            <button onClick={() => { onStartDM(userId); onClose(); }}
+              className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-2xl text-sm font-semibold transition-all hover:opacity-90 active:scale-95"
+              style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))", boxShadow: "0 4px 16px hsl(var(--primary) / 0.3)" }}>
+              <MessageSquare className="w-4 h-4" />
+              تواصل على الخاص
+            </button>
+          ) : (
+            <div className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-2xl text-sm"
+              style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}>
+              <MessageSquareOff className="w-4 h-4" />
+              لا يقبل الرسائل الخاصة
+            </div>
+          )
         )}
       </div>
     </div>

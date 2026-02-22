@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      admins: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       direct_messages: {
         Row: {
           content: string
@@ -22,6 +40,8 @@ export type Database = {
           is_read: boolean
           receiver_user_id: string | null
           receiver_username: string
+          reply_to_content: string | null
+          reply_to_id: string | null
           sender_user_id: string | null
           sender_username: string
         }
@@ -32,6 +52,8 @@ export type Database = {
           is_read?: boolean
           receiver_user_id?: string | null
           receiver_username: string
+          reply_to_content?: string | null
+          reply_to_id?: string | null
           sender_user_id?: string | null
           sender_username: string
         }
@@ -42,8 +64,34 @@ export type Database = {
           is_read?: boolean
           receiver_user_id?: string | null
           receiver_username?: string
+          reply_to_content?: string | null
+          reply_to_id?: string | null
           sender_user_id?: string | null
           sender_username?: string
+        }
+        Relationships: []
+      }
+      dm_reactions: {
+        Row: {
+          created_at: string
+          dm_id: string
+          emoji: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dm_id: string
+          emoji: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dm_id?: string
+          emoji?: string
+          id?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -90,18 +138,21 @@ export type Database = {
       }
       profiles: {
         Row: {
+          allow_dms: boolean
           avatar_url: string | null
           updated_at: string
           user_id: string | null
           username: string
         }
         Insert: {
+          allow_dms?: boolean
           avatar_url?: string | null
           updated_at?: string
           user_id?: string | null
           username: string
         }
         Update: {
+          allow_dms?: boolean
           avatar_url?: string | null
           updated_at?: string
           user_id?: string | null

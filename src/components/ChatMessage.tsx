@@ -1,4 +1,4 @@
-import { Reply, CornerUpLeft } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2, ShieldCheck } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useState, useEffect, useRef } from "react";
@@ -31,8 +31,11 @@ interface ChatMessageProps {
   reactions: Reaction[];
   profilesMap: Record<string, { username: string; avatar_url: string | null }>;
   isOnline?: boolean;
+  isAdmin?: boolean;
+  isCurrentUserAdmin?: boolean;
   onReply: (message: Message) => void;
   onUsernameClick?: (userId: string) => void;
+  onDelete?: (messageId: string) => void;
 }
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
@@ -58,14 +61,17 @@ const ChatMessage = ({
   reactions,
   profilesMap,
   isOnline,
+  isAdmin,
+  isCurrentUserAdmin,
   onReply,
   onUsernameClick,
+  onDelete,
 }: ChatMessageProps) => {
   const isOwn = message.user_id === currentUserId;
   const profile = message.user_id && profilesMap[message.user_id];
   const displayName = profile ? profile.username : message.username;
   const avatarUrl = isOwn ? currentAvatarUrl : (profile ? profile.avatar_url : null);
-  const userColor = getUserColor(displayName);
+  const userColor = isAdmin ? "hsl(45, 93%, 58%)" : getUserColor(displayName);
   
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -78,6 +84,8 @@ const ChatMessage = ({
   const isClickOnButtonRef = useRef(false);
 
   const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true, locale: ar });
+
+  const canDelete = isOwn || isCurrentUserAdmin;
 
   const reactionGroups = reactions.reduce<Record<string, Reaction[]>>((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = [];
@@ -93,6 +101,11 @@ const ChatMessage = ({
     } else {
       await supabase.from("reactions").insert({ message_id: message.id, username: currentUsername, emoji });
     }
+  };
+
+  const handleDelete = async () => {
+    if (!canDelete || !onDelete) return;
+    onDelete(message.id);
   };
 
   useEffect(() => {
@@ -205,7 +218,6 @@ const ChatMessage = ({
             {getInitials(displayName)}
           </div>
         )}
-        {/* Online dot */}
         {isOnline && (
           <span
             className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
@@ -236,15 +248,25 @@ const ChatMessage = ({
           </div>
         )}
 
-        {/* Username & time */}
+        {/* Username & time & admin badge */}
         <div className={`flex items-center gap-2 px-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
-          <span
-            className={`text-xs font-semibold ${!isOwn ? "cursor-pointer hover:underline" : ""}`}
-            style={{ color: userColor }}
-            onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}
-          >
-            {isOwn ? "أنت" : displayName}
-          </span>
+          <div className="flex items-center gap-1">
+            {isAdmin && (
+              <ShieldCheck className="w-3.5 h-3.5" style={{ color: "hsl(var(--chat-admin))" }} />
+            )}
+            <span
+              className={`text-xs font-semibold ${!isOwn ? "cursor-pointer hover:underline" : ""}`}
+              style={{ color: isAdmin ? "hsl(var(--chat-admin))" : userColor, fontWeight: isAdmin ? 800 : 600 }}
+              onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}
+            >
+              {isOwn ? "أنت" : displayName}
+            </span>
+            {isAdmin && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "hsl(var(--chat-admin) / 0.15)", color: "hsl(var(--chat-admin))" }}>
+                مشرف
+              </span>
+            )}
+          </div>
           <span className="text-xs" style={{ color: "hsl(var(--chat-timestamp))" }}>{timeAgo}</span>
         </div>
 
@@ -307,10 +329,10 @@ const ChatMessage = ({
           )}
 
           {isHovered && !isSwiping && (
-            <>
+            <div className={`absolute top-1 flex flex-col gap-1 z-10 ${isOwn ? "-left-8" : "-right-8"}`}>
               <button
                 onClick={(e) => { e.stopPropagation(); e.preventDefault(); setShowEmojiPicker(!showEmojiPicker); }}
-                className={`absolute top-1 transition-all duration-150 p-1.5 rounded-lg z-10 ${isOwn ? "-left-8" : "-right-8"}`}
+                className="transition-all duration-150 p-1.5 rounded-lg"
                 style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
                 title="تفاعل"
               >
@@ -318,13 +340,23 @@ const ChatMessage = ({
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); e.preventDefault(); onReply(message); }}
-                className={`absolute top-10 transition-all duration-150 p-1.5 rounded-lg z-10 ${isOwn ? "-left-8" : "-right-8"}`}
+                className="transition-all duration-150 p-1.5 rounded-lg"
                 style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
                 title="رد"
               >
                 <Reply className="w-3.5 h-3.5" />
               </button>
-            </>
+              {canDelete && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(); }}
+                  className="transition-all duration-150 p-1.5 rounded-lg"
+                  style={{ background: "hsl(var(--destructive) / 0.15)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}
+                  title="حذف"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           )}
         </div>
 
