@@ -1,4 +1,4 @@
-import { Reply, CornerUpLeft, Trash2, ShieldCheck, MoreVertical } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2, MoreVertical } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useState, useEffect, useRef } from "react";
@@ -53,31 +53,41 @@ const getUserColor = (username: string) => {
 
 const getInitials = (username: string) => username.slice(0, 2).toUpperCase();
 
-// مكون شارة التوثيق المسننة
+// مكون شارة التوثيق بـ 10 رؤوس مسننة - باللون الأزرق الغامق
 const VerifiedBadge = () => (
   <div className="relative flex items-center justify-center">
     <svg 
-      width="18" 
-      height="18" 
+      width="20" 
+      height="20" 
       viewBox="0 0 24 24" 
       fill="none" 
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* الخلفية المسننة */}
+      {/* نجمة بـ 10 رؤوس (مسننة) */}
       <path 
-        d="M12 2L14.5 7.5L20.5 8.5L16.5 13L17.5 19L12 16L6.5 19L7.5 13L3.5 8.5L9.5 7.5L12 2Z" 
-        fill="#1DA1F2"
+        d="M12 2L13.5 5.5L17 7L13.5 8.5L12 12L10.5 8.5L7 7L10.5 5.5L12 2Z" 
+        fill="#0A66C2" /* أزرق غامق */
         stroke="white"
-        strokeWidth="1.5"
-        style={{ 
-          filter: "drop-shadow(0 2px 4px rgba(29, 161, 242, 0.3))"
-        }}
+        strokeWidth="1"
+      />
+      <path 
+        d="M12 12L14 14.5L18 15L14.5 16.5L13 20L11.5 16.5L8 15L12 14.5L12 12Z" 
+        fill="#0A66C2" /* أزرق غامق */
+        stroke="white"
+        strokeWidth="1"
+      />
+      <path 
+        d="M8 7L9 10L7 12L10 11.5L12 14L14 11.5L17 12L15 10L16 7L13 8.5L12 6L11 8.5L8 7Z" 
+        fill="#0A66C2" /* أزرق غامق */
+        stroke="white"
+        strokeWidth="1"
+        opacity="0.8"
       />
       {/* علامة الصح */}
       <path 
-        d="M9 12L11 14L15 10" 
+        d="M9 13L11 15L16 10" 
         stroke="white" 
-        strokeWidth="2.5" 
+        strokeWidth="2" 
         strokeLinecap="round" 
         strokeLinejoin="round"
         fill="none"
@@ -104,7 +114,7 @@ const ChatMessage = ({
   const profile = message.user_id && profilesMap[message.user_id];
   const displayName = profile ? profile.username : message.username;
   const avatarUrl = isOwn ? currentAvatarUrl : (profile ? profile.avatar_url : null);
-  const userColor = isAdmin ? "#1DA1F2" : getUserColor(displayName);
+  const userColor = isAdmin ? "#0A66C2" : getUserColor(displayName); // Changed to dark blue for admin
   
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
@@ -230,11 +240,11 @@ const ChatMessage = ({
     if (!isOwn && onUsernameClick && message.user_id) onUsernameClick(message.user_id);
   };
 
-  // Mobile actions menu - يظهر بجانب الرسالة
+  // Mobile actions menu - يظهر في الجانب الآخر من الرسالة
   const renderMobileActions = () => (
     <div 
       className={`absolute z-50 flex flex-col gap-2 p-2 rounded-2xl animate-fade-in ${
-        isOwn ? "left-full ml-2" : "right-full mr-2"
+        isOwn ? "right-full mr-2" : "left-full ml-2"
       } top-0`}
       style={{ 
         background: "hsl(var(--card))", 
@@ -332,12 +342,12 @@ const ChatMessage = ({
               <>
                 <span
                   className="text-xs font-semibold flex items-center gap-1"
-                  style={{ color: "#1DA1F2" }}
+                  style={{ color: "#0A66C2" }} // Dark blue for admin
                   onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}
                 >
                   {isOwn ? "أنت" : displayName}
                 </span>
-                {/* شارة التوثيق المسننة */}
+                {/* شارة التوثيق بـ 10 رؤوس مسننة - أزرق غامق */}
                 <VerifiedBadge />
               </>
             ) : (
@@ -413,10 +423,10 @@ const ChatMessage = ({
             </div>
           )}
 
-          {/* Mobile actions menu - يظهر بجانب الرسالة */}
+          {/* Mobile actions menu - في الجانب الآخر من الرسالة */}
           {showMobileActions && renderMobileActions()}
 
-          {/* Desktop actions - تظهر بجانب الرسالة عند التحويم */}
+          {/* Desktop actions - تظهر في الجانب الآخر عند التحويم */}
           <div className={`absolute ${isOwn ? "left-full ml-2" : "right-full mr-2"} top-1/2 -translate-y-1/2 hidden md:flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10`}>
             <button
               onClick={(e) => { e.stopPropagation(); e.preventDefault(); setShowEmojiPicker(!showEmojiPicker); }}
@@ -446,15 +456,16 @@ const ChatMessage = ({
             )}
           </div>
 
-          {/* Mobile action button - النقاط الثلاث العمودية بجانب الرسالة */}
+          {/* Mobile action button - النقاط الثلاث العمودية في الجانب الآخر */}
           <button
             onClick={() => setShowMobileActions(!showMobileActions)}
-            className="md:hidden absolute top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all hover:scale-110 z-10"
+            className={`md:hidden absolute top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all hover:scale-110 z-10 ${
+              isOwn ? "left-0 -translate-x-full -ml-2" : "right-0 translate-x-full mr-2"
+            }`}
             style={{ 
               background: "hsl(var(--card))", 
               border: "1px solid hsl(var(--border))",
               boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-              [isOwn ? "left-full" : "right-full"]: "4px"
             }}
           >
             <MoreVertical className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} />
