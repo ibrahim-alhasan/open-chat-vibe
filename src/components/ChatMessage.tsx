@@ -71,7 +71,7 @@ const ChatMessage = ({
   const profile = message.user_id && profilesMap[message.user_id];
   const displayName = profile ? profile.username : message.username;
   const avatarUrl = isOwn ? currentAvatarUrl : (profile ? profile.avatar_url : null);
-  const userColor = isAdmin ? "hsl(45, 93%, 58%)" : getUserColor(displayName);
+  const userColor = isAdmin ? "#1DA1F2" : getUserColor(displayName); // Changed admin color to Twitter blue
   
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -248,22 +248,30 @@ const ChatMessage = ({
           </div>
         )}
 
-        {/* Username & time & admin badge */}
+        {/* Username & time & admin badge - Modern blue verified style */}
         <div className={`flex items-center gap-2 px-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
           <div className="flex items-center gap-1">
             {isAdmin && (
-              <ShieldCheck className="w-3.5 h-3.5" style={{ color: "hsl(var(--chat-admin))" }} />
+              <div className="flex items-center gap-1">
+                <ShieldCheck 
+                  className="w-4 h-4" 
+                  style={{ color: "#1DA1F2" }} // Twitter blue color
+                />
+                <span 
+                  className="text-xs font-semibold"
+                  style={{ color: "#1DA1F2" }}
+                >
+                  {displayName}
+                </span>
+              </div>
             )}
-            <span
-              className={`text-xs font-semibold ${!isOwn ? "cursor-pointer hover:underline" : ""}`}
-              style={{ color: isAdmin ? "hsl(var(--chat-admin))" : userColor, fontWeight: isAdmin ? 800 : 600 }}
-              onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}
-            >
-              {isOwn ? "أنت" : displayName}
-            </span>
-            {isAdmin && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "hsl(var(--chat-admin) / 0.15)", color: "hsl(var(--chat-admin))" }}>
-                مشرف
+            {!isAdmin && (
+              <span
+                className={`text-xs font-semibold ${!isOwn ? "cursor-pointer hover:underline" : ""}`}
+                style={{ color: userColor }}
+                onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}
+              >
+                {isOwn ? "أنت" : displayName}
               </span>
             )}
           </div>
@@ -294,7 +302,7 @@ const ChatMessage = ({
           </div>
         )}
 
-        {/* Bubble + actions */}
+        {/* Bubble + actions - Now with horizontal buttons */}
         <div className="relative">
           <div
             className={`px-4 py-3 rounded-2xl text-sm leading-relaxed break-words select-none ${isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"} ${isSwiping ? 'opacity-80' : ''}`}
@@ -329,10 +337,10 @@ const ChatMessage = ({
           )}
 
           {isHovered && !isSwiping && (
-            <div className={`absolute top-1 flex flex-col gap-1 z-10 ${isOwn ? "-left-8" : "-right-8"}`}>
+            <div className={`absolute -top-8 flex gap-1 z-10 ${isOwn ? "left-0" : "right-0"}`}>
               <button
                 onClick={(e) => { e.stopPropagation(); e.preventDefault(); setShowEmojiPicker(!showEmojiPicker); }}
-                className="transition-all duration-150 p-1.5 rounded-lg"
+                className="transition-all duration-150 p-1.5 rounded-lg hover:scale-110"
                 style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
                 title="تفاعل"
               >
@@ -340,7 +348,7 @@ const ChatMessage = ({
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); e.preventDefault(); onReply(message); }}
-                className="transition-all duration-150 p-1.5 rounded-lg"
+                className="transition-all duration-150 p-1.5 rounded-lg hover:scale-110"
                 style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
                 title="رد"
               >
@@ -349,7 +357,7 @@ const ChatMessage = ({
               {canDelete && (
                 <button
                   onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(); }}
-                  className="transition-all duration-150 p-1.5 rounded-lg"
+                  className="transition-all duration-150 p-1.5 rounded-lg hover:scale-110"
                   style={{ background: "hsl(var(--destructive) / 0.15)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}
                   title="حذف"
                 >
