@@ -1,4 +1,4 @@
-import { Reply, CornerUpLeft, Trash2, ShieldCheck, Verified, MoreHorizontal } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2, ShieldCheck, MoreVertical } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useState, useEffect, useRef } from "react";
@@ -52,6 +52,39 @@ const getUserColor = (username: string) => {
 };
 
 const getInitials = (username: string) => username.slice(0, 2).toUpperCase();
+
+// مكون شارة التوثيق المسننة
+const VerifiedBadge = () => (
+  <div className="relative flex items-center justify-center">
+    <svg 
+      width="18" 
+      height="18" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* الخلفية المسننة */}
+      <path 
+        d="M12 2L14.5 7.5L20.5 8.5L16.5 13L17.5 19L12 16L6.5 19L7.5 13L3.5 8.5L9.5 7.5L12 2Z" 
+        fill="#1DA1F2"
+        stroke="white"
+        strokeWidth="1.5"
+        style={{ 
+          filter: "drop-shadow(0 2px 4px rgba(29, 161, 242, 0.3))"
+        }}
+      />
+      {/* علامة الصح */}
+      <path 
+        d="M9 12L11 14L15 10" 
+        stroke="white" 
+        strokeWidth="2.5" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  </div>
+);
 
 const ChatMessage = ({
   message,
@@ -197,41 +230,42 @@ const ChatMessage = ({
     if (!isOwn && onUsernameClick && message.user_id) onUsernameClick(message.user_id);
   };
 
-  // Mobile actions menu
+  // Mobile actions menu - يظهر بجانب الرسالة
   const renderMobileActions = () => (
-    <div className="absolute -top-12 left-0 right-0 flex justify-center z-50 md:hidden">
-      <div 
-        className="flex gap-2 p-2 rounded-full animate-fade-in"
-        style={{ 
-          background: "hsl(var(--card))", 
-          border: "1px solid hsl(var(--border))", 
-          boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)"
-        }}
+    <div 
+      className={`absolute z-50 flex flex-col gap-2 p-2 rounded-2xl animate-fade-in ${
+        isOwn ? "left-full ml-2" : "right-full mr-2"
+      } top-0`}
+      style={{ 
+        background: "hsl(var(--card))", 
+        border: "1px solid hsl(var(--border))", 
+        boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)",
+        minWidth: "120px"
+      }}
+    >
+      <button
+        onClick={() => { setShowMobileActions(false); setShowEmojiPicker(true); }}
+        className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/50 transition-all"
       >
+        <span className="text-lg">😊</span>
+        <span className="text-sm font-medium">تفاعل</span>
+      </button>
+      <button
+        onClick={() => { setShowMobileActions(false); onReply(message); }}
+        className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/50 transition-all"
+      >
+        <Reply className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+        <span className="text-sm font-medium">رد</span>
+      </button>
+      {canDelete && (
         <button
-          onClick={() => { setShowMobileActions(false); setShowEmojiPicker(true); }}
-          className="w-10 h-10 flex items-center justify-center rounded-full hover:scale-110 transition-all"
-          style={{ background: "hsl(var(--secondary))" }}
+          onClick={() => { setShowMobileActions(false); handleDelete(); }}
+          className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-destructive/10 transition-all"
         >
-          <span className="text-lg">😊</span>
+          <Trash2 className="w-4 h-4" style={{ color: "hsl(var(--destructive))" }} />
+          <span className="text-sm font-medium" style={{ color: "hsl(var(--destructive))" }}>حذف</span>
         </button>
-        <button
-          onClick={() => { setShowMobileActions(false); onReply(message); }}
-          className="w-10 h-10 flex items-center justify-center rounded-full hover:scale-110 transition-all"
-          style={{ background: "hsl(var(--secondary))" }}
-        >
-          <Reply className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} />
-        </button>
-        {canDelete && (
-          <button
-            onClick={() => { setShowMobileActions(false); handleDelete(); }}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:scale-110 transition-all"
-            style={{ background: "hsl(var(--destructive) / 0.15)" }}
-          >
-            <Trash2 className="w-5 h-5" style={{ color: "hsl(var(--destructive))" }} />
-          </button>
-        )}
-      </div>
+      )}
     </div>
   );
 
@@ -303,30 +337,8 @@ const ChatMessage = ({
                 >
                   {isOwn ? "أنت" : displayName}
                 </span>
-                {/* Modern verified badge - Twitter/X style */}
-                <div className="relative flex items-center justify-center">
-                  <div 
-                    className="w-4 h-4 rounded-full flex items-center justify-center"
-                    style={{ 
-                      background: "#1DA1F2",
-                      boxShadow: "0 2px 4px rgba(29, 161, 242, 0.3)"
-                    }}
-                  >
-                    <svg 
-                      width="10" 
-                      height="10" 
-                      viewBox="0 0 24 24" 
-                      fill="none" 
-                      xmlns="http://www.w3.org/2000/svg"
-                      style={{ color: "white" }}
-                    >
-                      <path 
-                        d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" 
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </div>
-                </div>
+                {/* شارة التوثيق المسننة */}
+                <VerifiedBadge />
               </>
             ) : (
               <span
@@ -401,79 +413,79 @@ const ChatMessage = ({
             </div>
           )}
 
-          {/* Mobile actions menu */}
+          {/* Mobile actions menu - يظهر بجانب الرسالة */}
           {showMobileActions && renderMobileActions()}
 
-          {/* Actions bar - Always visible on all devices in one line */}
-          <div 
-            className={`flex items-center gap-1 mt-1 ${
-              isOwn ? "justify-end" : "justify-start"
-            }`}
-          >
-            {/* Desktop hover actions - Hidden on mobile */}
-            <div className="hidden md:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                onClick={(e) => { e.stopPropagation(); e.preventDefault(); setShowEmojiPicker(!showEmojiPicker); }}
-                className="p-1.5 rounded-lg hover:scale-110 transition-all"
-                style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
-                title="تفاعل"
-              >
-                <span className="text-sm">😊</span>
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); e.preventDefault(); onReply(message); }}
-                className="p-1.5 rounded-lg hover:scale-110 transition-all"
-                style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
-                title="رد"
-              >
-                <Reply className="w-3.5 h-3.5" style={{ color: "hsl(var(--muted-foreground))" }} />
-              </button>
-              {canDelete && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(); }}
-                  className="p-1.5 rounded-lg hover:scale-110 transition-all"
-                  style={{ background: "hsl(var(--destructive) / 0.15)", border: "1px solid hsl(var(--destructive) / 0.3)" }}
-                  title="حذف"
-                >
-                  <Trash2 className="w-3.5 h-3.5" style={{ color: "hsl(var(--destructive))" }} />
-                </button>
-              )}
-            </div>
-
-            {/* Mobile action button - Always visible on mobile */}
+          {/* Desktop actions - تظهر بجانب الرسالة عند التحويم */}
+          <div className={`absolute ${isOwn ? "left-full ml-2" : "right-full mr-2"} top-1/2 -translate-y-1/2 hidden md:flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10`}>
             <button
-              onClick={() => setShowMobileActions(!showMobileActions)}
-              className="md:hidden p-1.5 rounded-lg transition-all hover:scale-110"
-              style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); setShowEmojiPicker(!showEmojiPicker); }}
+              className="p-2 rounded-lg hover:scale-110 transition-all"
+              style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+              title="تفاعل"
             >
-              <MoreHorizontal className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+              <span className="text-base">😊</span>
             </button>
-
-            {/* Reactions display - Always visible */}
-            {Object.keys(reactionGroups).length > 0 && (
-              <div className={`flex flex-wrap gap-1 px-1 animate-fade-in`}>
-                {Object.entries(reactionGroups).map(([emoji, group]) => {
-                  const myReaction = group.find((r) => r.username === currentUsername);
-                  return (
-                    <button
-                      key={emoji}
-                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleReaction(emoji); }}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all hover:scale-105 active:scale-95"
-                      style={{
-                        background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))",
-                        border: myReaction ? "1px solid hsl(var(--primary) / 0.5)" : "1px solid hsl(var(--border))",
-                        color: "hsl(var(--foreground))",
-                      }}
-                    >
-                      <span>{emoji}</span>
-                      <span>{group.length}</span>
-                    </button>
-                  );
-                })}
-              </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); onReply(message); }}
+              className="p-2 rounded-lg hover:scale-110 transition-all"
+              style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+              title="رد"
+            >
+              <Reply className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+            </button>
+            {canDelete && (
+              <button
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(); }}
+                className="p-2 rounded-lg hover:scale-110 transition-all"
+                style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--destructive) / 0.3)", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                title="حذف"
+              >
+                <Trash2 className="w-4 h-4" style={{ color: "hsl(var(--destructive))" }} />
+              </button>
             )}
           </div>
+
+          {/* Mobile action button - النقاط الثلاث العمودية بجانب الرسالة */}
+          <button
+            onClick={() => setShowMobileActions(!showMobileActions)}
+            className="md:hidden absolute top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all hover:scale-110 z-10"
+            style={{ 
+              background: "hsl(var(--card))", 
+              border: "1px solid hsl(var(--border))",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              [isOwn ? "left-full" : "right-full"]: "4px"
+            }}
+          >
+            <MoreVertical className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} />
+          </button>
         </div>
+
+        {/* Reactions display - تحت الرسالة */}
+        {Object.keys(reactionGroups).length > 0 && (
+          <div className={`flex flex-wrap gap-1 px-1 mt-1 animate-fade-in ${
+            isOwn ? "justify-end" : "justify-start"
+          }`}>
+            {Object.entries(reactionGroups).map(([emoji, group]) => {
+              const myReaction = group.find((r) => r.username === currentUsername);
+              return (
+                <button
+                  key={emoji}
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleReaction(emoji); }}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all hover:scale-105 active:scale-95"
+                  style={{
+                    background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))",
+                    border: myReaction ? "1px solid hsl(var(--primary) / 0.5)" : "1px solid hsl(var(--border))",
+                    color: "hsl(var(--foreground))",
+                  }}
+                >
+                  <span>{emoji}</span>
+                  <span>{group.length}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
