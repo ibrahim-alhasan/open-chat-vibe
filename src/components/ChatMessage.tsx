@@ -1,4 +1,4 @@
-import { Reply, CornerUpLeft, Trash2, ShieldCheck } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2, ShieldCheck, Verified, MoreHorizontal } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useState, useEffect, useRef } from "react";
@@ -71,10 +71,10 @@ const ChatMessage = ({
   const profile = message.user_id && profilesMap[message.user_id];
   const displayName = profile ? profile.username : message.username;
   const avatarUrl = isOwn ? currentAvatarUrl : (profile ? profile.avatar_url : null);
-  const userColor = isAdmin ? "#1DA1F2" : getUserColor(displayName); // Changed admin color to Twitter blue
+  const userColor = isAdmin ? "#1DA1F2" : getUserColor(displayName);
   
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
+  const [showMobileActions, setShowMobileActions] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const [showReplyIndicator, setShowReplyIndicator] = useState(false);
@@ -95,6 +95,7 @@ const ChatMessage = ({
 
   const handleReaction = async (emoji: string) => {
     setShowEmojiPicker(false);
+    setShowMobileActions(false);
     const existing = reactions.find((r) => r.emoji === emoji && r.username === currentUsername);
     if (existing) {
       await supabase.from("reactions").delete().eq("id", existing.id);
@@ -105,12 +106,16 @@ const ChatMessage = ({
 
   const handleDelete = async () => {
     if (!canDelete || !onDelete) return;
+    setShowMobileActions(false);
     onDelete(message.id);
   };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (messageRef.current && !messageRef.current.contains(event.target as Node)) setShowEmojiPicker(false);
+      if (messageRef.current && !messageRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+        setShowMobileActions(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -192,12 +197,50 @@ const ChatMessage = ({
     if (!isOwn && onUsernameClick && message.user_id) onUsernameClick(message.user_id);
   };
 
+  // Mobile actions menu
+  const renderMobileActions = () => (
+    <div className="absolute -top-12 left-0 right-0 flex justify-center z-50 md:hidden">
+      <div 
+        className="flex gap-2 p-2 rounded-full animate-fade-in"
+        style={{ 
+          background: "hsl(var(--card))", 
+          border: "1px solid hsl(var(--border))", 
+          boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)"
+        }}
+      >
+        <button
+          onClick={() => { setShowMobileActions(false); setShowEmojiPicker(true); }}
+          className="w-10 h-10 flex items-center justify-center rounded-full hover:scale-110 transition-all"
+          style={{ background: "hsl(var(--secondary))" }}
+        >
+          <span className="text-lg">😊</span>
+        </button>
+        <button
+          onClick={() => { setShowMobileActions(false); onReply(message); }}
+          className="w-10 h-10 flex items-center justify-center rounded-full hover:scale-110 transition-all"
+          style={{ background: "hsl(var(--secondary))" }}
+        >
+          <Reply className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} />
+        </button>
+        {canDelete && (
+          <button
+            onClick={() => { setShowMobileActions(false); handleDelete(); }}
+            className="w-10 h-10 flex items-center justify-center rounded-full hover:scale-110 transition-all"
+            style={{ background: "hsl(var(--destructive) / 0.15)" }}
+          >
+            <Trash2 className="w-5 h-5" style={{ color: "hsl(var(--destructive))" }} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div
       ref={messageRef}
-      className={`flex gap-3 group animate-fade-in ${isOwn ? "flex-row-reverse" : "flex-row"}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => { setIsHovered(false); handleMouseLeave(); }}
+      className={`flex gap-3 group animate-fade-in relative ${isOwn ? "flex-row-reverse" : "flex-row"}`}
+      onMouseEnter={() => {}}
+      onMouseLeave={() => { handleMouseLeave(); }}
     >
       {/* Avatar with online indicator */}
       <div className="relative flex-shrink-0 mt-1">
@@ -248,24 +291,44 @@ const ChatMessage = ({
           </div>
         )}
 
-        {/* Username & time & admin badge - Modern blue verified style */}
+        {/* Username & time with modern verified badge */}
         <div className={`flex items-center gap-2 px-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
           <div className="flex items-center gap-1">
-            {isAdmin && (
-              <div className="flex items-center gap-1">
-                <ShieldCheck 
-                  className="w-4 h-4" 
-                  style={{ color: "#1DA1F2" }} // Twitter blue color
-                />
-                <span 
-                  className="text-xs font-semibold"
+            {isAdmin ? (
+              <>
+                <span
+                  className="text-xs font-semibold flex items-center gap-1"
                   style={{ color: "#1DA1F2" }}
+                  onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}
                 >
-                  {displayName}
+                  {isOwn ? "أنت" : displayName}
                 </span>
-              </div>
-            )}
-            {!isAdmin && (
+                {/* Modern verified badge - Twitter/X style */}
+                <div className="relative flex items-center justify-center">
+                  <div 
+                    className="w-4 h-4 rounded-full flex items-center justify-center"
+                    style={{ 
+                      background: "#1DA1F2",
+                      boxShadow: "0 2px 4px rgba(29, 161, 242, 0.3)"
+                    }}
+                  >
+                    <svg 
+                      width="10" 
+                      height="10" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      xmlns="http://www.w3.org/2000/svg"
+                      style={{ color: "white" }}
+                    >
+                      <path 
+                        d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" 
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </>
+            ) : (
               <span
                 className={`text-xs font-semibold ${!isOwn ? "cursor-pointer hover:underline" : ""}`}
                 style={{ color: userColor }}
@@ -302,8 +365,9 @@ const ChatMessage = ({
           </div>
         )}
 
-        {/* Bubble + actions - Now with horizontal buttons */}
-        <div className="relative">
+        {/* Message bubble with actions integrated */}
+        <div className="relative w-full">
+          {/* Main message bubble */}
           <div
             className={`px-4 py-3 rounded-2xl text-sm leading-relaxed break-words select-none ${isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"} ${isSwiping ? 'opacity-80' : ''}`}
             style={{ direction: "rtl", textAlign: "right", boxShadow: isSwiping ? '0 4px 12px rgba(0,0,0,0.1)' : 'none' }}
@@ -311,6 +375,7 @@ const ChatMessage = ({
             {message.content}
           </div>
 
+          {/* Emoji picker - Floating above */}
           {showEmojiPicker && (
             <div
               className={`absolute -top-12 flex gap-1 p-2 rounded-2xl z-50 animate-fade-in ${isOwn ? "right-0" : "left-0"}`}
@@ -336,61 +401,79 @@ const ChatMessage = ({
             </div>
           )}
 
-          {isHovered && !isSwiping && (
-            <div className={`absolute -top-8 flex gap-1 z-10 ${isOwn ? "left-0" : "right-0"}`}>
+          {/* Mobile actions menu */}
+          {showMobileActions && renderMobileActions()}
+
+          {/* Actions bar - Always visible on all devices in one line */}
+          <div 
+            className={`flex items-center gap-1 mt-1 ${
+              isOwn ? "justify-end" : "justify-start"
+            }`}
+          >
+            {/* Desktop hover actions - Hidden on mobile */}
+            <div className="hidden md:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={(e) => { e.stopPropagation(); e.preventDefault(); setShowEmojiPicker(!showEmojiPicker); }}
-                className="transition-all duration-150 p-1.5 rounded-lg hover:scale-110"
-                style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
+                className="p-1.5 rounded-lg hover:scale-110 transition-all"
+                style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
                 title="تفاعل"
               >
                 <span className="text-sm">😊</span>
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); e.preventDefault(); onReply(message); }}
-                className="transition-all duration-150 p-1.5 rounded-lg hover:scale-110"
-                style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
+                className="p-1.5 rounded-lg hover:scale-110 transition-all"
+                style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
                 title="رد"
               >
-                <Reply className="w-3.5 h-3.5" />
+                <Reply className="w-3.5 h-3.5" style={{ color: "hsl(var(--muted-foreground))" }} />
               </button>
               {canDelete && (
                 <button
                   onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(); }}
-                  className="transition-all duration-150 p-1.5 rounded-lg hover:scale-110"
-                  style={{ background: "hsl(var(--destructive) / 0.15)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}
+                  className="p-1.5 rounded-lg hover:scale-110 transition-all"
+                  style={{ background: "hsl(var(--destructive) / 0.15)", border: "1px solid hsl(var(--destructive) / 0.3)" }}
                   title="حذف"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-3.5 h-3.5" style={{ color: "hsl(var(--destructive))" }} />
                 </button>
               )}
             </div>
-          )}
-        </div>
 
-        {/* Reactions display */}
-        {Object.keys(reactionGroups).length > 0 && (
-          <div className={`flex flex-wrap gap-1 px-1 ${isOwn ? "justify-end" : "justify-start"} animate-fade-in`}>
-            {Object.entries(reactionGroups).map(([emoji, group]) => {
-              const myReaction = group.find((r) => r.username === currentUsername);
-              return (
-                <button
-                  key={emoji}
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleReaction(emoji); }}
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all hover:scale-105 active:scale-95"
-                  style={{
-                    background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))",
-                    border: myReaction ? "1px solid hsl(var(--primary) / 0.5)" : "1px solid hsl(var(--border))",
-                    color: "hsl(var(--foreground))",
-                  }}
-                >
-                  <span>{emoji}</span>
-                  <span>{group.length}</span>
-                </button>
-              );
-            })}
+            {/* Mobile action button - Always visible on mobile */}
+            <button
+              onClick={() => setShowMobileActions(!showMobileActions)}
+              className="md:hidden p-1.5 rounded-lg transition-all hover:scale-110"
+              style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
+            >
+              <MoreHorizontal className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+            </button>
+
+            {/* Reactions display - Always visible */}
+            {Object.keys(reactionGroups).length > 0 && (
+              <div className={`flex flex-wrap gap-1 px-1 animate-fade-in`}>
+                {Object.entries(reactionGroups).map(([emoji, group]) => {
+                  const myReaction = group.find((r) => r.username === currentUsername);
+                  return (
+                    <button
+                      key={emoji}
+                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleReaction(emoji); }}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all hover:scale-105 active:scale-95"
+                      style={{
+                        background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))",
+                        border: myReaction ? "1px solid hsl(var(--primary) / 0.5)" : "1px solid hsl(var(--border))",
+                        color: "hsl(var(--foreground))",
+                      }}
+                    >
+                      <span>{emoji}</span>
+                      <span>{group.length}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
