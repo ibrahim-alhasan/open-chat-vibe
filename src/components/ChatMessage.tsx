@@ -256,9 +256,9 @@ const ChatMessage = ({
         )}
       </div>
 
-      {/* Message content with swipe */}
+      {/* Message content with swipe - تم تغيير flex-1 إلى max-w-[70%] */}
       <div
-        className={`flex-1 space-y-1 ${isOwn ? "items-end" : "items-start"} flex flex-col relative`}
+        className={`max-w-[70%] space-y-1 ${isOwn ? "items-end" : "items-start"} flex flex-col relative`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
