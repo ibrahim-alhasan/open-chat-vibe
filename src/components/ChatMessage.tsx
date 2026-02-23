@@ -1,4 +1,4 @@
-import { Reply, CornerUpLeft, Trash2, MoreVertical } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useState, useEffect, useRef } from "react";
@@ -53,44 +53,12 @@ const getUserColor = (username: string) => {
 
 const getInitials = (username: string) => username.slice(0, 2).toUpperCase();
 
-// مكون شارة التوثيق المدورة بـ 10 سنون حادة
+// شارة التوثيق بنمط تويتر/المواقع العالمية
 const VerifiedBadge = () => (
-  <div className="relative flex items-center justify-center">
-    <svg 
-      width="20" 
-      height="20" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* دائرة خارجية للتأطير */}
-      <circle cx="12" cy="12" r="11" fill="#0A66C2" stroke="white" strokeWidth="1.5"/>
-      
-      {/* 10 سنون حادة داخل الدائرة */}
-      <path 
-        d="M12 3L13.5 7L17.5 7.5L14.5 10.5L15.5 14.5L12 12.5L8.5 14.5L9.5 10.5L6.5 7.5L10.5 7L12 3Z" 
-        fill="white" 
-        opacity="0.9"
-      />
-      
-      {/* سنون إضافية للوصول لـ 10 سنون */}
-      <path 
-        d="M12 5L13 8L16 8.5L14 11L14.5 14L12 12.5L9.5 14L10 11L8 8.5L11 8L12 5Z" 
-        fill="white" 
-        opacity="0.7"
-      />
-      
-      {/* علامة الصح في المنتصف */}
-      <path 
-        d="M9 12L11 14L16 9" 
-        stroke="#0A66C2" 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
-  </div>
+  <svg width="18" height="18" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
+    <path d="M20.396 11c.745-.765.745-2.066 0-2.831l-1.09-1.12.354-1.52c.254-1.092-.59-2.138-1.692-2.098l-1.566.057-.63-1.437C15.322 1.01 14.1.573 13.17 1.156l-1.32.827-1.32-.827C9.6.573 8.378 1.01 7.928 2.051l-.63 1.437-1.566-.057c-1.102-.04-1.946 1.006-1.692 2.098l.354 1.52-1.09 1.12c-.745.765-.745 2.066 0 2.831l1.09 1.12-.354 1.52c-.254 1.092.59 2.138 1.692 2.098l1.566-.057.63 1.437c.45 1.041 1.672 1.478 2.602.895l1.32-.827 1.32.827c.93.583 2.152.146 2.602-.895l.63-1.437 1.566.057c1.102.04 1.946-1.006 1.692-2.098l-.354-1.52 1.09-1.12z" fill="#1D9BF0"/>
+    <path d="M9.585 14.929l-3.28-3.28 1.168-1.168 2.112 2.112 5.048-5.048 1.168 1.168-6.216 6.216z" fill="white"/>
+  </svg>
 );
 
 const ChatMessage = ({
@@ -111,7 +79,7 @@ const ChatMessage = ({
   const profile = message.user_id && profilesMap[message.user_id];
   const displayName = profile ? profile.username : message.username;
   const avatarUrl = isOwn ? currentAvatarUrl : (profile ? profile.avatar_url : null);
-  const userColor = isAdmin ? "#0A66C2" : getUserColor(displayName);
+  const userColor = isAdmin ? "#1D9BF0" : getUserColor(displayName);
   
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -237,80 +205,20 @@ const ChatMessage = ({
     if (!isOwn && onUsernameClick && message.user_id) onUsernameClick(message.user_id);
   };
 
-  // Handle message click to show three dots
-  const handleMessageClick = (e: React.MouseEvent) => {
-    // Don't show if clicking on a button or interactive element
+  // Long press for mobile to show actions
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleBubbleClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
-    
-    // Toggle actions menu on message click
     setShowActionsMenu(!showActionsMenu);
-    
-    // Hide emoji picker if open
     setShowEmojiPicker(false);
   };
-
-  // Actions menu that appears above the message
-  const renderActionsMenu = () => (
-    <div 
-      className="absolute left-1/2 transform -translate-x-1/2 z-[9999] animate-fade-in"
-      style={{
-        bottom: "calc(100% + 8px)", // فوق الرسالة مباشرة
-      }}
-    >
-      <div 
-        className="flex gap-2 p-2 rounded-2xl"
-        style={{ 
-          background: "hsl(var(--card))", 
-          border: "1px solid hsl(var(--border))", 
-          boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-        }}
-      >
-        <button
-          onClick={(e) => { e.stopPropagation(); e.preventDefault(); setShowEmojiPicker(true); setShowActionsMenu(false); }}
-          className="flex items-center justify-center w-10 h-10 rounded-xl hover:scale-110 transition-all"
-          style={{ background: "hsl(var(--secondary))" }}
-          title="تفاعل"
-        >
-          <span className="text-lg">😊</span>
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); e.preventDefault(); onReply(message); setShowActionsMenu(false); }}
-          className="flex items-center justify-center w-10 h-10 rounded-xl hover:scale-110 transition-all"
-          style={{ background: "hsl(var(--secondary))" }}
-          title="رد"
-        >
-          <Reply className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} />
-        </button>
-        {canDelete && (
-          <button
-            onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(); setShowActionsMenu(false); }}
-            className="flex items-center justify-center w-10 h-10 rounded-xl hover:scale-110 transition-all"
-            style={{ background: "hsl(var(--destructive) / 0.15)" }}
-            title="حذف"
-          >
-            <Trash2 className="w-5 h-5" style={{ color: "hsl(var(--destructive))" }} />
-          </button>
-        )}
-      </div>
-      
-      {/* سهم صغير يشير للأسفل نحو الرسالة */}
-      <div 
-        className="absolute left-1/2 transform -translate-x-1/2 w-3 h-3 rotate-45"
-        style={{ 
-          background: "hsl(var(--card))",
-          borderRight: "1px solid hsl(var(--border))",
-          borderBottom: "1px solid hsl(var(--border))",
-          bottom: "-6px",
-        }}
-      />
-    </div>
-  );
 
   return (
     <div
       ref={messageRef}
       className={`flex gap-3 group animate-fade-in relative ${isOwn ? "flex-row-reverse" : "flex-row"}`}
-      onMouseLeave={() => { handleMouseLeave(); }}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Avatar with online indicator */}
       <div className="relative flex-shrink-0 mt-1">
@@ -364,27 +272,14 @@ const ChatMessage = ({
         {/* Username & time with verified badge */}
         <div className={`flex items-center gap-2 px-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
           <div className="flex items-center gap-1">
-            {isAdmin ? (
-              <>
-                <span
-                  className="text-xs font-semibold flex items-center gap-1"
-                  style={{ color: "#0A66C2" }}
-                  onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}
-                >
-                  {isOwn ? "أنت" : displayName}
-                </span>
-                {/* شارة التوثيق المدورة بـ 10 سنون حادة */}
-                <VerifiedBadge />
-              </>
-            ) : (
-              <span
-                className={`text-xs font-semibold ${!isOwn ? "cursor-pointer hover:underline" : ""}`}
-                style={{ color: userColor }}
-                onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}
-              >
-                {isOwn ? "أنت" : displayName}
-              </span>
-            )}
+            <span
+              className={`text-xs font-semibold ${!isOwn && !isAdmin ? "cursor-pointer hover:underline" : ""}`}
+              style={{ color: userColor }}
+              onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}
+            >
+              {isOwn ? "أنت" : displayName}
+            </span>
+            {isAdmin && <VerifiedBadge />}
           </div>
           <span className="text-xs" style={{ color: "hsl(var(--chat-timestamp))" }}>{timeAgo}</span>
         </div>
@@ -400,7 +295,6 @@ const ChatMessage = ({
               borderLeft: !isOwn ? `2px solid ${getUserColor(message.reply_to_username)}` : undefined,
               maxWidth: "100%",
             }}
-            onClick={handleMessageClick}
           >
             <CornerUpLeft className="w-3 h-3 mt-0.5 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
             <div className={`min-w-0 ${isOwn ? "text-right" : "text-left"}`}>
@@ -416,41 +310,102 @@ const ChatMessage = ({
 
         {/* Message bubble */}
         <div className="relative w-full">
-          {/* Main message bubble - Clickable to show actions */}
           <div
-            className={`px-4 py-3 rounded-2xl text-sm leading-relaxed break-words select-none ${isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"} ${isSwiping ? 'opacity-80' : ''} cursor-pointer hover:brightness-95 transition-all`}
+            className={`px-4 py-3 rounded-2xl text-sm leading-relaxed break-words select-none ${isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"} ${isSwiping ? 'opacity-80' : ''} cursor-pointer active:brightness-90 transition-all`}
             style={{ 
               direction: "rtl", 
               textAlign: "right", 
               boxShadow: isSwiping ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
             }}
-            onClick={handleMessageClick}
+            onClick={handleBubbleClick}
           >
             {message.content}
           </div>
 
-          {/* ثلاث نقاط - تظهر فقط عند الضغط على الرسالة */}
+          {/* Actions popup - floating above message */}
           {showActionsMenu && (
-            <button
-              onClick={(e) => { e.stopPropagation(); e.preventDefault(); setShowActionsMenu(false); }}
-              className="absolute -top-8 left-1/2 transform -translate-x-1/2 p-1.5 rounded-full z-[9998] animate-fade-in"
-              style={{ 
-                background: "hsl(var(--card))", 
-                border: "1px solid hsl(var(--border))",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-              }}
+            <div 
+              className="absolute left-1/2 transform -translate-x-1/2 z-[9999] animate-fade-in"
+              style={{ bottom: "calc(100% + 8px)" }}
             >
-              <MoreVertical className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
-            </button>
+              <div 
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-2xl"
+                style={{ 
+                  background: "hsl(var(--card))", 
+                  border: "1px solid hsl(var(--border))", 
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                }}
+              >
+                {/* Quick emoji reactions */}
+                {EMOJIS.slice(0, 4).map((emoji) => {
+                  const myReaction = reactions.find((r) => r.emoji === emoji && r.username === currentUsername);
+                  return (
+                    <button
+                      key={emoji}
+                      onClick={(e) => { e.stopPropagation(); handleReaction(emoji); }}
+                      className="w-9 h-9 flex items-center justify-center rounded-xl text-base transition-all hover:scale-125 active:scale-90"
+                      style={{
+                        background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent",
+                      }}
+                    >
+                      {emoji}
+                    </button>
+                  );
+                })}
+                
+                {/* More emojis button */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowEmojiPicker(true); setShowActionsMenu(false); }}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl text-xs transition-all hover:scale-110"
+                  style={{ background: "hsl(var(--secondary))" }}
+                >
+                  <span className="text-base">➕</span>
+                </button>
+                
+                {/* Divider */}
+                <div className="w-px h-6 mx-0.5" style={{ background: "hsl(var(--border))" }} />
+                
+                {/* Reply */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); onReply(message); setShowActionsMenu(false); }}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:scale-110"
+                  style={{ background: "hsl(var(--secondary))" }}
+                  title="رد"
+                >
+                  <Reply className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+                </button>
+                
+                {/* Delete */}
+                {canDelete && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:scale-110"
+                    style={{ background: "hsl(var(--destructive) / 0.15)" }}
+                    title="حذف"
+                  >
+                    <Trash2 className="w-4 h-4" style={{ color: "hsl(var(--destructive))" }} />
+                  </button>
+                )}
+              </div>
+              
+              {/* Arrow pointing down */}
+              <div 
+                className="absolute left-1/2 transform -translate-x-1/2 w-3 h-3 rotate-45"
+                style={{ 
+                  background: "hsl(var(--card))",
+                  borderRight: "1px solid hsl(var(--border))",
+                  borderBottom: "1px solid hsl(var(--border))",
+                  bottom: "-6px",
+                }}
+              />
+            </div>
           )}
 
-          {/* Emoji picker - Floating above with high z-index */}
+          {/* Full Emoji picker */}
           {showEmojiPicker && (
             <div
-              className={`absolute left-1/2 transform -translate-x-1/2 z-[9999] animate-fade-in`}
-              style={{
-                bottom: "calc(100% + 60px)",
-              }}
+              className="absolute left-1/2 transform -translate-x-1/2 z-[9999] animate-fade-in"
+              style={{ bottom: "calc(100% + 8px)" }}
               onClick={(e) => e.stopPropagation()}
             >
               <div 
@@ -462,7 +417,7 @@ const ChatMessage = ({
                   return (
                     <button
                       key={emoji}
-                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleReaction(emoji); }}
+                      onClick={(e) => { e.stopPropagation(); handleReaction(emoji); }}
                       className="w-10 h-10 flex items-center justify-center rounded-xl text-lg transition-all hover:scale-125 active:scale-90"
                       style={{
                         background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent",
@@ -485,22 +440,17 @@ const ChatMessage = ({
               />
             </div>
           )}
-
-          {/* Actions menu - يظهر فوق الرسالة مع z-index عالي جداً */}
-          {showActionsMenu && renderActionsMenu()}
         </div>
 
-        {/* Reactions display - تحت الرسالة */}
+        {/* Reactions display */}
         {Object.keys(reactionGroups).length > 0 && (
-          <div className={`flex flex-wrap gap-1 px-1 mt-1 animate-fade-in ${
-            isOwn ? "justify-end" : "justify-start"
-          }`}>
+          <div className={`flex flex-wrap gap-1 px-1 mt-1 animate-fade-in ${isOwn ? "justify-end" : "justify-start"}`}>
             {Object.entries(reactionGroups).map(([emoji, group]) => {
               const myReaction = group.find((r) => r.username === currentUsername);
               return (
                 <button
                   key={emoji}
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleReaction(emoji); }}
+                  onClick={(e) => { e.stopPropagation(); handleReaction(emoji); }}
                   className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all hover:scale-105 active:scale-95"
                   style={{
                     background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))",
