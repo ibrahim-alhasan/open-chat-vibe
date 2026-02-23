@@ -1,4 +1,4 @@
-import { Reply, CornerUpLeft, Trash2, Check } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useState, useEffect, useRef } from "react";
@@ -53,11 +53,23 @@ const getUserColor = (username: string) => {
 
 const getInitials = (username: string) => username.slice(0, 2).toUpperCase();
 
-// شارة التوثيق المحسنة - علامة صح زرقاء في دائرة
+// شارة التوثيق باستخدام الأيقونة المطلوبة
 const VerifiedBadge = () => (
-  <svg>
-    <path d="M20.396 11c.745-.765.745-2.066 0-2.831l-1.09-1.12.354-1.52c.254-1.092-.59-2.138-1.692-2.098l-1.566.057-.63-1.437C15.322 1.01 14.1.573 13.17 1.156l-1.32.827-1.32-.827C9.6.573 8.378 1.01 7.928 2.051l-.63 1.437-1.566-.057c-1.102-.04-1.946 1.006-1.692 2.098l.354 1.52-1.09 1.12c-.745.765-.745 2.066 0 2.831l1.09 1.12-.354 1.52c-.254 1.092.59 2.138 1.692 2.098l1.566-.057.63 1.437c.45 1.041 1.672 1.478 2.602.895l1.32-.827 1.32.827c.93.583 2.152.146 2.602-.895l.63-1.437 1.566.057c1.102.04 1.946-1.006 1.692-2.098l-.354-1.52 1.09-1.12z" fill="#1D9BF0"/>
-    <path d="M9.585 14.929l-3.28-3.28 1.168-1.168 2.112 2.112 5.048-5.048 1.168 1.168-6.216 6.216z" fill="white"/>
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width="16" 
+    height="16" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className="lucide lucide-badge-check-icon lucide-badge-check"
+    style={{ color: "#1D9BF0", display: "inline-block", marginRight: "4px" }}
+  >
+    <path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/>
+    <path d="m9 12 2 2 4-4"/>
   </svg>
 );
 
@@ -218,7 +230,7 @@ const ChatMessage = ({
       onMouseLeave={handleMouseLeave}
     >
       {/* Avatar with online indicator */}
-      <div className="relative flex-shrink-0 mt-1">
+      <div className="relative flex-shrink-0">
         {avatarUrl ? (
           <img
             src={avatarUrl}
@@ -238,15 +250,15 @@ const ChatMessage = ({
         )}
         {isOnline && (
           <span
-            className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
-            style={{ background: "hsl(var(--chat-online))", borderColor: "hsl(var(--chat-bg))" }}
+            className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
+            style={{ background: "hsl(var(--chat-online))" }}
           />
         )}
       </div>
 
       {/* Message content with swipe */}
       <div
-        className={`max-w-[70%] space-y-1 ${isOwn ? "items-end" : "items-start"} flex flex-col relative`}
+        className={`flex-1 space-y-1 ${isOwn ? "items-end" : "items-start"} flex flex-col relative`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -266,32 +278,31 @@ const ChatMessage = ({
           </div>
         )}
 
-        {/* Username & time with verified badge */}
-     
-<div className={`flex items-center gap-2 px-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
-  <div className="flex items-center gap-1.5">
-    <span
-      className={`text-xs font-semibold ${!isOwn && !isAdmin ? "cursor-pointer hover:underline" : ""}`}
-      style={{ color: userColor }}
-      onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}
-    >
-      {isOwn ? "أنت" : displayName}
-    </span>
-    {isAdmin && <VerifiedBadge />}
-  </div>
-  <span className="text-xs" style={{ color: "hsl(var(--chat-timestamp))" }}>{timeAgo}</span>
-</div>
+        {/* Username, verified badge, and time in one line */}
+        <div className={`flex items-center gap-2 w-full ${isOwn ? "justify-end" : "justify-start"}`}>
+          {/* Username and badge container - always in correct order */}
+          <div className="flex items-center gap-1">
+            <span
+              className={`text-xs font-semibold ${!isOwn && !isAdmin ? "cursor-pointer hover:underline" : ""}`}
+              style={{ color: userColor }}
+              onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}
+            >
+              {isOwn ? "أنت" : displayName}
+            </span>
+            {isAdmin && <VerifiedBadge />}
+          </div>
+          <span className="text-xs" style={{ color: "hsl(var(--chat-timestamp))" }}>{timeAgo}</span>
+        </div>
 
         {/* Reply preview */}
         {message.reply_to && message.reply_to_username && (
           <div
-            className={`px-3 py-2 rounded-lg text-xs flex items-start gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"} cursor-pointer`}
+            className={`px-3 py-2 rounded-lg text-xs flex items-start gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"} cursor-pointer w-full`}
             style={{
               background: "hsl(var(--chat-reply-bg))",
               border: "1px solid hsl(var(--border))",
               borderRight: isOwn ? `2px solid ${getUserColor(message.reply_to_username)}` : undefined,
               borderLeft: !isOwn ? `2px solid ${getUserColor(message.reply_to_username)}` : undefined,
-              maxWidth: "100%",
             }}
           >
             <CornerUpLeft className="w-3 h-3 mt-0.5 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
