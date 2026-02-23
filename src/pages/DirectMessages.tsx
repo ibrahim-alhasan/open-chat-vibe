@@ -73,26 +73,31 @@ const DirectMessages = ({
   const [loading, setLoading] = useState(true);
   const [hoveredMsg, setHoveredMsg] = useState<string | null>(null);
   const [emojiPickerMsg, setEmojiPickerMsg] = useState<string | null>(null);
+  const [blockedByMe, setBlockedByMe] = useState<Set<string>>(new Set());
+  const [blockedMe, setBlockedMe] = useState<Set<string>>(new Set());
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Back button handling
+  // Back button handling - use window.history for proper navigation
   useEffect(() => {
-    const handlePopState = () => {
+    const handlePopState = (e: PopStateEvent) => {
       if (activeConversation) {
         setActiveConversation(null);
+        setReplyTo(null);
       } else {
         onBack();
       }
     };
-    window.history.pushState({ page: 'dms' }, '', '/dms');
+    
+    // Push initial DM state
+    window.history.pushState({ page: 'dms' }, '', '/');
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [onBack, activeConversation]);
 
   useEffect(() => {
     if (activeConversation) {
-      window.history.pushState({ page: 'dm-conversation' }, '', `/dm/${activeConversation}`);
+      window.history.pushState({ page: 'dm-conversation' }, '', '/');
     }
   }, [activeConversation]);
 
@@ -101,6 +106,19 @@ const DirectMessages = ({
   }, []);
 
   const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
+
+  // Fetch blocked users
+  useEffect(() => {
+    const fetchBlocked = async () => {
+      const [byMe, meBy] = await Promise.all([
+        supabase.from("blocked_users").select("blocked_user_id").eq("blocker_user_id", currentUserId),
+        supabase.from("blocked_users").select("blocker_user_id").eq("blocked_user_id", currentUserId),
+      ]);
+      if (byMe.data) setBlockedByMe(new Set(byMe.data.map((b: any) => b.blocked_user_id)));
+      if (meBy.data) setBlockedMe(new Set(meBy.data.map((b: any) => b.blocker_user_id)));
+    };
+    fetchBlocked();
+  }, [currentUserId]);
 
   // Fetch DMs
   useEffect(() => {
@@ -152,6 +170,18 @@ const DirectMessages = ({
         const deleted = payload.old as { id: string };
         setDmReactions((prev) => prev.filter((r) => r.id !== deleted.id));
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "blocked_users" }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          const row = payload.new as any;
+          if (row.blocker_user_id === currentUserId) setBlockedByMe(prev => new Set([...prev, row.blocked_user_id]));
+          if (row.blocked_user_id === currentUserId) setBlockedMe(prev => new Set([...prev, row.blocker_user_id]));
+        }
+        if (payload.eventType === "DELETE") {
+          const row = payload.old as any;
+          if (row.blocker_user_id === currentUserId) setBlockedByMe(prev => { const s = new Set(prev); s.delete(row.blocked_user_id); return s; });
+          if (row.blocked_user_id === currentUserId) setBlockedMe(prev => { const s = new Set(prev); s.delete(row.blocker_user_id); return s; });
+        }
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -190,8 +220,10 @@ const DirectMessages = ({
     setConversations(Object.values(convMap).sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime()));
   };
 
+  const isConversationBlocked = activeConversation ? (blockedByMe.has(activeConversation) || blockedMe.has(activeConversation)) : false;
+
   const handleSend = async () => {
-    if (!input.trim() || !activeConversation || sending) return;
+    if (!input.trim() || !activeConversation || sending || isConversationBlocked) return;
     const content = input.trim();
     setInput("");
     const currentReply = replyTo;
@@ -356,6 +388,7 @@ const DirectMessages = ({
                 return acc;
               }, {});
               const currentSwipe = swipeState?.msgId === msg.id ? swipeState.offset : 0;
+              const showSwipeReply = currentSwipe > 30;
 
               return (
                 <div
@@ -375,82 +408,91 @@ const DirectMessages = ({
                     )}
                   </div>
 
-                  <div
-                    className={`max-w-[70%] space-y-1 flex flex-col ${isOwn ? "items-end" : "items-start"}`}
-                    onTouchStart={(e) => handleMsgTouchStart(msg.id, e.touches[0].clientX)}
-                    onTouchMove={(e) => handleMsgTouchMove(e.touches[0].clientX)}
-                    onTouchEnd={handleMsgTouchEnd}
-                    onMouseDown={(e) => { if (!(e.target as HTMLElement).closest('button')) handleMsgTouchStart(msg.id, e.clientX); }}
-                    onMouseMove={(e) => handleMsgTouchMove(e.clientX)}
-                    onMouseUp={handleMsgTouchEnd}
-                    style={{ transform: `translateX(${currentSwipe}px)`, transition: swipeState?.msgId === msg.id ? 'none' : 'transform 0.2s ease' }}
-                  >
-                    {/* Reply preview */}
-                    {msg.reply_to_content && (
-                      <div className="px-3 py-1.5 rounded-lg text-xs" style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: isOwn ? "2px solid hsl(var(--primary))" : undefined, borderLeft: !isOwn ? "2px solid hsl(var(--primary))" : undefined }}>
-                        <p className="truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{msg.reply_to_content}</p>
+                  <div className="relative">
+                    {/* Swipe reply indicator */}
+                    {showSwipeReply && (
+                      <div className="absolute -right-10 top-1/2 -translate-y-1/2 animate-pulse z-10">
+                        <Reply className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
                       </div>
                     )}
 
-                    <div className="relative">
-                      <div
-                        className={`px-3 py-2 rounded-2xl text-sm break-words select-none ${isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"}`}
-                        style={{ direction: "rtl", textAlign: "right" }}
-                      >
-                        {msg.content}
+                    <div
+                      className={`max-w-[70vw] space-y-1 flex flex-col ${isOwn ? "items-end" : "items-start"}`}
+                      onTouchStart={(e) => { if (!(e.target as HTMLElement).closest('button')) handleMsgTouchStart(msg.id, e.touches[0].clientX); }}
+                      onTouchMove={(e) => handleMsgTouchMove(e.touches[0].clientX)}
+                      onTouchEnd={handleMsgTouchEnd}
+                      onMouseDown={(e) => { if (!(e.target as HTMLElement).closest('button')) handleMsgTouchStart(msg.id, e.clientX); }}
+                      onMouseMove={(e) => handleMsgTouchMove(e.clientX)}
+                      onMouseUp={handleMsgTouchEnd}
+                      style={{ transform: `translateX(${currentSwipe}px)`, transition: swipeState?.msgId === msg.id ? 'none' : 'transform 0.2s ease' }}
+                    >
+                      {/* Reply preview */}
+                      {msg.reply_to_content && (
+                        <div className="px-3 py-1.5 rounded-lg text-xs" style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: isOwn ? "2px solid hsl(var(--primary))" : undefined, borderLeft: !isOwn ? "2px solid hsl(var(--primary))" : undefined }}>
+                          <p className="truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{msg.reply_to_content}</p>
+                        </div>
+                      )}
+
+                      <div className="relative">
+                        <div
+                          className={`px-3 py-2 rounded-2xl text-sm break-words select-none ${isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"}`}
+                          style={{ direction: "rtl", textAlign: "right" }}
+                        >
+                          {msg.content}
+                        </div>
+
+                        {/* Emoji picker */}
+                        {emojiPickerMsg === msg.id && (
+                          <div className={`absolute -top-12 flex gap-1 p-2 rounded-2xl z-50 animate-fade-in ${isOwn ? "right-0" : "left-0"}`}
+                            style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)" }}>
+                            {EMOJIS.map((emoji) => {
+                              const myReaction = msgReactions.find((r) => r.emoji === emoji && r.user_id === currentUserId);
+                              return (
+                                <button key={emoji} onClick={() => handleDmReaction(msg.id, emoji)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-xl text-base transition-all hover:scale-125 active:scale-90"
+                                  style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent" }}>
+                                  {emoji}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Action buttons */}
+                        {hoveredMsg === msg.id && (
+                          <div className={`absolute top-0 flex gap-1 z-10 ${isOwn ? "-left-16" : "-right-16"}`}>
+                            <button onClick={() => setEmojiPickerMsg(emojiPickerMsg === msg.id ? null : msg.id)}
+                              className="p-1 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                              <span className="text-xs">😊</span>
+                            </button>
+                            <button onClick={() => setReplyTo(msg)}
+                              className="p-1 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                              <Reply className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Emoji picker */}
-                      {emojiPickerMsg === msg.id && (
-                        <div className={`absolute -top-12 flex gap-1 p-2 rounded-2xl z-50 animate-fade-in ${isOwn ? "right-0" : "left-0"}`}
-                          style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)" }}>
-                          {EMOJIS.map((emoji) => {
-                            const myReaction = msgReactions.find((r) => r.emoji === emoji && r.user_id === currentUserId);
+                      {/* Reactions */}
+                      {Object.keys(reactionGroups).length > 0 && (
+                        <div className={`flex flex-wrap gap-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+                          {Object.entries(reactionGroups).map(([emoji, group]) => {
+                            const myReaction = group.find((r) => r.user_id === currentUserId);
                             return (
                               <button key={emoji} onClick={() => handleDmReaction(msg.id, emoji)}
-                                className="w-8 h-8 flex items-center justify-center rounded-xl text-base transition-all hover:scale-125 active:scale-90"
-                                style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent" }}>
-                                {emoji}
+                                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs hover:scale-105 active:scale-95"
+                                style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", border: myReaction ? "1px solid hsl(var(--primary) / 0.5)" : "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}>
+                                <span>{emoji}</span><span>{group.length}</span>
                               </button>
                             );
                           })}
                         </div>
                       )}
 
-                      {/* Action buttons */}
-                      {hoveredMsg === msg.id && (
-                        <div className={`absolute top-0 flex gap-1 z-10 ${isOwn ? "-left-16" : "-right-16"}`}>
-                          <button onClick={() => setEmojiPickerMsg(emojiPickerMsg === msg.id ? null : msg.id)}
-                            className="p-1 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-                            <span className="text-xs">😊</span>
-                          </button>
-                          <button onClick={() => setReplyTo(msg)}
-                            className="p-1 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-                            <Reply className="w-3 h-3" />
-                          </button>
-                        </div>
-                      )}
+                      <span className="text-xs px-1" style={{ color: "hsl(var(--chat-timestamp))" }}>
+                        {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ar })}
+                      </span>
                     </div>
-
-                    {/* Reactions */}
-                    {Object.keys(reactionGroups).length > 0 && (
-                      <div className={`flex flex-wrap gap-1 ${isOwn ? "justify-end" : "justify-start"}`}>
-                        {Object.entries(reactionGroups).map(([emoji, group]) => {
-                          const myReaction = group.find((r) => r.user_id === currentUserId);
-                          return (
-                            <button key={emoji} onClick={() => handleDmReaction(msg.id, emoji)}
-                              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs hover:scale-105 active:scale-95"
-                              style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", border: myReaction ? "1px solid hsl(var(--primary) / 0.5)" : "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}>
-                              <span>{emoji}</span><span>{group.length}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    <span className="text-xs px-1" style={{ color: "hsl(var(--chat-timestamp))" }}>
-                      {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ar })}
-                    </span>
                   </div>
                 </div>
               );
@@ -472,26 +514,33 @@ const DirectMessages = ({
             </div>
           )}
 
-          {/* Input */}
+          {/* Input or blocked message */}
           <div className="flex-shrink-0 px-4 pb-4 pt-2">
-            <div className="flex items-end gap-3 p-3 rounded-2xl" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
-                onKeyDown={handleKeyDown}
-                placeholder="اكتب رسالتك..."
-                rows={1}
-                maxLength={500}
-                className="flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed select-text"
-                style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
-              />
-              <button onClick={handleSend} disabled={!input.trim() || sending}
-                className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-40"
-                style={{ background: input.trim() && !sending ? "var(--gradient-primary)" : "hsl(var(--secondary))" }}>
-                <Send className="w-4 h-4" style={{ color: input.trim() && !sending ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))" }} />
-              </button>
-            </div>
+            {isConversationBlocked ? (
+              <div className="flex items-center justify-center py-3 rounded-2xl text-sm"
+                style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", border: "1px solid hsl(var(--border))" }}>
+                {blockedByMe.has(activeConversation!) ? "لقد حظرت هذا المستخدم" : "هذا المستخدم حظرك"}
+              </div>
+            ) : (
+              <div className="flex items-end gap-3 p-3 rounded-2xl" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="اكتب رسالتك..."
+                  rows={1}
+                  maxLength={500}
+                  className="flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed select-text"
+                  style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
+                />
+                <button onClick={handleSend} disabled={!input.trim() || sending}
+                  className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-40"
+                  style={{ background: input.trim() && !sending ? "var(--gradient-primary)" : "hsl(var(--secondary))" }}>
+                  <Send className="w-4 h-4" style={{ color: input.trim() && !sending ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))" }} />
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}
