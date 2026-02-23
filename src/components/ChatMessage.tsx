@@ -267,19 +267,20 @@ const ChatMessage = ({
         )}
 
         {/* Username & time with verified badge */}
-        <div className={`flex items-center gap-2 px-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`text-xs font-semibold ${!isOwn && !isAdmin ? "cursor-pointer hover:underline" : ""}`}
-              style={{ color: userColor }}
-              onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}
-            >
-              {isOwn ? "أنت" : displayName}
-            </span>
-            {isAdmin && <VerifiedBadge />}
-          </div>
-          <span className="text-xs" style={{ color: "hsl(var(--chat-timestamp))" }}>{timeAgo}</span>
-        </div>
+     
+<div className={`flex items-center gap-2 px-1 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
+  <div className="flex items-center gap-1.5">
+    <span
+      className={`text-xs font-semibold ${!isOwn && !isAdmin ? "cursor-pointer hover:underline" : ""}`}
+      style={{ color: userColor }}
+      onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}
+    >
+      {isOwn ? "أنت" : displayName}
+    </span>
+    {isAdmin && <VerifiedBadge />}
+  </div>
+  <span className="text-xs" style={{ color: "hsl(var(--chat-timestamp))" }}>{timeAgo}</span>
+</div>
 
         {/* Reply preview */}
         {message.reply_to && message.reply_to_username && (
