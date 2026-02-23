@@ -388,7 +388,7 @@ const ChatMessage = ({
                 )}
               </div>
               
-              {/* Arrow pointing down */}
+              {/* Arrow pointing down to message */}
               <div 
                 className="absolute left-1/2 transform -translate-x-1/2 w-3 h-3 rotate-45"
                 style={{ 
