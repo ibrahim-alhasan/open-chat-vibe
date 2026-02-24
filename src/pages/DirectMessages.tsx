@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, ChevronLeft, Reply, CornerUpLeft, X, Trash2, Ban, Camera, FileText, MoreVertical, Smile } from "lucide-react";
+import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -408,43 +408,6 @@ const DirectMessages = ({
     }
   };
 
-  const handleDeleteMessage = async (messageId: string, imageUrl?: string | null) => {
-    try {
-      // التحقق من الصلاحية
-      const message = messages.find(m => m.id === messageId);
-      if (!message) return;
-      
-      const canDelete = isAdmin || message.sender_user_id === currentUserId;
-      if (!canDelete) {
-        alert("لا يمكنك حذف هذه الرسالة");
-        return;
-      }
-      
-      // حذف الصورة من التخزين إذا وجدت
-      if (imageUrl) {
-        const path = imageUrl.split('/').pop();
-        if (path) {
-          await supabase.storage.from('direct_message_images').remove([path]);
-        }
-      }
-      
-      // حذف الرسالة من قاعدة البيانات
-      const { error } = await supabase.from("direct_messages").delete().eq("id", messageId);
-      
-      if (error) {
-        console.error("Error deleting message:", error);
-        alert("حدث خطأ أثناء حذف الرسالة");
-      } else {
-        // تحديث الحالة محلياً
-        setMessages(prev => prev.filter(m => m.id !== messageId));
-        setShowActionsForMsg(null);
-      }
-    } catch (error) {
-      console.error("Error in handleDeleteMessage:", error);
-      alert("حدث خطأ أثناء حذف الرسالة");
-    }
-  };
-
   // دوال السحب (Swipe)
   const handleTouchStart = (msgId: string, e: React.TouchEvent) => {
     if (showActionsForMsg || emojiPickerMsg) return;
@@ -534,7 +497,7 @@ const DirectMessages = ({
   // النقر العادي على الرسالة
   const handleMessageClick = (msgId: string) => {
     if (isMobile) {
-      // على الهاتف، النقر يظهر قائمة الإجراءات
+      // على الهاتف، النقر يظهر قائمة الإجراءات (بدون حذف)
       setShowActionsForMsg(showActionsForMsg === msgId ? null : msgId);
     }
   };
@@ -692,7 +655,6 @@ const DirectMessages = ({
                 acc[r.emoji].push(r);
                 return acc;
               }, {});
-              const canDelete = isAdmin || isOwn;
 
               return (
                 <div
@@ -743,7 +705,7 @@ const DirectMessages = ({
                       )}
 
                       <div className="relative group">
-                        {/* Image message - متجاوب مع الهاتف */}
+                        {/* Image message - بدون اسم الملف */}
                         {msg.image_url && (
                           <div 
                             className={`mb-1 rounded-xl sm:rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] ${
@@ -756,16 +718,10 @@ const DirectMessages = ({
                           >
                             <img 
                               src={msg.image_url} 
-                              alt={msg.image_name || "صورة"} 
+                              alt="صورة" 
                               className="w-full max-w-[200px] sm:max-w-[250px] h-auto max-h-[200px] sm:max-h-[300px] object-cover"
                               loading="lazy"
                             />
-                            {msg.image_name && (
-                              <div className="px-2 sm:px-3 py-1 text-xs flex items-center gap-1 truncate" style={{ background: "hsl(var(--secondary))" }}>
-                                <FileText className="w-3 h-3 flex-shrink-0" />
-                                <span className="truncate">{msg.image_name}</span>
-                              </div>
-                            )}
                           </div>
                         )}
 
@@ -824,15 +780,15 @@ const DirectMessages = ({
                       </div>
                     )}
 
-                    {/* قائمة الإجراءات المنبثقة */}
+                    {/* قائمة الإجراءات المصغرة - تفاعل ورد فقط */}
                     {showActionsForMsg === msg.id && (
                       <div 
                         ref={actionsMenuRef}
-                        className={`fixed sm:absolute bottom-24 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-3 p-4 rounded-2xl shadow-lg sm:${isOwn ? "right-0" : "left-0"} sm:-top-12`}
+                        className="fixed sm:absolute bottom-20 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-2 p-2 rounded-xl shadow-lg"
                         style={{ 
                           background: "hsl(var(--card))", 
                           border: "1px solid hsl(var(--border))",
-                          boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)",
+                          boxShadow: "0 4px 16px hsl(220 16% 4% / 0.6)",
                           width: "auto",
                           maxWidth: "90vw"
                         }}
@@ -840,41 +796,31 @@ const DirectMessages = ({
                       >
                         <button 
                           onClick={() => { setEmojiPickerMsg(msg.id); setShowActionsForMsg(null); }}
-                          className="p-4 sm:p-3 rounded-xl flex items-center justify-center flex-col gap-1"
+                          className="p-2 rounded-lg flex items-center justify-center gap-1"
                           style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
                         >
-                          <Smile className="w-6 h-6 sm:w-5 sm:h-5" />
+                          <Smile className="w-4 h-4" />
                           <span className="text-xs">تفاعل</span>
                         </button>
                         <button 
                           onClick={() => { setReplyTo(msg); setShowActionsForMsg(null); }}
-                          className="p-4 sm:p-3 rounded-xl flex items-center justify-center flex-col gap-1"
+                          className="p-2 rounded-lg flex items-center justify-center gap-1"
                           style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
                         >
-                          <Reply className="w-6 h-6 sm:w-5 sm:h-5" />
+                          <Reply className="w-4 h-4" />
                           <span className="text-xs">رد</span>
                         </button>
-                        {canDelete && (
-                          <button 
-                            onClick={() => handleDeleteMessage(msg.id, msg.image_url)}
-                            className="p-4 sm:p-3 rounded-xl flex items-center justify-center flex-col gap-1"
-                            style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}
-                          >
-                            <Trash2 className="w-6 h-6 sm:w-5 sm:h-5" />
-                            <span className="text-xs">حذف</span>
-                          </button>
-                        )}
                       </div>
                     )}
 
-                    {/* منتقي الإيموجي */}
+                    {/* منتقي الإيموجي المصغر */}
                     {emojiPickerMsg === msg.id && (
                       <div 
-                        className={`fixed sm:absolute bottom-24 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-3 p-4 rounded-2xl shadow-lg sm:${isOwn ? "right-0" : "left-0"} sm:-top-12`}
+                        className="fixed sm:absolute bottom-20 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-1 p-2 rounded-xl shadow-lg"
                         style={{ 
                           background: "hsl(var(--card))", 
                           border: "1px solid hsl(var(--border))", 
-                          boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)",
+                          boxShadow: "0 4px 16px hsl(220 16% 4% / 0.6)",
                           width: "auto",
                           maxWidth: "90vw"
                         }}
@@ -886,7 +832,7 @@ const DirectMessages = ({
                             <button 
                               key={emoji} 
                               onClick={() => handleDmReaction(msg.id, emoji)}
-                              className="w-12 h-12 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl text-2xl sm:text-xl transition-all hover:scale-125 active:scale-90"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg text-lg transition-all hover:scale-125 active:scale-90"
                               style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent" }}
                             >
                               {emoji}
