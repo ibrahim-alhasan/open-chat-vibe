@@ -5,7 +5,7 @@ import UsernameModal from "@/components/UsernameModal";
 import SettingsModal from "@/components/SettingsModal";
 import UserProfileModal from "@/components/UserProfileModal";
 import DirectMessages from "@/pages/DirectMessages";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronUp } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 50;
 
@@ -43,6 +43,7 @@ const Index = () => {
   const [unreadDMs, setUnreadDMs] = useState(0);
   const [isReturningFromDMs, setIsReturningFromDMs] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -52,6 +53,8 @@ const Index = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isFirstLoadRef = useRef(true);
   const isLoadingMoreRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
+  const isUserScrollingUpRef = useRef(false);
 
   const scrollToBottom = useCallback((smooth = true) => {
     if (messagesEndRef.current) {
@@ -60,6 +63,7 @@ const Index = () => {
         block: "end"
       });
     }
+    setHasNewMessages(false);
   }, []);
 
   const forceScrollToBottom = useCallback(() => {
@@ -72,25 +76,46 @@ const Index = () => {
         block: "end"
       });
     }
+    setHasNewMessages(false);
   }, []);
 
   const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
   const isCurrentUserAdmin = adminIds.has(userId);
 
-  // مراقبة التمرير لإظهار/إخفاء زر العودة للأسفل
+  // مراقبة التمرير
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
     const handleScroll = () => {
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      const scrollTop = container.scrollTop;
+      const scrollHeight = container.scrollHeight;
+      const clientHeight = container.clientHeight;
+      
+      // التحقق مما إذا كان المستخدم يمرر للأعلى
+      isUserScrollingUpRef.current = scrollTop < lastScrollTopRef.current;
+      lastScrollTopRef.current = scrollTop;
+      
+      // التحقق مما إذا كان قريب من الأسفل
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
       setShowScrollButton(!isNearBottom);
+      
+      // إذا كان المستخدم قريب من الأسفل، إخفاء إشعار الرسائل الجديدة
+      if (isNearBottom) {
+        setHasNewMessages(false);
+      }
+      
+      // تحميل المزيد من الرسائل عند الاقتراب من الأعلى
+      if (scrollTop < 100 && hasMoreMessages && !isLoadingMoreRef.current && !loading) {
+        loadMoreMessages();
+      }
     };
 
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [hasMoreMessages, loading]);
 
+  // التمرير للأسفل بعد التحميل الأول
   useEffect(() => {
     if (!loading && messages.length > 0 && isFirstLoadRef.current) {
       setTimeout(() => {
@@ -100,15 +125,21 @@ const Index = () => {
     }
   }, [loading, messages.length, forceScrollToBottom]);
 
+  // جلب الرسائل غير المقروءة
   useEffect(() => {
     if (!userId) return;
     const fetchUnread = async () => {
-      const { count } = await supabase.from("direct_messages").select("*", { count: "exact", head: true }).eq("receiver_user_id", userId).eq("is_read", false);
+      const { count } = await supabase
+        .from("direct_messages")
+        .select("*", { count: "exact", head: true })
+        .eq("receiver_user_id", userId)
+        .eq("is_read", false);
       setUnreadDMs(count || 0);
     };
     fetchUnread();
   }, [userId]);
 
+  // الاستماع للرسائل الخاصة الجديدة
   useEffect(() => {
     if (!userId) return;
     const channel = supabase.channel(`unread-dm-${userId}`)
@@ -125,19 +156,19 @@ const Index = () => {
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
-  // تحميل الرسائل الأولية والبيانات الأخرى
+  // تحميل البيانات الأولية
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
       
       try {
-        // جلب أول 50 رسالة
+        // جلب أحدث 50 رسالة (مرتبة تنازلياً ثم تصاعدياً للعرض)
         const [messagesRes, reactionsRes, profilesRes, totalCountRes, adminsRes] = await Promise.all([
           supabase
             .from("messages")
             .select("*")
-            .order("created_at", { ascending: true })
-            .range(0, MESSAGES_PER_PAGE - 1),
+            .order("created_at", { ascending: false }) // نجلب الأحدث أولاً
+            .limit(MESSAGES_PER_PAGE),
           supabase.from("reactions").select("*"),
           supabase.from("profiles").select("*"),
           supabase.from("profiles").select("*", { count: 'exact', head: true }),
@@ -145,8 +176,16 @@ const Index = () => {
         ]);
 
         if (!messagesRes.error && messagesRes.data) {
-          setMessages(messagesRes.data as Message[]);
-          setHasMoreMessages(messagesRes.data.length === MESSAGES_PER_PAGE);
+          // نقلب الترتيب لنعرض من الأقدم للأحدث
+          const sortedMessages = (messagesRes.data as Message[]).reverse();
+          setMessages(sortedMessages);
+          
+          // التحقق من وجود المزيد من الرسائل
+          const { count } = await supabase
+            .from("messages")
+            .select("*", { count: 'exact', head: true });
+          
+          setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
         }
         
         if (!reactionsRes.error && reactionsRes.data) {
@@ -182,7 +221,7 @@ const Index = () => {
     fetchInitialData();
   }, []);
 
-  // دالة تحميل المزيد من الرسائل
+  // تحميل المزيد من الرسائل (الرسائل الأقدم)
   const loadMoreMessages = useCallback(async () => {
     if (loadingMore || !hasMoreMessages || isLoadingMoreRef.current) return;
     
@@ -190,25 +229,25 @@ const Index = () => {
     setLoadingMore(true);
     
     const nextPage = messagePage + 1;
-    const start = nextPage * MESSAGES_PER_PAGE;
-    const end = start + MESSAGES_PER_PAGE - 1;
+    // نجلب الرسائل الأقدم من أقدم رسالة لدينا حالياً
+    const oldestMessage = messages[0];
     
     try {
       const { data, error } = await supabase
         .from("messages")
         .select("*")
-        .order("created_at", { ascending: true })
-        .range(start, end);
+        .order("created_at", { ascending: false })
+        .lt("created_at", oldestMessage.created_at) // نجلب ما هو أقدم من أقدم رسالة
+        .limit(MESSAGES_PER_PAGE);
       
-      if (!error && data) {
-        if (data.length > 0) {
-          // إضافة الرسائل القديمة في البداية (لأننا نعرض من الأقدم للأحدث)
-          setMessages(prev => [...data as Message[], ...prev]);
-          setMessagePage(nextPage);
-          setHasMoreMessages(data.length === MESSAGES_PER_PAGE);
-        } else {
-          setHasMoreMessages(false);
-        }
+      if (!error && data && data.length > 0) {
+        // نقلب الترتيب ونضيفها في البداية
+        const olderMessages = (data as Message[]).reverse();
+        setMessages(prev => [...olderMessages, ...prev]);
+        setMessagePage(nextPage);
+        setHasMoreMessages(data.length === MESSAGES_PER_PAGE);
+      } else {
+        setHasMoreMessages(false);
       }
     } catch (error) {
       console.error("Error loading more messages:", error);
@@ -216,51 +255,31 @@ const Index = () => {
       setLoadingMore(false);
       isLoadingMoreRef.current = false;
     }
-  }, [loadingMore, hasMoreMessages, messagePage]);
-
-  // مستمع التمرير لتحميل المزيد عند الوصول للأعلى
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container || loading) return;
-
-    const handleScroll = async () => {
-      // إذا كان المستخدم قريب من الأعلى (أول 50 بكسل) ولدينا المزيد من الرسائل
-      if (container.scrollTop < 50 && hasMoreMessages && !isLoadingMoreRef.current) {
-        const oldScrollHeight = container.scrollHeight;
-        const oldScrollTop = container.scrollTop;
-        
-        await loadMoreMessages();
-        
-        // الحفاظ على موضع التمرير بعد تحميل الرسائل الجديدة
-        if (container && oldScrollHeight > 0) {
-          const newScrollHeight = container.scrollHeight;
-          const heightDiff = newScrollHeight - oldScrollHeight;
-          container.scrollTop = oldScrollTop + heightDiff;
-        }
-      }
-    };
-
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [loadMoreMessages, hasMoreMessages, loading]);
+  }, [loadingMore, hasMoreMessages, messagePage, messages]);
 
   // الاستماع للتغييرات في الوقت الفعلي
   useEffect(() => {
     const channel = supabase.channel("public-chat-all")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
         const newMessage = payload.new as Message;
+        
+        // التحقق من عدم وجود الرسالة مسبقاً
         setMessages((prev) => {
-          // التحقق من عدم وجود الرسالة مسبقاً
           if (prev.find((m) => m.id === newMessage.id)) return prev;
-          return [...prev, newMessage];
+          return [...prev, newMessage]; // نضيف الرسالة الجديدة في النهاية
         });
         
-        // التمرير للأسفل إذا كان المستخدم قريب من الأسفل
+        // التحقق مما إذا كان يجب التمرير للأسفل تلقائياً
         if (messagesContainerRef.current) {
           const container = messagesContainerRef.current;
           const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+          
           if (isNearBottom) {
+            // إذا كان المستخدم قريب من الأسفل، نمرر تلقائياً
             setTimeout(() => scrollToBottom(true), 100);
+          } else if (newMessage.user_id !== userId) {
+            // إذا كان المستخدم بعيد عن الأسفل وهناك رسالة جديدة من شخص آخر، نظهر الإشعار
+            setHasNewMessages(true);
           }
         }
       })
@@ -306,7 +325,7 @@ const Index = () => {
       .subscribe();
       
     return () => { supabase.removeChannel(channel); };
-  }, [scrollToBottom]);
+  }, [scrollToBottom, userId]);
 
   // إدارة حالة التواجد
   useEffect(() => {
@@ -349,13 +368,7 @@ const Index = () => {
     };
   }, [username, userId]);
 
-  // التمرير عند إرسال رسالة جديدة أو العودة من الرسائل الخاصة
-  useEffect(() => { 
-    if (!loading && !isFirstLoadRef.current && !isReturningFromDMs) {
-      scrollToBottom(true);
-    }
-  }, [messages, scrollToBottom, loading, isReturningFromDMs]);
-
+  // التمرير عند العودة من الرسائل الخاصة
   useEffect(() => {
     if (isReturningFromDMs) {
       forceScrollToBottom();
@@ -563,13 +576,23 @@ const Index = () => {
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4 relative">
         {/* مؤشر تحميل المزيد من الرسائل */}
         {loadingMore && (
-          <div className="flex justify-center py-2 sticky top-0 z-10">
+          <div className="flex justify-center py-2">
             <div className="flex items-center gap-2 px-4 py-2 rounded-full"
               style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
               <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" 
                 style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
               <span className="text-xs">جاري تحميل رسائل أقدم...</span>
             </div>
+          </div>
+        )}
+
+        {/* رسالة عدم وجود رسائل أقدم */}
+        {!hasMoreMessages && messages.length > 0 && !loadingMore && (
+          <div className="flex justify-center py-2">
+            <span className="text-xs px-3 py-1 rounded-full" 
+              style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
+              هذه بداية المحادثة
+            </span>
           </div>
         )}
 
@@ -592,16 +615,6 @@ const Index = () => {
           </div>
         ) : (
           <>
-            {/* رسالة عند عدم وجود المزيد من الرسائل */}
-            {!hasMoreMessages && messages.length > 0 && (
-              <div className="flex justify-center py-2">
-                <span className="text-xs px-3 py-1 rounded-full" 
-                  style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
-                  هذه بداية المحادثة
-                </span>
-              </div>
-            )}
-            
             {messages.map((msg) => (
               <ChatMessage
                 key={msg.id}
@@ -623,15 +636,29 @@ const Index = () => {
           </>
         )}
 
-        {/* زر العودة للأسفل */}
-        {showScrollButton && (
-          <button
-            onClick={() => scrollToBottom(true)}
-            className="fixed bottom-24 right-6 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 z-10"
-            style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
-          >
-            <ChevronUp className="w-5 h-5 rotate-180" />
-          </button>
+        {/* زر العودة للأسفل وإشعار الرسائل الجديدة */}
+        {(showScrollButton || hasNewMessages) && (
+          <div className="fixed bottom-24 right-6 flex flex-col items-end gap-2 z-10">
+            {hasNewMessages && (
+              <button
+                onClick={() => scrollToBottom(true)}
+                className="px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce"
+                style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
+              >
+                <span className="text-sm">رسائل جديدة</span>
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            )}
+            {showScrollButton && !hasNewMessages && (
+              <button
+                onClick={() => scrollToBottom(true)}
+                className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
+              >
+                <ChevronDown className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         )}
       </div>
 
