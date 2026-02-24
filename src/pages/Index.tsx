@@ -5,7 +5,9 @@ import UsernameModal from "@/components/UsernameModal";
 import SettingsModal from "@/components/SettingsModal";
 import UserProfileModal from "@/components/UserProfileModal";
 import DirectMessages from "@/pages/DirectMessages";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronUp } from "lucide-react";
+
+const MESSAGES_PER_PAGE = 50;
 
 const Index = () => {
   const [userId] = useState<string>(() => {
@@ -26,6 +28,9 @@ const Index = () => {
   const [input, setInput] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [messagePage, setMessagePage] = useState(0);
   const [sending, setSending] = useState(false);
   const [onlineCount, setOnlineCount] = useState(1);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
@@ -37,6 +42,7 @@ const Index = () => {
   const [profileModal, setProfileModal] = useState<string | null>(null);
   const [unreadDMs, setUnreadDMs] = useState(0);
   const [isReturningFromDMs, setIsReturningFromDMs] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -45,6 +51,7 @@ const Index = () => {
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isFirstLoadRef = useRef(true);
+  const isLoadingMoreRef = useRef(false);
 
   const scrollToBottom = useCallback((smooth = true) => {
     if (messagesEndRef.current) {
@@ -69,6 +76,20 @@ const Index = () => {
 
   const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
   const isCurrentUserAdmin = adminIds.has(userId);
+
+  // مراقبة التمرير لإظهار/إخفاء زر العودة للأسفل
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      setShowScrollButton(!isNearBottom);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     if (!loading && messages.length > 0 && isFirstLoadRef.current) {
@@ -104,39 +125,144 @@ const Index = () => {
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
+  // تحميل الرسائل الأولية والبيانات الأخرى
   useEffect(() => {
-    const fetchAll = async () => {
-      const [messagesRes, reactionsRes, profilesRes, totalCountRes, adminsRes] = await Promise.all([
-        supabase.from("messages").select("*").order("created_at", { ascending: true }).limit(100),
-        supabase.from("reactions").select("*"),
-        supabase.from("profiles").select("*"),
-        supabase.from("profiles").select("*", { count: 'exact', head: true }),
-        supabase.from("admins").select("user_id"),
-      ]);
+    const fetchInitialData = async () => {
+      setLoading(true);
+      
+      try {
+        // جلب أول 50 رسالة
+        const [messagesRes, reactionsRes, profilesRes, totalCountRes, adminsRes] = await Promise.all([
+          supabase
+            .from("messages")
+            .select("*")
+            .order("created_at", { ascending: true })
+            .range(0, MESSAGES_PER_PAGE - 1),
+          supabase.from("reactions").select("*"),
+          supabase.from("profiles").select("*"),
+          supabase.from("profiles").select("*", { count: 'exact', head: true }),
+          supabase.from("admins").select("user_id"),
+        ]);
 
-      if (!messagesRes.error && messagesRes.data) setMessages(messagesRes.data as Message[]);
-      if (!reactionsRes.error && reactionsRes.data) setReactions(reactionsRes.data as Reaction[]);
-      if (!profilesRes.error && profilesRes.data) {
-        const map: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }> = {};
-        profilesRes.data.forEach((p: any) => {
-          if (p.user_id) map[p.user_id] = { username: p.username, avatar_url: p.avatar_url, allow_dms: p.allow_dms ?? true };
-        });
-        setProfilesMap(map);
+        if (!messagesRes.error && messagesRes.data) {
+          setMessages(messagesRes.data as Message[]);
+          setHasMoreMessages(messagesRes.data.length === MESSAGES_PER_PAGE);
+        }
+        
+        if (!reactionsRes.error && reactionsRes.data) {
+          setReactions(reactionsRes.data as Reaction[]);
+        }
+        
+        if (!profilesRes.error && profilesRes.data) {
+          const map: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }> = {};
+          profilesRes.data.forEach((p: any) => {
+            if (p.user_id) map[p.user_id] = { 
+              username: p.username, 
+              avatar_url: p.avatar_url, 
+              allow_dms: p.allow_dms ?? true 
+            };
+          });
+          setProfilesMap(map);
+        }
+        
+        if (!totalCountRes.error) {
+          setTotalUsers(totalCountRes.count || 0);
+        }
+        
+        if (!adminsRes.error && adminsRes.data) {
+          setAdminIds(new Set(adminsRes.data.map((a: any) => a.user_id)));
+        }
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+      } finally {
+        setLoading(false);
       }
-      if (!totalCountRes.error) setTotalUsers(totalCountRes.count || 0);
-      if (!adminsRes.error && adminsRes.data) {
-        setAdminIds(new Set(adminsRes.data.map((a: any) => a.user_id)));
-      }
-      setLoading(false);
     };
-    fetchAll();
+    
+    fetchInitialData();
   }, []);
 
+  // دالة تحميل المزيد من الرسائل
+  const loadMoreMessages = useCallback(async () => {
+    if (loadingMore || !hasMoreMessages || isLoadingMoreRef.current) return;
+    
+    isLoadingMoreRef.current = true;
+    setLoadingMore(true);
+    
+    const nextPage = messagePage + 1;
+    const start = nextPage * MESSAGES_PER_PAGE;
+    const end = start + MESSAGES_PER_PAGE - 1;
+    
+    try {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .order("created_at", { ascending: true })
+        .range(start, end);
+      
+      if (!error && data) {
+        if (data.length > 0) {
+          // إضافة الرسائل القديمة في البداية (لأننا نعرض من الأقدم للأحدث)
+          setMessages(prev => [...data as Message[], ...prev]);
+          setMessagePage(nextPage);
+          setHasMoreMessages(data.length === MESSAGES_PER_PAGE);
+        } else {
+          setHasMoreMessages(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading more messages:", error);
+    } finally {
+      setLoadingMore(false);
+      isLoadingMoreRef.current = false;
+    }
+  }, [loadingMore, hasMoreMessages, messagePage]);
+
+  // مستمع التمرير لتحميل المزيد عند الوصول للأعلى
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container || loading) return;
+
+    const handleScroll = async () => {
+      // إذا كان المستخدم قريب من الأعلى (أول 50 بكسل) ولدينا المزيد من الرسائل
+      if (container.scrollTop < 50 && hasMoreMessages && !isLoadingMoreRef.current) {
+        const oldScrollHeight = container.scrollHeight;
+        const oldScrollTop = container.scrollTop;
+        
+        await loadMoreMessages();
+        
+        // الحفاظ على موضع التمرير بعد تحميل الرسائل الجديدة
+        if (container && oldScrollHeight > 0) {
+          const newScrollHeight = container.scrollHeight;
+          const heightDiff = newScrollHeight - oldScrollHeight;
+          container.scrollTop = oldScrollTop + heightDiff;
+        }
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [loadMoreMessages, hasMoreMessages, loading]);
+
+  // الاستماع للتغييرات في الوقت الفعلي
   useEffect(() => {
     const channel = supabase.channel("public-chat-all")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
         const newMessage = payload.new as Message;
-        setMessages((prev) => prev.find((m) => m.id === newMessage.id) ? prev : [...prev, newMessage]);
+        setMessages((prev) => {
+          // التحقق من عدم وجود الرسالة مسبقاً
+          if (prev.find((m) => m.id === newMessage.id)) return prev;
+          return [...prev, newMessage];
+        });
+        
+        // التمرير للأسفل إذا كان المستخدم قريب من الأسفل
+        if (messagesContainerRef.current) {
+          const container = messagesContainerRef.current;
+          const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+          if (isNearBottom) {
+            setTimeout(() => scrollToBottom(true), 100);
+          }
+        }
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "messages" }, (payload) => {
         const deleted = payload.old as { id: string };
@@ -153,28 +279,50 @@ const Index = () => {
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, (payload) => {
         if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
           const p = payload.new as any;
-          if (p.user_id) setProfilesMap((prev) => ({ ...prev, [p.user_id]: { username: p.username, avatar_url: p.avatar_url, allow_dms: p.allow_dms ?? true } }));
+          if (p.user_id) {
+            setProfilesMap((prev) => ({ 
+              ...prev, 
+              [p.user_id]: { 
+                username: p.username, 
+                avatar_url: p.avatar_url, 
+                allow_dms: p.allow_dms ?? true 
+              } 
+            }));
+          }
           if (payload.eventType === "INSERT") setTotalUsers(prev => prev + 1);
         }
         if (payload.eventType === "DELETE") {
           const p = payload.old as any;
-          if (p.user_id) setProfilesMap((prev) => { const m = { ...prev }; delete m[p.user_id]; return m; });
+          if (p.user_id) {
+            setProfilesMap((prev) => { 
+              const m = { ...prev }; 
+              delete m[p.user_id]; 
+              return m; 
+            });
+          }
           setTotalUsers(prev => Math.max(0, prev - 1));
         }
       })
       .subscribe();
+      
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [scrollToBottom]);
 
+  // إدارة حالة التواجد
   useEffect(() => {
     if (!username || !userId) return;
-    const presenceChannel = supabase.channel("presence-chat", { config: { presence: { key: userId } } });
+    
+    const presenceChannel = supabase.channel("presence-chat", { 
+      config: { presence: { key: userId } } 
+    });
+    
     presenceChannel
       .on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();
         const keys = Object.keys(state);
         setOnlineCount(keys.length);
         setOnlineUsers(new Set(keys));
+        
         const typing = new Set<string>();
         keys.forEach(key => {
           const presences = state[key] as any[];
@@ -183,12 +331,25 @@ const Index = () => {
         setTypingUsers(typing);
       })
       .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") await presenceChannel.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
+        if (status === "SUBSCRIBED") {
+          await presenceChannel.track({ 
+            user_id: userId, 
+            username, 
+            is_typing: false, 
+            online_at: new Date().toISOString() 
+          });
+        }
       });
+      
     presenceChannelRef.current = presenceChannel;
-    return () => { supabase.removeChannel(presenceChannel); presenceChannelRef.current = null; };
+    
+    return () => { 
+      supabase.removeChannel(presenceChannel); 
+      presenceChannelRef.current = null; 
+    };
   }, [username, userId]);
 
+  // التمرير عند إرسال رسالة جديدة أو العودة من الرسائل الخاصة
   useEffect(() => { 
     if (!loading && !isFirstLoadRef.current && !isReturningFromDMs) {
       scrollToBottom(true);
@@ -218,46 +379,89 @@ const Index = () => {
 
   const handleTyping = () => {
     if (!presenceChannelRef.current) return;
-    presenceChannelRef.current.track({ user_id: userId, username, is_typing: true, online_at: new Date().toISOString() });
+    
+    presenceChannelRef.current.track({ 
+      user_id: userId, 
+      username, 
+      is_typing: true, 
+      online_at: new Date().toISOString() 
+    });
+    
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
     typingTimeoutRef.current = setTimeout(() => {
-      presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
+      presenceChannelRef.current?.track({ 
+        user_id: userId, 
+        username, 
+        is_typing: false, 
+        online_at: new Date().toISOString() 
+      });
     }, 2000);
   };
 
   const handleJoin = async (name: string, avatarFile?: File | null) => {
     localStorage.setItem("chat_username", name);
+    
     let url: string | null = null;
     if (avatarFile) {
       const ext = avatarFile.name.split(".").pop();
       const fileName = `${userId}_${Date.now()}.${ext}`;
-      const { data, error } = await supabase.storage.from("avatars").upload(fileName, avatarFile, { upsert: true });
+      const { data, error } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, avatarFile, { upsert: true });
+        
       if (!error && data) {
-        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(data.path);
+        const { data: urlData } = supabase.storage
+          .from("avatars")
+          .getPublicUrl(data.path);
         url = urlData.publicUrl;
       }
     }
+    
     if (url) localStorage.setItem("chat_avatar_url", url);
     else localStorage.removeItem("chat_avatar_url");
-    await supabase.from("profiles").upsert({ user_id: userId, username: name, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    
+    await supabase
+      .from("profiles")
+      .upsert({ 
+        user_id: userId, 
+        username: name, 
+        avatar_url: url, 
+        updated_at: new Date().toISOString() 
+      }, { onConflict: "user_id" });
+      
     setUsername(name);
     setAvatarUrl(url);
-    setProfilesMap((prev) => ({ ...prev, [userId]: { username: name, avatar_url: url } }));
+    setProfilesMap((prev) => ({ 
+      ...prev, 
+      [userId]: { username: name, avatar_url: url } 
+    }));
   };
 
   const handleSend = async () => {
     if (!input.trim() || !username || sending) return;
+    
     const content = input.trim();
     setInput("");
     setReplyTo(null);
     setSending(true);
-    presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
+    
+    presenceChannelRef.current?.track({ 
+      user_id: userId, 
+      username, 
+      is_typing: false, 
+      online_at: new Date().toISOString() 
+    });
+    
     await supabase.from("messages").insert({
-      username, user_id: userId, content,
+      username, 
+      user_id: userId, 
+      content,
       reply_to: replyTo?.id ?? null,
       reply_to_username: replyTo ? getProfile(replyTo.user_id || "").username : null,
       reply_to_content: replyTo?.content?.slice(0, 80) ?? null,
     });
+    
     setSending(false);
     inputRef.current?.focus();
   };
@@ -268,13 +472,23 @@ const Index = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === "Enter" && !e.shiftKey) { 
+      e.preventDefault(); 
+      handleSend(); 
+    }
   };
 
   const handleSettingsSave = (newUsername: string, newAvatarUrl: string | null) => {
     setUsername(newUsername);
     setAvatarUrl(newAvatarUrl);
-    setProfilesMap((prev) => ({ ...prev, [userId]: { username: newUsername, avatar_url: newAvatarUrl, allow_dms: prev[userId]?.allow_dms } }));
+    setProfilesMap((prev) => ({ 
+      ...prev, 
+      [userId]: { 
+        username: newUsername, 
+        avatar_url: newAvatarUrl, 
+        allow_dms: prev[userId]?.allow_dms 
+      } 
+    }));
   };
 
   const handleBackFromDMs = () => {
@@ -346,7 +560,19 @@ const Index = () => {
       </header>
 
       {/* Messages area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4 relative">
+        {/* مؤشر تحميل المزيد من الرسائل */}
+        {loadingMore && (
+          <div className="flex justify-center py-2 sticky top-0 z-10">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full"
+              style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
+              <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" 
+                style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
+              <span className="text-xs">جاري تحميل رسائل أقدم...</span>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex justify-center items-center h-full">
             <div className="text-center space-y-3">
@@ -366,6 +592,16 @@ const Index = () => {
           </div>
         ) : (
           <>
+            {/* رسالة عند عدم وجود المزيد من الرسائل */}
+            {!hasMoreMessages && messages.length > 0 && (
+              <div className="flex justify-center py-2">
+                <span className="text-xs px-3 py-1 rounded-full" 
+                  style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
+                  هذه بداية المحادثة
+                </span>
+              </div>
+            )}
+            
             {messages.map((msg) => (
               <ChatMessage
                 key={msg.id}
@@ -385,6 +621,17 @@ const Index = () => {
             ))}
             <div ref={messagesEndRef} />
           </>
+        )}
+
+        {/* زر العودة للأسفل */}
+        {showScrollButton && (
+          <button
+            onClick={() => scrollToBottom(true)}
+            className="fixed bottom-24 right-6 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 z-10"
+            style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
+          >
+            <ChevronUp className="w-5 h-5 rotate-180" />
+          </button>
         )}
       </div>
 
@@ -425,15 +672,27 @@ const Index = () => {
       <div className="flex-shrink-0 px-4 pb-4" style={{ paddingTop: replyTo ? "0" : "0.5rem" }}>
         <div className="flex items-end gap-3 p-3 rounded-2xl"
           style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))", transition: "border-color 0.2s" }}
-          onFocusCapture={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "hsl(var(--primary))"; (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 3px hsl(var(--primary) / 0.1)"; }}
-          onBlurCapture={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "hsl(var(--border))"; (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}>
+          onFocusCapture={(e) => { 
+            (e.currentTarget as HTMLElement).style.borderColor = "hsl(var(--primary))"; 
+            (e.currentTarget as HTMLElement).style.boxShadow = "0 0 0 3px hsl(var(--primary) / 0.1)";
+          }}
+          onBlurCapture={(e) => { 
+            (e.currentTarget as HTMLElement).style.borderColor = "hsl(var(--border))"; 
+            (e.currentTarget as HTMLElement).style.boxShadow = "none"; 
+          }}>
           <textarea
             ref={inputRef}
             value={input}
-            onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; handleTyping(); }}
+            onChange={(e) => { 
+              setInput(e.target.value); 
+              e.target.style.height = "auto"; 
+              e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; 
+              handleTyping(); 
+            }}
             onKeyDown={handleKeyDown}
             placeholder="اكتب رسالتك هنا..."
-            rows={1} maxLength={500}
+            rows={1} 
+            maxLength={500}
             className="flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed select-text"
             style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
           />
@@ -445,7 +704,15 @@ const Index = () => {
         </div>
       </div>
 
-      {showSettings && <SettingsModal currentUsername={username} currentAvatarUrl={avatarUrl} userId={userId} onClose={() => setShowSettings(false)} onSave={handleSettingsSave} />}
+      {showSettings && (
+        <SettingsModal 
+          currentUsername={username} 
+          currentAvatarUrl={avatarUrl} 
+          userId={userId} 
+          onClose={() => setShowSettings(false)} 
+          onSave={handleSettingsSave} 
+        />
+      )}
 
       {profileModal && (
         <UserProfileModal
@@ -457,7 +724,11 @@ const Index = () => {
           isAdmin={adminIds.has(profileModal)}
           allowDms={profilesMap[profileModal]?.allow_dms ?? true}
           onClose={() => setProfileModal(null)}
-          onStartDM={(uid) => { setDmInitialUserId(uid); setShowDMs(true); setProfileModal(null); }}
+          onStartDM={(uid) => { 
+            setDmInitialUserId(uid); 
+            setShowDMs(true); 
+            setProfileModal(null); 
+          }}
         />
       )}
     </div>
