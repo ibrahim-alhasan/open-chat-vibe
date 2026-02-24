@@ -310,14 +310,15 @@ const Index = () => {
 
   if (showDMs) {
     return (
-      <DirectMessages
-        currentUserId={userId}
-        currentUsername={username}
-        profilesMap={profilesMap}
-        onlineUsers={onlineUsers}
-        initialConversationUserId={dmInitialUserId}
-        onBack={handleBackFromDMs}
-      />
+     <DirectMessages
+  currentUserId={currentUserId}
+  currentUsername={currentUsername}
+  profilesMap={profilesMap}
+  onlineUsers={onlineUsers}
+  initialConversationUserId={dmInitialUserId}  
+  onBack={() => setShowDMs(false)}
+  isAdmin={isAdmin}
+/>
     );
   }
 
