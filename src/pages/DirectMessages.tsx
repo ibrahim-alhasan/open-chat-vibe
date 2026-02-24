@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, ChevronLeft, Reply, CornerUpLeft, X, Trash2, Image, Ban, Camera, FileText } from "lucide-react";
+import { Send, ChevronLeft, Reply, CornerUpLeft, X, Trash2, Ban, Camera, FileText, MoreVertical } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -83,11 +83,34 @@ const DirectMessages = ({
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const [showActionsForMsg, setShowActionsForMsg] = useState<string | null>(null); // للهاتف: عرض قائمة الإجراءات
+  const [isMobile, setIsMobile] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
 
-  // Back button handling - use window.history for proper navigation
+  // اكتشاف ما إذا كان الجهاز هاتفاً
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // إغلاق قائمة الإجراءات عند النقر خارجها
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target as Node)) {
+        setShowActionsForMsg(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
       if (viewingImage) {
@@ -102,7 +125,6 @@ const DirectMessages = ({
       }
     };
     
-    // Push initial DM state
     window.history.pushState({ page: 'dms' }, '', '/');
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -146,7 +168,7 @@ const DirectMessages = ({
         setMessages(dmsRes.data as DirectMessage[]);
         buildConversations(dmsRes.data as DirectMessage[]);
       }
-      if (!reactionsRes.error && reactionsRes.data) setDmReactions(reactionsRes.data as DmReaction[]);
+      if (!reactionsRes.error && reactionsRes.data) setDmReactions(dmReactions as DmReaction[]);
       setLoading(false);
     };
     fetchDMs();
@@ -255,13 +277,11 @@ const DirectMessages = ({
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert("حجم الصورة يجب أن يكون أقل من 5 ميجابايت");
         return;
       }
       
-      // Check file type
       if (!file.type.startsWith('image/')) {
         alert("يرجى اختيار صورة فقط");
         return;
@@ -350,6 +370,7 @@ const DirectMessages = ({
 
   const handleDmReaction = async (dmId: string, emoji: string) => {
     setEmojiPickerMsg(null);
+    setShowActionsForMsg(null);
     const existing = dmReactions.find((r) => r.dm_id === dmId && r.emoji === emoji && r.user_id === currentUserId);
     if (existing) {
       await supabase.from("dm_reactions").delete().eq("id", existing.id);
@@ -362,13 +383,11 @@ const DirectMessages = ({
     if (!activeConversation) return;
     
     if (blockedByMe.has(activeConversation)) {
-      // Unblock
       await supabase.from("blocked_users")
         .delete()
         .eq("blocker_user_id", currentUserId)
         .eq("blocked_user_id", activeConversation);
     } else {
-      // Block
       await supabase.from("blocked_users").insert({
         blocker_user_id: currentUserId,
         blocked_user_id: activeConversation
@@ -379,7 +398,6 @@ const DirectMessages = ({
   const handleDeleteMessage = async (messageId: string, imageUrl?: string | null) => {
     if (!isAdmin && !messages.find(m => m.id === messageId)?.sender_user_id === currentUserId) return;
     
-    // Delete image from storage if exists
     if (imageUrl) {
       const path = imageUrl.split('/').pop();
       if (path) {
@@ -388,6 +406,7 @@ const DirectMessages = ({
     }
     
     await supabase.from("direct_messages").delete().eq("id", messageId);
+    setShowActionsForMsg(null);
   };
 
   const activeMessages = messages.filter(
@@ -399,34 +418,14 @@ const DirectMessages = ({
   const activeProfile = activeConversation ? getProfile(activeConversation) : null;
   const isActiveOnline = activeConversation ? onlineUsers.has(activeConversation) : false;
 
-  // Swipe state per message
-  const [swipeState, setSwipeState] = useState<{ msgId: string; offset: number; startX: number; startTime: number } | null>(null);
-
-  const handleMsgTouchStart = (msgId: string, x: number) => {
-    setSwipeState({ msgId, offset: 0, startX: x, startTime: Date.now() });
-  };
-  const handleMsgTouchMove = (x: number) => {
-    if (!swipeState) return;
-    const delta = x - swipeState.startX;
-    if (delta > 0) setSwipeState({ ...swipeState, offset: Math.min(delta, 100) });
-  };
-  const handleMsgTouchEnd = () => {
-    if (!swipeState) return;
-    if (swipeState.offset > 50 && Date.now() - swipeState.startTime < 500) {
-      const msg = activeMessages.find(m => m.id === swipeState.msgId);
-      if (msg) setReplyTo(msg);
-    }
-    setSwipeState(null);
-  };
-
   // Image viewer modal
   if (viewingImage) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90" onClick={() => setViewingImage(null)}>
-        <img src={viewingImage} alt="Large view" className="max-w-full max-h-full object-contain" />
+        <img src={viewingImage} alt="Large view" className="w-full h-full object-contain p-4" />
         <button 
           onClick={() => setViewingImage(null)}
-          className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70"
+          className="absolute top-4 right-4 p-3 rounded-full bg-black/50 text-white hover:bg-black/70 z-10"
         >
           <X className="w-6 h-6" />
         </button>
@@ -438,38 +437,37 @@ const DirectMessages = ({
     <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
       {/* Header */}
       <header
-        className="flex-shrink-0 px-4 py-3 flex items-center gap-3"
+        className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3"
         style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}
       >
         <button onClick={() => { if (activeConversation) { setActiveConversation(null); setReplyTo(null); setImagePreview(null); setSelectedImage(null); } else onBack(); }}
-          className="p-1.5 rounded-lg" style={{ color: "hsl(var(--muted-foreground))" }}>
+          className="p-2 rounded-lg" style={{ color: "hsl(var(--muted-foreground))" }}>
           <ChevronLeft className="w-5 h-5" />
         </button>
         {activeConversation && activeProfile ? (
           <div className="flex items-center justify-between flex-1">
-            <div className="flex items-center gap-3">
-              <div className="relative">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="relative flex-shrink-0">
                 {activeProfile.avatar_url ? (
-                  <img src={activeProfile.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" style={{ border: `2px solid ${getUserColor(activeProfile.username)}55` }} />
+                  <img src={activeProfile.avatar_url} alt="" className="w-8 sm:w-9 h-8 sm:h-9 rounded-full object-cover" style={{ border: `2px solid ${getUserColor(activeProfile.username)}55` }} />
                 ) : (
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: `${getUserColor(activeProfile.username)}22`, color: getUserColor(activeProfile.username), border: `2px solid ${getUserColor(activeProfile.username)}55` }}>
+                  <div className="w-8 sm:w-9 h-8 sm:h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ background: `${getUserColor(activeProfile.username)}22`, color: getUserColor(activeProfile.username), border: `2px solid ${getUserColor(activeProfile.username)}55` }}>
                     {activeProfile.username.slice(0, 2).toUpperCase()}
                   </div>
                 )}
-                {isActiveOnline && <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2" style={{ background: "hsl(var(--chat-online))", borderColor: "hsl(var(--chat-header))" }} />}
+                {isActiveOnline && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full border-2" style={{ background: "hsl(var(--chat-online))", borderColor: "hsl(var(--chat-header))" }} />}
               </div>
-              <div>
-                <h2 className="font-bold text-sm" style={{ color: "hsl(var(--foreground))" }}>{activeProfile.username}</h2>
+              <div className="min-w-0">
+                <h2 className="font-bold text-xs sm:text-sm truncate" style={{ color: "hsl(var(--foreground))" }}>{activeProfile.username}</h2>
                 <p className="text-xs" style={{ color: isActiveOnline ? "hsl(var(--chat-online))" : "hsl(var(--muted-foreground))" }}>
                   {isActiveOnline ? "متصل" : "غير متصل"}
                 </p>
               </div>
             </div>
             
-            {/* Block/Unblock button */}
             <button
               onClick={handleBlockUser}
-              className={`p-2 rounded-lg transition-all active:scale-90 flex items-center gap-2 text-sm ${
+              className={`p-2 rounded-lg transition-all active:scale-90 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm ${
                 blockedByMe.has(activeConversation) ? 'opacity-70' : ''
               }`}
               style={{ 
@@ -477,7 +475,7 @@ const DirectMessages = ({
                 color: blockedByMe.has(activeConversation) ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))"
               }}
             >
-              <Ban className="w-4 h-4" />
+              <Ban className="w-3 sm:w-4 h-3 sm:h-4" />
               <span className="hidden sm:inline">
                 {blockedByMe.has(activeConversation) ? "إلغاء الحظر" : "حظر"}
               </span>
@@ -509,37 +507,37 @@ const DirectMessages = ({
                 <div
                   key={conv.userId}
                   onClick={() => setActiveConversation(conv.userId)}
-                  className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:opacity-80"
+                  className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 cursor-pointer transition-colors hover:opacity-80"
                   style={{ borderBottom: "1px solid hsl(var(--border) / 0.5)" }}
                 >
                   <div className="relative flex-shrink-0">
                     {conv.avatarUrl ? (
-                      <img src={conv.avatarUrl} alt="" className="w-11 h-11 rounded-full object-cover" style={{ border: `2px solid ${getUserColor(conv.username)}55` }} />
+                      <img src={conv.avatarUrl} alt="" className="w-10 sm:w-11 h-10 sm:h-11 rounded-full object-cover" style={{ border: `2px solid ${getUserColor(conv.username)}55` }} />
                     ) : (
-                      <div className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: `${getUserColor(conv.username)}22`, color: getUserColor(conv.username), border: `2px solid ${getUserColor(conv.username)}55` }}>
+                      <div className="w-10 sm:w-11 h-10 sm:h-11 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: `${getUserColor(conv.username)}22`, color: getUserColor(conv.username), border: `2px solid ${getUserColor(conv.username)}55` }}>
                         {conv.username.slice(0, 2).toUpperCase()}
                       </div>
                     )}
-                    {isOnline && <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2" style={{ background: "hsl(var(--chat-online))", borderColor: "hsl(var(--chat-bg))" }} />}
+                    {isOnline && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full border-2" style={{ background: "hsl(var(--chat-online))", borderColor: "hsl(var(--chat-bg))" }} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-sm flex items-center gap-2" style={{ color: "hsl(var(--foreground))" }}>
+                      <span className="font-semibold text-xs sm:text-sm flex items-center gap-2 truncate" style={{ color: "hsl(var(--foreground))" }}>
                         {conv.username}
                         {(isBlocked || blockedByOther) && (
-                          <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "hsl(var(--destructive) / 0.1)", color: "hsl(var(--destructive))" }}>
-                            {isBlocked ? "محظور" : "محظور من قبل المستخدم"}
+                          <span className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: "hsl(var(--destructive) / 0.1)", color: "hsl(var(--destructive))" }}>
+                            {isBlocked ? "محظور" : "محظور"}
                           </span>
                         )}
                       </span>
-                      <span className="text-xs" style={{ color: "hsl(var(--chat-timestamp))" }}>
+                      <span className="text-xs flex-shrink-0 mr-1" style={{ color: "hsl(var(--chat-timestamp))" }}>
                         {formatDistanceToNow(new Date(conv.lastTime), { addSuffix: true, locale: ar })}
                       </span>
                     </div>
                     <div className="flex items-center justify-between mt-0.5">
                       <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{conv.lastMessage}</p>
                       {conv.unreadCount > 0 && (
-                        <span className="min-w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center px-1"
+                        <span className="min-w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center px-1 flex-shrink-0"
                           style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))", fontSize: "10px" }}>
                           {conv.unreadCount}
                         </span>
@@ -554,7 +552,7 @@ const DirectMessages = ({
       ) : (
         /* Active conversation */
         <>
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-4 space-y-3">
             {activeMessages.map((msg) => {
               const isOwn = msg.sender_user_id === currentUserId;
               const senderProfile = msg.sender_user_id ? getProfile(msg.sender_user_id) : { username: msg.sender_username, avatar_url: null };
@@ -564,58 +562,40 @@ const DirectMessages = ({
                 acc[r.emoji].push(r);
                 return acc;
               }, {});
-              const currentSwipe = swipeState?.msgId === msg.id ? swipeState.offset : 0;
-              const showSwipeReply = currentSwipe > 30;
               const canDelete = isAdmin || isOwn;
 
               return (
                 <div
                   key={msg.id}
-                  className={`flex gap-2 animate-fade-in ${isOwn ? "flex-row-reverse" : "flex-row"}`}
-                  onMouseEnter={() => setHoveredMsg(msg.id)}
-                  onMouseLeave={() => { setHoveredMsg(null); if (swipeState?.msgId === msg.id) setSwipeState(null); }}
+                  className={`flex gap-1 sm:gap-2 animate-fade-in ${isOwn ? "flex-row-reverse" : "flex-row"}`}
                 >
-                  {/* Avatar */}
-                  <div className="flex-shrink-0 mt-1">
+                  {/* Avatar - نخفيه على الشاشات الصغيرة جداً لتوفير مساحة */}
+                  <div className="flex-shrink-0 mt-1 hidden xs:block">
                     {senderProfile.avatar_url ? (
-                      <img src={senderProfile.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" style={{ border: `2px solid ${getUserColor(senderProfile.username)}55` }} />
+                      <img src={senderProfile.avatar_url} alt="" className="w-6 sm:w-8 h-6 sm:h-8 rounded-full object-cover" style={{ border: `2px solid ${getUserColor(senderProfile.username)}55` }} />
                     ) : (
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: `${getUserColor(senderProfile.username)}22`, color: getUserColor(senderProfile.username), border: `2px solid ${getUserColor(senderProfile.username)}55` }}>
+                      <div className="w-6 sm:w-8 h-6 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: `${getUserColor(senderProfile.username)}22`, color: getUserColor(senderProfile.username), border: `2px solid ${getUserColor(senderProfile.username)}55` }}>
                         {senderProfile.username.slice(0, 2).toUpperCase()}
                       </div>
                     )}
                   </div>
 
-                  <div className="relative">
-                    {/* Swipe reply indicator */}
-                    {showSwipeReply && (
-                      <div className="absolute -right-10 top-1/2 -translate-y-1/2 animate-pulse z-10">
-                        <Reply className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
-                      </div>
-                    )}
-
+                  <div className="relative max-w-[85vw] sm:max-w-[70vw]">
                     <div
-                      className={`max-w-[70vw] space-y-1 flex flex-col ${isOwn ? "items-end" : "items-start"}`}
-                      onTouchStart={(e) => { if (!(e.target as HTMLElement).closest('button')) handleMsgTouchStart(msg.id, e.touches[0].clientX); }}
-                      onTouchMove={(e) => handleMsgTouchMove(e.touches[0].clientX)}
-                      onTouchEnd={handleMsgTouchEnd}
-                      onMouseDown={(e) => { if (!(e.target as HTMLElement).closest('button')) handleMsgTouchStart(msg.id, e.clientX); }}
-                      onMouseMove={(e) => handleMsgTouchMove(e.clientX)}
-                      onMouseUp={handleMsgTouchEnd}
-                      style={{ transform: `translateX(${currentSwipe}px)`, transition: swipeState?.msgId === msg.id ? 'none' : 'transform 0.2s ease' }}
+                      className={`space-y-1 flex flex-col ${isOwn ? "items-end" : "items-start"}`}
                     >
                       {/* Reply preview */}
                       {msg.reply_to_content && (
-                        <div className="px-3 py-1.5 rounded-lg text-xs" style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: isOwn ? "2px solid hsl(var(--primary))" : undefined, borderLeft: !isOwn ? "2px solid hsl(var(--primary))" : undefined }}>
+                        <div className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs max-w-full" style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: isOwn ? "2px solid hsl(var(--primary))" : undefined, borderLeft: !isOwn ? "2px solid hsl(var(--primary))" : undefined }}>
                           <p className="truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{msg.reply_to_content}</p>
                         </div>
                       )}
 
-                      <div className="relative">
-                        {/* Image message */}
+                      <div className="relative group">
+                        {/* Image message - متجاوب مع الهاتف */}
                         {msg.image_url && (
                           <div 
-                            className={`mb-2 rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] ${
+                            className={`mb-1 rounded-xl sm:rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] ${
                               isOwn ? "rounded-tr-sm" : "rounded-tl-sm"
                             }`}
                             onClick={() => setViewingImage(msg.image_url!)}
@@ -623,11 +603,12 @@ const DirectMessages = ({
                             <img 
                               src={msg.image_url} 
                               alt={msg.image_name || "صورة"} 
-                              className="max-w-[250px] max-h-[300px] object-cover"
+                              className="w-full max-w-[200px] sm:max-w-[250px] h-auto max-h-[200px] sm:max-h-[300px] object-cover"
+                              loading="lazy"
                             />
                             {msg.image_name && (
-                              <div className="px-3 py-1 text-xs flex items-center gap-1" style={{ background: "hsl(var(--secondary))" }}>
-                                <FileText className="w-3 h-3" />
+                              <div className="px-2 sm:px-3 py-1 text-xs flex items-center gap-1 truncate" style={{ background: "hsl(var(--secondary))" }}>
+                                <FileText className="w-3 h-3 flex-shrink-0" />
                                 <span className="truncate">{msg.image_name}</span>
                               </div>
                             )}
@@ -637,166 +618,68 @@ const DirectMessages = ({
                         {/* Text message */}
                         {msg.content && msg.content !== "📷 صورة" && (
                           <div
-                            className={`px-3 py-2 rounded-2xl text-sm break-words select-none ${
+                            className={`px-3 sm:px-3 py-2 rounded-2xl text-sm break-words select-none ${
                               isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"
                             }`}
-                            style={{ direction: "rtl", textAlign: "right" }}
+                            style={{ direction: "rtl", textAlign: "right", maxWidth: "100%" }}
                           >
                             {msg.content}
                           </div>
                         )}
 
-                        {/* Emoji picker */}
-                        {emojiPickerMsg === msg.id && (
-                          <div className={`absolute -top-12 flex gap-1 p-2 rounded-2xl z-50 animate-fade-in ${isOwn ? "right-0" : "left-0"}`}
-                            style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)" }}>
-                            {EMOJIS.map((emoji) => {
-                              const myReaction = msgReactions.find((r) => r.emoji === emoji && r.user_id === currentUserId);
+                        {/* Reactions - تظهر أسفل الرسالة */}
+                        {Object.keys(reactionGroups).length > 0 && (
+                          <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+                            {Object.entries(reactionGroups).map(([emoji, group]) => {
+                              const myReaction = group.find((r) => r.user_id === currentUserId);
                               return (
                                 <button key={emoji} onClick={() => handleDmReaction(msg.id, emoji)}
-                                  className="w-8 h-8 flex items-center justify-center rounded-xl text-base transition-all hover:scale-125 active:scale-90"
-                                  style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent" }}>
-                                  {emoji}
+                                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs hover:scale-105 active:scale-95"
+                                  style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", border: myReaction ? "1px solid hsl(var(--primary) / 0.5)" : "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}>
+                                  <span>{emoji}</span><span>{group.length}</span>
                                 </button>
                               );
                             })}
                           </div>
                         )}
 
-                        {/* Action buttons */}
-                        {hoveredMsg === msg.id && (
-                          <div className={`absolute top-0 flex gap-1 z-10 ${isOwn ? "-left-16" : "-right-16"}`}>
-                            <button onClick={() => setEmojiPickerMsg(emojiPickerMsg === msg.id ? null : msg.id)}
-                              className="p-1 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-                              <span className="text-xs">😊</span>
-                            </button>
-                            <button onClick={() => setReplyTo(msg)}
-                              className="p-1 rounded-lg" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-                              <Reply className="w-3 h-3" />
-                            </button>
-                            {canDelete && (
-                              <button onClick={() => handleDeleteMessage(msg.id, msg.image_url)}
-                                className="p-1 rounded-lg" style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}>
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            )}
-                          </div>
-                        )}
+                        {/* Time - تظهر أسفل كل شيء */}
+                        <span className="text-xs px-1 mt-1 block" style={{ color: "hsl(var(--chat-timestamp))" }}>
+                          {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ar })}
+                        </span>
                       </div>
 
-                      {/* Reactions */}
-                      {Object.keys(reactionGroups).length > 0 && (
-                        <div className={`flex flex-wrap gap-1 ${isOwn ? "justify-end" : "justify-start"}`}>
-                          {Object.entries(reactionGroups).map(([emoji, group]) => {
-                            const myReaction = group.find((r) => r.user_id === currentUserId);
-                            return (
-                              <button key={emoji} onClick={() => handleDmReaction(msg.id, emoji)}
-                                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs hover:scale-105 active:scale-95"
-                                style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", border: myReaction ? "1px solid hsl(var(--primary) / 0.5)" : "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}>
-                                <span>{emoji}</span><span>{group.length}</span>
-                              </button>
-                            );
-                          })}
+                      {/* قائمة الإجراءات للهاتف - تظهر عند النقر على زر القائمة */}
+                      {showActionsForMsg === msg.id && (
+                        <div 
+                          ref={actionsMenuRef}
+                          className={`fixed sm:absolute bottom-20 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-2 p-3 rounded-2xl shadow-lg sm:${isOwn ? "right-0" : "left-0"} sm:top-0`}
+                          style={{ 
+                            background: "hsl(var(--card))", 
+                            border: "1px solid hsl(var(--border))",
+                            boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)",
+                            width: "auto",
+                            maxWidth: "90vw"
+                          }}
+                        >
+                          <button onClick={() => { setEmojiPickerMsg(msg.id); setShowActionsForMsg(null); }}
+                            className="p-3 sm:p-2 rounded-xl flex items-center justify-center" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                            <span className="text-lg">😊</span>
+                          </button>
+                          <button onClick={() => { setReplyTo(msg); setShowActionsForMsg(null); }}
+                            className="p-3 sm:p-2 rounded-xl flex items-center justify-center" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                            <Reply className="w-5 h-5 sm:w-4 sm:h-4" />
+                          </button>
+                          {canDelete && (
+                            <button onClick={() => handleDeleteMessage(msg.id, msg.image_url)}
+                              className="p-3 sm:p-2 rounded-xl flex items-center justify-center" style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}>
+                              <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
+                            </button>
+                          )}
                         </div>
                       )}
 
-                      <span className="text-xs px-1" style={{ color: "hsl(var(--chat-timestamp))" }}>
-                        {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ar })}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            <div ref={bottomRef} />
-          </div>
-
-          {/* Image preview */}
-          {imagePreview && (
-            <div className="flex-shrink-0 mx-4 mb-2 p-2 rounded-xl flex items-center gap-3 animate-fade-in"
-              style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))" }}>
-              <img src={imagePreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs truncate" style={{ color: "hsl(var(--foreground))" }}>{selectedImage?.name}</p>
-                <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                  {((selectedImage?.size || 0) / 1024).toFixed(1)} KB
-                </p>
-              </div>
-              <button 
-                onClick={() => { setSelectedImage(null); setImagePreview(null); }}
-                className="p-1.5 rounded-lg" style={{ color: "hsl(var(--muted-foreground))" }}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {/* Reply preview */}
-          {replyTo && (
-            <div className="flex-shrink-0 mx-4 mb-2 px-3 py-2 rounded-xl flex items-center justify-between gap-3 animate-fade-in"
-              style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: "3px solid hsl(var(--primary))" }}>
-              <div className="flex items-center gap-2 min-w-0">
-                <CornerUpLeft className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
-                <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
-                  {replyTo.image_url ? "📷 صورة" : replyTo.content}
-                </p>
-              </div>
-              <button onClick={() => setReplyTo(null)} className="flex-shrink-0 p-1 rounded-lg" style={{ color: "hsl(var(--muted-foreground))" }}>
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {/* Input or blocked message */}
-          <div className="flex-shrink-0 px-4 pb-4 pt-2">
-            {isConversationBlocked ? (
-              <div className="flex items-center justify-center py-3 rounded-2xl text-sm"
-                style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", border: "1px solid hsl(var(--border))" }}>
-                {blockedByMe.has(activeConversation!) ? "لقد حظرت هذا المستخدم" : "هذا المستخدم حظرك"}
-              </div>
-            ) : (
-              <div className="flex items-end gap-2 p-2 rounded-2xl" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
-                {/* Image upload button */}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageSelect}
-                  accept="image/*"
-                  className="hidden"
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingImage}
-                  className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-40"
-                  style={{ background: "hsl(var(--secondary))" }}
-                >
-                  <Camera className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
-                </button>
-
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
-                  onKeyDown={handleKeyDown}
-                  placeholder={uploadingImage ? "جاري رفع الصورة..." : "اكتب رسالتك..."}
-                  rows={1}
-                  maxLength={500}
-                  disabled={uploadingImage}
-                  className="flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed select-text disabled:opacity-50"
-                  style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
-                />
-                <button onClick={handleSend} disabled={(!input.trim() && !selectedImage) || sending || uploadingImage}
-                  className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-40"
-                  style={{ background: (input.trim() || selectedImage) && !sending && !uploadingImage ? "var(--gradient-primary)" : "hsl(var(--secondary))" }}>
-                  <Send className="w-4 h-4" style={{ color: (input.trim() || selectedImage) && !sending && !uploadingImage ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))" }} />
-                </button>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
-
-export default DirectMessages;
+                      {/* Emoji picker - يظهر فوق الرسالة */}
+                      {emojiPickerMsg === msg.id && (
+                        <div className={`fixed sm:absolute bottom-24 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-2 p-3 rounded-2xl shadow-lg sm:${isOwn ? "right-0" : "left-0"} sm:-top-12`}
+                          style={{ 
