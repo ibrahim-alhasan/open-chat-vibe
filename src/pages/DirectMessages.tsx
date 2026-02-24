@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, ChevronLeft, Reply, CornerUpLeft, X, Trash2, Ban, Camera, FileText, MoreVertical } from "lucide-react";
+import { Send, ChevronLeft, Reply, CornerUpLeft, X, Trash2, Ban, Camera, FileText, MoreVertical, Smile } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -83,12 +83,24 @@ const DirectMessages = ({
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
-  const [showActionsForMsg, setShowActionsForMsg] = useState<string | null>(null); // للهاتف: عرض قائمة الإجراءات
+  const [showActionsForMsg, setShowActionsForMsg] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Swipe state
+  const [swipeState, setSwipeState] = useState<{ 
+    msgId: string; 
+    offset: number; 
+    startX: number; 
+    startTime: number;
+    isSwiping: boolean;
+  } | null>(null);
+  
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // اكتشاف ما إذا كان الجهاز هاتفاً
   useEffect(() => {
@@ -105,6 +117,7 @@ const DirectMessages = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target as Node)) {
         setShowActionsForMsg(null);
+        setEmojiPickerMsg(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -168,7 +181,7 @@ const DirectMessages = ({
         setMessages(dmsRes.data as DirectMessage[]);
         buildConversations(dmsRes.data as DirectMessage[]);
       }
-      if (!reactionsRes.error && reactionsRes.data) setDmReactions(dmReactions as DmReaction[]);
+      if (!reactionsRes.error && reactionsRes.data) setDmReactions(reactionsRes.data as DmReaction[]);
       setLoading(false);
     };
     fetchDMs();
@@ -396,17 +409,134 @@ const DirectMessages = ({
   };
 
   const handleDeleteMessage = async (messageId: string, imageUrl?: string | null) => {
-    if (!isAdmin && !messages.find(m => m.id === messageId)?.sender_user_id === currentUserId) return;
+    try {
+      // التحقق من الصلاحية
+      const message = messages.find(m => m.id === messageId);
+      if (!message) return;
+      
+      const canDelete = isAdmin || message.sender_user_id === currentUserId;
+      if (!canDelete) {
+        alert("لا يمكنك حذف هذه الرسالة");
+        return;
+      }
+      
+      // حذف الصورة من التخزين إذا وجدت
+      if (imageUrl) {
+        const path = imageUrl.split('/').pop();
+        if (path) {
+          await supabase.storage.from('direct_message_images').remove([path]);
+        }
+      }
+      
+      // حذف الرسالة من قاعدة البيانات
+      const { error } = await supabase.from("direct_messages").delete().eq("id", messageId);
+      
+      if (error) {
+        console.error("Error deleting message:", error);
+        alert("حدث خطأ أثناء حذف الرسالة");
+      } else {
+        // تحديث الحالة محلياً
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+        setShowActionsForMsg(null);
+      }
+    } catch (error) {
+      console.error("Error in handleDeleteMessage:", error);
+      alert("حدث خطأ أثناء حذف الرسالة");
+    }
+  };
+
+  // دوال السحب (Swipe)
+  const handleTouchStart = (msgId: string, e: React.TouchEvent) => {
+    if (showActionsForMsg || emojiPickerMsg) return;
     
-    if (imageUrl) {
-      const path = imageUrl.split('/').pop();
-      if (path) {
-        await supabase.storage.from('direct_message_images').remove([path]);
+    const touch = e.touches[0];
+    setSwipeState({
+      msgId,
+      offset: 0,
+      startX: touch.clientX,
+      startTime: Date.now(),
+      isSwiping: true
+    });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!swipeState || !swipeState.isSwiping) return;
+    
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - swipeState.startX;
+    
+    // السماح فقط بالسحب لليمين (قيمة موجبة)
+    if (deltaX > 0) {
+      const newOffset = Math.min(deltaX, 80); // حد أقصى 80px
+      setSwipeState({ ...swipeState, offset: newOffset });
+      
+      // تطبيق التحويل على الرسالة
+      const messageElement = messageRefs.current.get(swipeState.msgId);
+      if (messageElement) {
+        messageElement.style.transform = `translateX(${newOffset}px)`;
+        messageElement.style.transition = 'none';
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!swipeState || !swipeState.isSwiping) return;
+    
+    const messageElement = messageRefs.current.get(swipeState.msgId);
+    
+    if (swipeState.offset > 50 && (Date.now() - swipeState.startTime) < 1000) {
+      // تم السحب لمسافة كافية - تنفيذ الرد
+      const msg = messages.find(m => m.id === swipeState.msgId);
+      if (msg) {
+        setReplyTo(msg);
+        
+        // إظهار تأثير الرد
+        if (messageElement) {
+          messageElement.style.transform = 'translateX(0px)';
+          messageElement.style.transition = 'transform 0.2s ease';
+          messageElement.style.backgroundColor = 'hsl(var(--primary) / 0.1)';
+          setTimeout(() => {
+            if (messageElement) {
+              messageElement.style.backgroundColor = '';
+            }
+          }, 200);
+        }
+      }
+    } else {
+      // إعادة الرسالة إلى مكانها
+      if (messageElement) {
+        messageElement.style.transform = 'translateX(0px)';
+        messageElement.style.transition = 'transform 0.2s ease';
       }
     }
     
-    await supabase.from("direct_messages").delete().eq("id", messageId);
-    setShowActionsForMsg(null);
+    setSwipeState(null);
+  };
+
+  // الضغط المطول (Long press) للهاتف
+  const handleTouchStartLongPress = (msgId: string) => {
+    if (swipeState?.isSwiping) return;
+    
+    const timer = setTimeout(() => {
+      setShowActionsForMsg(showActionsForMsg === msgId ? null : msgId);
+    }, 500);
+    
+    setLongPressTimer(timer);
+  };
+
+  const handleTouchEndLongPress = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  };
+
+  // النقر العادي على الرسالة
+  const handleMessageClick = (msgId: string) => {
+    if (isMobile) {
+      // على الهاتف، النقر يظهر قائمة الإجراءات
+      setShowActionsForMsg(showActionsForMsg === msgId ? null : msgId);
+    }
   };
 
   const activeMessages = messages.filter(
@@ -567,7 +697,28 @@ const DirectMessages = ({
               return (
                 <div
                   key={msg.id}
-                  className={`flex gap-1 sm:gap-2 animate-fade-in ${isOwn ? "flex-row-reverse" : "flex-row"}`}
+                  ref={(el) => {
+                    if (el) messageRefs.current.set(msg.id, el);
+                    else messageRefs.current.delete(msg.id);
+                  }}
+                  className={`flex gap-1 sm:gap-2 animate-fade-in transition-colors duration-200 ${
+                    isOwn ? "flex-row-reverse" : "flex-row"
+                  } ${swipeState?.msgId === msg.id ? 'swiping' : ''}`}
+                  onClick={() => handleMessageClick(msg.id)}
+                  onTouchStart={(e) => {
+                    handleTouchStartLongPress(msg.id);
+                    handleTouchStart(msg.id, e);
+                  }}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={(e) => {
+                    handleTouchEndLongPress();
+                    handleTouchEnd();
+                  }}
+                  onTouchCancel={handleTouchEndLongPress}
+                  style={{
+                    transform: swipeState?.msgId === msg.id ? `translateX(${swipeState.offset}px)` : 'none',
+                    transition: swipeState?.isSwiping ? 'none' : 'transform 0.2s ease'
+                  }}
                 >
                   {/* Avatar - نخفيه على الشاشات الصغيرة جداً لتوفير مساحة */}
                   <div className="flex-shrink-0 mt-1 hidden xs:block">
@@ -598,7 +749,10 @@ const DirectMessages = ({
                             className={`mb-1 rounded-xl sm:rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] ${
                               isOwn ? "rounded-tr-sm" : "rounded-tl-sm"
                             }`}
-                            onClick={() => setViewingImage(msg.image_url!)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setViewingImage(msg.image_url!);
+                            }}
                           >
                             <img 
                               src={msg.image_url} 
@@ -633,9 +787,15 @@ const DirectMessages = ({
                             {Object.entries(reactionGroups).map(([emoji, group]) => {
                               const myReaction = group.find((r) => r.user_id === currentUserId);
                               return (
-                                <button key={emoji} onClick={() => handleDmReaction(msg.id, emoji)}
+                                <button 
+                                  key={emoji} 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDmReaction(msg.id, emoji);
+                                  }}
                                   className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs hover:scale-105 active:scale-95"
-                                  style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", border: myReaction ? "1px solid hsl(var(--primary) / 0.5)" : "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}>
+                                  style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", border: myReaction ? "1px solid hsl(var(--primary) / 0.5)" : "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}
+                                >
                                   <span>{emoji}</span><span>{group.length}</span>
                                 </button>
                               );
@@ -648,72 +808,92 @@ const DirectMessages = ({
                           {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ar })}
                         </span>
                       </div>
-
-                      {/* قائمة الإجراءات للهاتف - تظهر عند النقر على زر القائمة */}
-                      {showActionsForMsg === msg.id && (
-                        <div 
-                          ref={actionsMenuRef}
-                          className={`fixed sm:absolute bottom-20 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-2 p-3 rounded-2xl shadow-lg sm:${isOwn ? "right-0" : "left-0"} sm:top-0`}
-                          style={{ 
-                            background: "hsl(var(--card))", 
-                            border: "1px solid hsl(var(--border))",
-                            boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)",
-                            width: "auto",
-                            maxWidth: "90vw"
-                          }}
-                        >
-                          <button onClick={() => { setEmojiPickerMsg(msg.id); setShowActionsForMsg(null); }}
-                            className="p-3 sm:p-2 rounded-xl flex items-center justify-center" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-                            <span className="text-lg">😊</span>
-                          </button>
-                          <button onClick={() => { setReplyTo(msg); setShowActionsForMsg(null); }}
-                            className="p-3 sm:p-2 rounded-xl flex items-center justify-center" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-                            <Reply className="w-5 h-5 sm:w-4 sm:h-4" />
-                          </button>
-                          {canDelete && (
-                            <button onClick={() => handleDeleteMessage(msg.id, msg.image_url)}
-                              className="p-3 sm:p-2 rounded-xl flex items-center justify-center" style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}>
-                              <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Emoji picker - يظهر فوق الرسالة */}
-                      {emojiPickerMsg === msg.id && (
-                        <div className={`fixed sm:absolute bottom-24 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-2 p-3 rounded-2xl shadow-lg sm:${isOwn ? "right-0" : "left-0"} sm:-top-12`}
-                          style={{ 
-                            background: "hsl(var(--card))", 
-                            border: "1px solid hsl(var(--border))", 
-                            boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)",
-                            width: "auto",
-                            maxWidth: "90vw"
-                          }}>
-                          {EMOJIS.map((emoji) => {
-                            const myReaction = msgReactions.find((r) => r.emoji === emoji && r.user_id === currentUserId);
-                            return (
-                              <button key={emoji} onClick={() => handleDmReaction(msg.id, emoji)}
-                                className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-xl text-xl sm:text-base transition-all hover:scale-125 active:scale-90"
-                                style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent" }}>
-                                {emoji}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
                     </div>
 
-                    {/* زر القائمة للهاتف - يظهر بجانب كل رسالة */}
-                    {isMobile && (
-                      <button
-                        onClick={() => setShowActionsForMsg(showActionsForMsg === msg.id ? null : msg.id)}
-                        className={`absolute top-1 p-2 rounded-full z-10 ${
-                          isOwn ? "left-0" : "right-0"
+                    {/* مؤشر السحب للرد */}
+                    {swipeState?.msgId === msg.id && swipeState.offset > 20 && (
+                      <div 
+                        className={`absolute top-1/2 -translate-y-1/2 ${
+                          isOwn ? 'left-0 -translate-x-8' : 'right-0 translate-x-8'
                         }`}
-                        style={{ background: "hsl(var(--secondary) / 0.8)", backdropFilter: "blur(4px)" }}
                       >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                        <div className="flex items-center gap-1 animate-pulse" style={{ color: "hsl(var(--primary))" }}>
+                          <Reply className="w-4 h-4" />
+                          <span className="text-xs">رد</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* قائمة الإجراءات المنبثقة */}
+                    {showActionsForMsg === msg.id && (
+                      <div 
+                        ref={actionsMenuRef}
+                        className={`fixed sm:absolute bottom-24 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-3 p-4 rounded-2xl shadow-lg sm:${isOwn ? "right-0" : "left-0"} sm:-top-12`}
+                        style={{ 
+                          background: "hsl(var(--card))", 
+                          border: "1px solid hsl(var(--border))",
+                          boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)",
+                          width: "auto",
+                          maxWidth: "90vw"
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button 
+                          onClick={() => { setEmojiPickerMsg(msg.id); setShowActionsForMsg(null); }}
+                          className="p-4 sm:p-3 rounded-xl flex items-center justify-center flex-col gap-1"
+                          style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
+                        >
+                          <Smile className="w-6 h-6 sm:w-5 sm:h-5" />
+                          <span className="text-xs">تفاعل</span>
+                        </button>
+                        <button 
+                          onClick={() => { setReplyTo(msg); setShowActionsForMsg(null); }}
+                          className="p-4 sm:p-3 rounded-xl flex items-center justify-center flex-col gap-1"
+                          style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
+                        >
+                          <Reply className="w-6 h-6 sm:w-5 sm:h-5" />
+                          <span className="text-xs">رد</span>
+                        </button>
+                        {canDelete && (
+                          <button 
+                            onClick={() => handleDeleteMessage(msg.id, msg.image_url)}
+                            className="p-4 sm:p-3 rounded-xl flex items-center justify-center flex-col gap-1"
+                            style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}
+                          >
+                            <Trash2 className="w-6 h-6 sm:w-5 sm:h-5" />
+                            <span className="text-xs">حذف</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* منتقي الإيموجي */}
+                    {emojiPickerMsg === msg.id && (
+                      <div 
+                        className={`fixed sm:absolute bottom-24 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-3 p-4 rounded-2xl shadow-lg sm:${isOwn ? "right-0" : "left-0"} sm:-top-12`}
+                        style={{ 
+                          background: "hsl(var(--card))", 
+                          border: "1px solid hsl(var(--border))", 
+                          boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)",
+                          width: "auto",
+                          maxWidth: "90vw"
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {EMOJIS.map((emoji) => {
+                          const myReaction = msgReactions.find((r) => r.emoji === emoji && r.user_id === currentUserId);
+                          return (
+                            <button 
+                              key={emoji} 
+                              onClick={() => handleDmReaction(msg.id, emoji)}
+                              className="w-12 h-12 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl text-2xl sm:text-xl transition-all hover:scale-125 active:scale-90"
+                              style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent" }}
+                            >
+                              {emoji}
+                            </button>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 </div>
