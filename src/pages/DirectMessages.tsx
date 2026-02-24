@@ -683,3 +683,130 @@ const DirectMessages = ({
                       {emojiPickerMsg === msg.id && (
                         <div className={`fixed sm:absolute bottom-24 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-2 p-3 rounded-2xl shadow-lg sm:${isOwn ? "right-0" : "left-0"} sm:-top-12`}
                           style={{ 
+                            background: "hsl(var(--card))", 
+                            border: "1px solid hsl(var(--border))", 
+                            boxShadow: "0 8px 32px hsl(220 16% 4% / 0.6)",
+                            width: "auto",
+                            maxWidth: "90vw"
+                          }}>
+                          {EMOJIS.map((emoji) => {
+                            const myReaction = msgReactions.find((r) => r.emoji === emoji && r.user_id === currentUserId);
+                            return (
+                              <button key={emoji} onClick={() => handleDmReaction(msg.id, emoji)}
+                                className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-xl text-xl sm:text-base transition-all hover:scale-125 active:scale-90"
+                                style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent" }}>
+                                {emoji}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* زر القائمة للهاتف - يظهر بجانب كل رسالة */}
+                    {isMobile && (
+                      <button
+                        onClick={() => setShowActionsForMsg(showActionsForMsg === msg.id ? null : msg.id)}
+                        className={`absolute top-1 p-2 rounded-full z-10 ${
+                          isOwn ? "left-0" : "right-0"
+                        }`}
+                        style={{ background: "hsl(var(--secondary) / 0.8)", backdropFilter: "blur(4px)" }}
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Image preview */}
+          {imagePreview && (
+            <div className="flex-shrink-0 mx-2 sm:mx-4 mb-2 p-2 rounded-xl flex items-center gap-2 sm:gap-3 animate-fade-in"
+              style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))" }}>
+              <img src={imagePreview} alt="Preview" className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs truncate" style={{ color: "hsl(var(--foreground))" }}>{selectedImage?.name}</p>
+                <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  {((selectedImage?.size || 0) / 1024).toFixed(1)} KB
+                </p>
+              </div>
+              <button 
+                onClick={() => { setSelectedImage(null); setImagePreview(null); }}
+                className="p-2 rounded-lg" style={{ color: "hsl(var(--muted-foreground))" }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Reply preview */}
+          {replyTo && (
+            <div className="flex-shrink-0 mx-2 sm:mx-4 mb-2 px-3 py-2 rounded-xl flex items-center justify-between gap-2 sm:gap-3 animate-fade-in"
+              style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: "3px solid hsl(var(--primary))" }}>
+              <div className="flex items-center gap-2 min-w-0">
+                <CornerUpLeft className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
+                <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  {replyTo.image_url ? "📷 صورة" : replyTo.content}
+                </p>
+              </div>
+              <button onClick={() => setReplyTo(null)} className="flex-shrink-0 p-2 rounded-lg" style={{ color: "hsl(var(--muted-foreground))" }}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Input or blocked message */}
+          <div className="flex-shrink-0 px-2 sm:px-4 pb-4 pt-2">
+            {isConversationBlocked ? (
+              <div className="flex items-center justify-center py-3 rounded-2xl text-sm"
+                style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", border: "1px solid hsl(var(--border))" }}>
+                {blockedByMe.has(activeConversation!) ? "لقد حظرت هذا المستخدم" : "هذا المستخدم حظرك"}
+              </div>
+            ) : (
+              <div className="flex items-end gap-2 p-2 rounded-2xl" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageSelect}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-40"
+                  style={{ background: "hsl(var(--secondary))" }}
+                >
+                  <Camera className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+                </button>
+
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
+                  onKeyDown={handleKeyDown}
+                  placeholder={uploadingImage ? "جاري رفع الصورة..." : "اكتب رسالتك..."}
+                  rows={1}
+                  maxLength={500}
+                  disabled={uploadingImage}
+                  className="flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed select-text disabled:opacity-50"
+                  style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
+                />
+                <button onClick={handleSend} disabled={(!input.trim() && !selectedImage) || sending || uploadingImage}
+                  className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-40"
+                  style={{ background: (input.trim() || selectedImage) && !sending && !uploadingImage ? "var(--gradient-primary)" : "hsl(var(--secondary))" }}>
+                  <Send className="w-4 h-4" style={{ color: (input.trim() || selectedImage) && !sending && !uploadingImage ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))" }} />
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default DirectMessages;
