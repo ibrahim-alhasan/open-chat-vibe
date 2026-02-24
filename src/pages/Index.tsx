@@ -39,23 +39,22 @@ const Index = () => {
   const [isReturningFromDMs, setIsReturningFromDMs] = useState(false);
   
   // Refs
-  const messagesEndRef = useRef<HTMLDivElement>(null); // Renamed to make purpose clear
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const isFirstLoadRef = useRef(true); // Track first load
+  const isFirstLoadRef = useRef(true);
 
   const scrollToBottom = useCallback((smooth = true) => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ 
         behavior: smooth ? "smooth" : "auto",
-        block: "end" // Ensure it scrolls to the end
+        block: "end"
       });
     }
   }, []);
 
-  // Force scroll to bottom immediately when returning from DMs
   const forceScrollToBottom = useCallback(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
@@ -71,7 +70,6 @@ const Index = () => {
   const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
   const isCurrentUserAdmin = adminIds.has(userId);
 
-  // Scroll to bottom on first load
   useEffect(() => {
     if (!loading && messages.length > 0 && isFirstLoadRef.current) {
       setTimeout(() => {
@@ -81,7 +79,6 @@ const Index = () => {
     }
   }, [loading, messages.length, forceScrollToBottom]);
 
-  // Fetch unread DMs
   useEffect(() => {
     if (!userId) return;
     const fetchUnread = async () => {
@@ -91,7 +88,6 @@ const Index = () => {
     fetchUnread();
   }, [userId]);
 
-  // Realtime unread DMs
   useEffect(() => {
     if (!userId) return;
     const channel = supabase.channel(`unread-dm-${userId}`)
@@ -108,7 +104,6 @@ const Index = () => {
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
-  // Fetch initial data
   useEffect(() => {
     const fetchAll = async () => {
       const [messagesRes, reactionsRes, profilesRes, totalCountRes, adminsRes] = await Promise.all([
@@ -137,7 +132,6 @@ const Index = () => {
     fetchAll();
   }, []);
 
-  // Realtime subscriptions
   useEffect(() => {
     const channel = supabase.channel("public-chat-all")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
@@ -172,7 +166,6 @@ const Index = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Presence
   useEffect(() => {
     if (!username || !userId) return;
     const presenceChannel = supabase.channel("presence-chat", { config: { presence: { key: userId } } });
@@ -196,25 +189,20 @@ const Index = () => {
     return () => { supabase.removeChannel(presenceChannel); presenceChannelRef.current = null; };
   }, [username, userId]);
 
-  // Scroll to bottom when new messages arrive (but not on first load)
   useEffect(() => { 
     if (!loading && !isFirstLoadRef.current && !isReturningFromDMs) {
       scrollToBottom(true);
     }
   }, [messages, scrollToBottom, loading, isReturningFromDMs]);
 
-  // Handle returning from DMs - force scroll to bottom immediately
   useEffect(() => {
     if (isReturningFromDMs) {
-      // Use multiple strategies to ensure scroll to bottom
       forceScrollToBottom();
       
-      // Also try after short delays to ensure DOM is fully updated
       const timeout1 = setTimeout(forceScrollToBottom, 50);
       const timeout2 = setTimeout(forceScrollToBottom, 150);
       const timeout3 = setTimeout(forceScrollToBottom, 300);
       
-      // Reset the flag after scrolling
       const resetTimeout = setTimeout(() => {
         setIsReturningFromDMs(false);
       }, 400);
@@ -283,13 +271,6 @@ const Index = () => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  const handleLeave = () => {
-    localStorage.removeItem("chat_username");
-    localStorage.removeItem("chat_avatar_url");
-    setUsername(null);
-    setAvatarUrl(null);
-  };
-
   const handleSettingsSave = (newUsername: string, newAvatarUrl: string | null) => {
     setUsername(newUsername);
     setAvatarUrl(newAvatarUrl);
@@ -310,15 +291,15 @@ const Index = () => {
 
   if (showDMs) {
     return (
-     <DirectMessages
-  currentUserId={currentUserId}
-  currentUsername={currentUsername}
-  profilesMap={profilesMap}
-  onlineUsers={onlineUsers}
-  initialConversationUserId={dmInitialUserId}  
-  onBack={() => setShowDMs(false)}
-  isAdmin={isAdmin}
-/>
+      <DirectMessages
+        currentUserId={userId}
+        currentUsername={username}
+        profilesMap={profilesMap}
+        onlineUsers={onlineUsers}
+        initialConversationUserId={dmInitialUserId}
+        onBack={handleBackFromDMs}
+        isAdmin={isCurrentUserAdmin}
+      />
     );
   }
 
@@ -402,7 +383,6 @@ const Index = () => {
                 onDelete={handleDeleteMessage}
               />
             ))}
-            {/* This div is at the END of messages, so scrolling to it goes to bottom */}
             <div ref={messagesEndRef} />
           </>
         )}
