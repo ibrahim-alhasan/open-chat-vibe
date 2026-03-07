@@ -779,7 +779,7 @@ const Index = () => {
           </div>
         ) : (
           <>
-            {messages.map((msg) => (
+            {messages.filter(msg => !msg.reply_to).map((msg) => (
               <ChatMessage
                 key={msg.id}
                 message={msg}
@@ -791,9 +791,11 @@ const Index = () => {
                 isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false}
                 isAdmin={msg.user_id ? adminIds.has(msg.user_id) : false}
                 isCurrentUserAdmin={isCurrentUserAdmin}
+                replyCount={getReplyCount(msg.id)}
                 onReply={setReplyTo}
                 onUsernameClick={(uid) => setProfileModal(uid)}
                 onDelete={handleDeleteMessage}
+                onOpenThread={handleOpenThread}
               />
             ))}
             <div ref={messagesEndRef} />
