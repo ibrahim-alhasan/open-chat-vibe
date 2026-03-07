@@ -792,7 +792,7 @@ const Index = () => {
                 isAdmin={msg.user_id ? adminIds.has(msg.user_id) : false}
                 isCurrentUserAdmin={isCurrentUserAdmin}
                 replyCount={getReplyCount(msg.id)}
-                onReply={setReplyTo}
+                onReply={handleOpenThread}
                 onUsernameClick={(uid) => setProfileModal(uid)}
                 onDelete={handleDeleteMessage}
                 onOpenThread={handleOpenThread}
