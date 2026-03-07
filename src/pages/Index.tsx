@@ -516,6 +516,56 @@ const Index = () => {
     window.history.replaceState({ page: 'public-chat' }, '', '/');
   };
 
+  // Thread functions
+  const getReplyCount = useCallback((messageId: string) => {
+    return messages.filter(m => m.reply_to === messageId).length;
+  }, [messages]);
+
+  const getThreadReplies = useCallback((messageId: string) => {
+    return messages.filter(m => m.reply_to === messageId);
+  }, [messages]);
+
+  const handleOpenThread = (message: Message) => {
+    setThreadMessage(message);
+    window.history.pushState({ page: 'thread' }, '', '/');
+  };
+
+  const handleCloseThread = () => {
+    setThreadMessage(null);
+    setThreadInput("");
+  };
+
+  const handleThreadSend = async () => {
+    if (!threadInput.trim() || !username || threadSending || !threadMessage) return;
+    const content = threadInput.trim();
+    setThreadInput("");
+    setThreadSending(true);
+
+    await supabase.from("messages").insert({
+      username,
+      user_id: userId,
+      content,
+      reply_to: threadMessage.id,
+      reply_to_username: threadMessage.user_id ? getProfile(threadMessage.user_id).username : threadMessage.username,
+      reply_to_content: threadMessage.content?.slice(0, 80) ?? null,
+    });
+
+    setThreadSending(false);
+    setTimeout(() => threadEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+  };
+
+  // Handle back button for thread
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (threadMessage) {
+        e.preventDefault();
+        handleCloseThread();
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [threadMessage]);
+
   const typingNames = Array.from(typingUsers).map(uid => getProfile(uid).username).filter(Boolean);
 
   if (!username) return <UsernameModal onJoin={handleJoin} />;
