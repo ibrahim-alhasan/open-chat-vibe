@@ -44,6 +44,10 @@ const Index = () => {
   const [isReturningFromDMs, setIsReturningFromDMs] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [hasNewMessages, setHasNewMessages] = useState(false);
+  const [threadMessage, setThreadMessage] = useState<Message | null>(null);
+  const [threadInput, setThreadInput] = useState("");
+  const [threadSending, setThreadSending] = useState(false);
+  const threadEndRef = useRef<HTMLDivElement>(null);
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
