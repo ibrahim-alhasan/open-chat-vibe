@@ -5,7 +5,7 @@ import UsernameModal from "@/components/UsernameModal";
 import SettingsModal from "@/components/SettingsModal";
 import UserProfileModal from "@/components/UserProfileModal";
 import DirectMessages from "@/pages/DirectMessages";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 50;
 
