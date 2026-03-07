@@ -102,6 +102,7 @@ const ChatMessage = ({
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const [showReplyIndicator, setShowReplyIndicator] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   const messageRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; time: number } | null>(null);
