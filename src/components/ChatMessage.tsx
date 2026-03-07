@@ -33,9 +33,11 @@ interface ChatMessageProps {
   isOnline?: boolean;
   isAdmin?: boolean;
   isCurrentUserAdmin?: boolean;
+  replyCount?: number;
   onReply: (message: Message) => void;
   onUsernameClick?: (userId: string) => void;
   onDelete?: (messageId: string) => void;
+  onOpenThread?: (message: Message) => void;
 }
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
@@ -83,9 +85,11 @@ const ChatMessage = ({
   isOnline,
   isAdmin,
   isCurrentUserAdmin,
+  replyCount = 0,
   onReply,
   onUsernameClick,
   onDelete,
+  onOpenThread,
 }: ChatMessageProps) => {
   const isOwn = message.user_id === currentUserId;
   const profile = message.user_id && profilesMap[message.user_id];
@@ -479,6 +483,22 @@ const ChatMessage = ({
               );
             })}
           </div>
+        )}
+
+        {/* Thread reply count */}
+        {replyCount > 0 && onOpenThread && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenThread(message); }}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all hover:scale-105 active:scale-95 mt-1 ${isOwn ? "self-end" : "self-start"}`}
+            style={{
+              background: "hsl(var(--primary) / 0.1)",
+              color: "hsl(var(--primary))",
+              border: "1px solid hsl(var(--primary) / 0.2)",
+            }}
+          >
+            <Reply className="w-3.5 h-3.5" />
+            <span>عرض الردود ({replyCount})</span>
+          </button>
         )}
       </div>
     </div>

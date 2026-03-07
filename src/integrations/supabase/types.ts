@@ -58,6 +58,8 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          image_name: string | null
+          image_url: string | null
           is_read: boolean
           receiver_user_id: string | null
           receiver_username: string
@@ -70,6 +72,8 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          image_name?: string | null
+          image_url?: string | null
           is_read?: boolean
           receiver_user_id?: string | null
           receiver_username: string
@@ -82,6 +86,8 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          image_name?: string | null
+          image_url?: string | null
           is_read?: boolean
           receiver_user_id?: string | null
           receiver_username?: string

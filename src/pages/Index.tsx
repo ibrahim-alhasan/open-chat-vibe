@@ -5,7 +5,7 @@ import UsernameModal from "@/components/UsernameModal";
 import SettingsModal from "@/components/SettingsModal";
 import UserProfileModal from "@/components/UserProfileModal";
 import DirectMessages from "@/pages/DirectMessages";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 50;
 
@@ -44,6 +44,10 @@ const Index = () => {
   const [isReturningFromDMs, setIsReturningFromDMs] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [hasNewMessages, setHasNewMessages] = useState(false);
+  const [threadMessage, setThreadMessage] = useState<Message | null>(null);
+  const [threadInput, setThreadInput] = useState("");
+  const [threadSending, setThreadSending] = useState(false);
+  const threadEndRef = useRef<HTMLDivElement>(null);
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -456,7 +460,6 @@ const Index = () => {
     
     const content = input.trim();
     setInput("");
-    setReplyTo(null);
     setSending(true);
     
     presenceChannelRef.current?.track({ 
@@ -470,9 +473,6 @@ const Index = () => {
       username, 
       user_id: userId, 
       content,
-      reply_to: replyTo?.id ?? null,
-      reply_to_username: replyTo ? getProfile(replyTo.user_id || "").username : null,
-      reply_to_content: replyTo?.content?.slice(0, 80) ?? null,
     });
     
     setSending(false);
@@ -512,6 +512,56 @@ const Index = () => {
     window.history.replaceState({ page: 'public-chat' }, '', '/');
   };
 
+  // Thread functions
+  const getReplyCount = useCallback((messageId: string) => {
+    return messages.filter(m => m.reply_to === messageId).length;
+  }, [messages]);
+
+  const getThreadReplies = useCallback((messageId: string) => {
+    return messages.filter(m => m.reply_to === messageId);
+  }, [messages]);
+
+  const handleOpenThread = (message: Message) => {
+    setThreadMessage(message);
+    window.history.pushState({ page: 'thread' }, '', '/');
+  };
+
+  const handleCloseThread = () => {
+    setThreadMessage(null);
+    setThreadInput("");
+  };
+
+  const handleThreadSend = async () => {
+    if (!threadInput.trim() || !username || threadSending || !threadMessage) return;
+    const content = threadInput.trim();
+    setThreadInput("");
+    setThreadSending(true);
+
+    await supabase.from("messages").insert({
+      username,
+      user_id: userId,
+      content,
+      reply_to: threadMessage.id,
+      reply_to_username: threadMessage.user_id ? getProfile(threadMessage.user_id).username : threadMessage.username,
+      reply_to_content: threadMessage.content?.slice(0, 80) ?? null,
+    });
+
+    setThreadSending(false);
+    setTimeout(() => threadEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+  };
+
+  // Handle back button for thread
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (threadMessage) {
+        e.preventDefault();
+        handleCloseThread();
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [threadMessage]);
+
   const typingNames = Array.from(typingUsers).map(uid => getProfile(uid).username).filter(Boolean);
 
   if (!username) return <UsernameModal onJoin={handleJoin} />;
@@ -529,6 +579,116 @@ const Index = () => {
       />
     );
   }
+
+  // Thread View
+  if (threadMessage) {
+    const threadReplies = getThreadReplies(threadMessage.id);
+    const threadParentProfile = threadMessage.user_id ? getProfile(threadMessage.user_id) : { username: threadMessage.username, avatar_url: null };
+
+    return (
+      <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
+        {/* Thread Header */}
+        <header className="flex-shrink-0 px-4 py-3 flex items-center gap-3"
+          style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))", boxShadow: "0 1px 20px hsl(220 16% 4% / 0.4)" }}>
+          <button onClick={handleCloseThread} className="p-1.5 rounded-lg transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
+            <ArrowRight className="w-5 h-5" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-bold text-sm" style={{ color: "hsl(var(--foreground))" }}>الردود</h1>
+            <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
+              {threadReplies.length} رد على {threadParentProfile.username}
+            </p>
+          </div>
+        </header>
+
+        {/* Thread messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          {/* Original message */}
+          <div className="pb-3 mb-3" style={{ borderBottom: "1px solid hsl(var(--border))" }}>
+            <ChatMessage
+              message={threadMessage}
+              currentUserId={userId}
+              currentUsername={username}
+              currentAvatarUrl={avatarUrl}
+              reactions={reactions.filter((r) => r.message_id === threadMessage.id)}
+              profilesMap={profilesMap}
+              isOnline={threadMessage.user_id ? onlineUsers.has(threadMessage.user_id) : false}
+              isAdmin={threadMessage.user_id ? adminIds.has(threadMessage.user_id) : false}
+              isCurrentUserAdmin={isCurrentUserAdmin}
+              onReply={() => {}}
+              onUsernameClick={(uid) => setProfileModal(uid)}
+              onDelete={handleDeleteMessage}
+            />
+          </div>
+
+          {/* Replies */}
+          {threadReplies.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Reply className="w-8 h-8 mb-2" style={{ color: "hsl(var(--muted-foreground))" }} />
+              <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>لا توجد ردود بعد</p>
+            </div>
+          ) : (
+            threadReplies.map((reply) => (
+              <ChatMessage
+                key={reply.id}
+                message={reply}
+                currentUserId={userId}
+                currentUsername={username}
+                currentAvatarUrl={avatarUrl}
+                reactions={reactions.filter((r) => r.message_id === reply.id)}
+                profilesMap={profilesMap}
+                isOnline={reply.user_id ? onlineUsers.has(reply.user_id) : false}
+                isAdmin={reply.user_id ? adminIds.has(reply.user_id) : false}
+                isCurrentUserAdmin={isCurrentUserAdmin}
+                onReply={() => {}}
+                onUsernameClick={(uid) => setProfileModal(uid)}
+                onDelete={handleDeleteMessage}
+              />
+            ))
+          )}
+          <div ref={threadEndRef} />
+        </div>
+
+        {/* Thread input */}
+        <div className="flex-shrink-0 px-4 pb-4 pt-2">
+          <div className="flex items-end gap-3 p-3 rounded-2xl"
+            style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
+            <textarea
+              value={threadInput}
+              onChange={(e) => { setThreadInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleThreadSend(); } }}
+              placeholder="اكتب رداً..."
+              rows={1}
+              maxLength={500}
+              className="flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed select-text"
+              style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
+            />
+            <button onClick={handleThreadSend} disabled={!threadInput.trim() || threadSending}
+              className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-40 glow-primary"
+              style={{ background: threadInput.trim() && !threadSending ? "var(--gradient-primary)" : "hsl(var(--secondary))" }}>
+              <Send className="w-4 h-4" style={{ color: threadInput.trim() && !threadSending ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))" }} />
+            </button>
+          </div>
+        </div>
+
+        {profileModal && (
+          <UserProfileModal
+            userId={profileModal}
+            username={getProfile(profileModal).username}
+            avatarUrl={getProfile(profileModal).avatar_url}
+            currentUserId={userId}
+            isOnline={onlineUsers.has(profileModal)}
+            isAdmin={adminIds.has(profileModal)}
+            allowDms={profilesMap[profileModal]?.allow_dms ?? true}
+            onClose={() => setProfileModal(null)}
+            onStartDM={(uid) => { setDmInitialUserId(uid); setShowDMs(true); setProfileModal(null); }}
+          />
+        )}
+      </div>
+    );
+  }
+
+
 
   return (
     <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
@@ -615,7 +775,7 @@ const Index = () => {
           </div>
         ) : (
           <>
-            {messages.map((msg) => (
+            {messages.filter(msg => !msg.reply_to).map((msg) => (
               <ChatMessage
                 key={msg.id}
                 message={msg}
@@ -627,9 +787,11 @@ const Index = () => {
                 isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false}
                 isAdmin={msg.user_id ? adminIds.has(msg.user_id) : false}
                 isCurrentUserAdmin={isCurrentUserAdmin}
-                onReply={setReplyTo}
+                replyCount={getReplyCount(msg.id)}
+                onReply={handleOpenThread}
                 onUsernameClick={(uid) => setProfileModal(uid)}
                 onDelete={handleDeleteMessage}
+                onOpenThread={handleOpenThread}
               />
             ))}
             <div ref={messagesEndRef} />
@@ -678,22 +840,8 @@ const Index = () => {
         </div>
       )}
 
-      {/* Reply preview */}
-      {replyTo && (
-        <div className="flex-shrink-0 mx-4 mb-2 px-3 py-2 rounded-xl flex items-center justify-between gap-3 animate-fade-in"
-          style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: "3px solid hsl(var(--primary))" }}>
-          <div className="flex items-center gap-2 min-w-0">
-            <CornerUpLeft className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
-            <div className="min-w-0">
-              <p className="text-xs font-semibold" style={{ color: "hsl(var(--primary))" }}>رد على {replyTo.user_id ? getProfile(replyTo.user_id).username : replyTo.username}</p>
-              <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{replyTo.content}</p>
-            </div>
-          </div>
-          <button onClick={() => setReplyTo(null)} className="flex-shrink-0 p-1 rounded-lg" style={{ color: "hsl(var(--muted-foreground))" }}>
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+
+
 
       {/* Input area */}
       <div className="flex-shrink-0 px-4 pb-4" style={{ paddingTop: replyTo ? "0" : "0.5rem" }}>
