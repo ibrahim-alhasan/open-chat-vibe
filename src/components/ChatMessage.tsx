@@ -85,9 +85,11 @@ const ChatMessage = ({
   isOnline,
   isAdmin,
   isCurrentUserAdmin,
+  replyCount = 0,
   onReply,
   onUsernameClick,
   onDelete,
+  onOpenThread,
 }: ChatMessageProps) => {
   const isOwn = message.user_id === currentUserId;
   const profile = message.user_id && profilesMap[message.user_id];
