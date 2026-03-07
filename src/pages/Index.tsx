@@ -844,22 +844,8 @@ const Index = () => {
         </div>
       )}
 
-      {/* Reply preview */}
-      {replyTo && (
-        <div className="flex-shrink-0 mx-4 mb-2 px-3 py-2 rounded-xl flex items-center justify-between gap-3 animate-fade-in"
-          style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: "3px solid hsl(var(--primary))" }}>
-          <div className="flex items-center gap-2 min-w-0">
-            <CornerUpLeft className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
-            <div className="min-w-0">
-              <p className="text-xs font-semibold" style={{ color: "hsl(var(--primary))" }}>رد على {replyTo.user_id ? getProfile(replyTo.user_id).username : replyTo.username}</p>
-              <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{replyTo.content}</p>
-            </div>
-          </div>
-          <button onClick={() => setReplyTo(null)} className="flex-shrink-0 p-1 rounded-lg" style={{ color: "hsl(var(--muted-foreground))" }}>
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+
+
 
       {/* Input area */}
       <div className="flex-shrink-0 px-4 pb-4" style={{ paddingTop: replyTo ? "0" : "0.5rem" }}>
