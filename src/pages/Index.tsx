@@ -584,6 +584,124 @@ const Index = () => {
     );
   }
 
+  // Thread View
+  if (threadMessage) {
+    const threadReplies = getThreadReplies(threadMessage.id);
+    const threadParentProfile = threadMessage.user_id ? getProfile(threadMessage.user_id) : { username: threadMessage.username, avatar_url: null };
+
+    return (
+      <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
+        {/* Thread Header */}
+        <header className="flex-shrink-0 px-4 py-3 flex items-center gap-3"
+          style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))", boxShadow: "0 1px 20px hsl(220 16% 4% / 0.4)" }}>
+          <button onClick={handleCloseThread} className="p-1.5 rounded-lg transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
+            <ArrowRight className="w-5 h-5" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-bold text-sm" style={{ color: "hsl(var(--foreground))" }}>الردود</h1>
+            <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
+              {threadReplies.length} رد على {threadParentProfile.username}
+            </p>
+          </div>
+        </header>
+
+        {/* Thread messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          {/* Original message */}
+          <div className="pb-3 mb-3" style={{ borderBottom: "1px solid hsl(var(--border))" }}>
+            <ChatMessage
+              message={threadMessage}
+              currentUserId={userId}
+              currentUsername={username}
+              currentAvatarUrl={avatarUrl}
+              reactions={reactions.filter((r) => r.message_id === threadMessage.id)}
+              profilesMap={profilesMap}
+              isOnline={threadMessage.user_id ? onlineUsers.has(threadMessage.user_id) : false}
+              isAdmin={threadMessage.user_id ? adminIds.has(threadMessage.user_id) : false}
+              isCurrentUserAdmin={isCurrentUserAdmin}
+              onReply={() => {}}
+              onUsernameClick={(uid) => setProfileModal(uid)}
+              onDelete={handleDeleteMessage}
+            />
+          </div>
+
+          {/* Replies */}
+          {threadReplies.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Reply className="w-8 h-8 mb-2" style={{ color: "hsl(var(--muted-foreground))" }} />
+              <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>لا توجد ردود بعد</p>
+            </div>
+          ) : (
+            threadReplies.map((reply) => (
+              <ChatMessage
+                key={reply.id}
+                message={reply}
+                currentUserId={userId}
+                currentUsername={username}
+                currentAvatarUrl={avatarUrl}
+                reactions={reactions.filter((r) => r.message_id === reply.id)}
+                profilesMap={profilesMap}
+                isOnline={reply.user_id ? onlineUsers.has(reply.user_id) : false}
+                isAdmin={reply.user_id ? adminIds.has(reply.user_id) : false}
+                isCurrentUserAdmin={isCurrentUserAdmin}
+                onReply={() => {}}
+                onUsernameClick={(uid) => setProfileModal(uid)}
+                onDelete={handleDeleteMessage}
+              />
+            ))
+          )}
+          <div ref={threadEndRef} />
+        </div>
+
+        {/* Thread input */}
+        <div className="flex-shrink-0 px-4 pb-4 pt-2">
+          <div className="flex items-end gap-3 p-3 rounded-2xl"
+            style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
+            <textarea
+              value={threadInput}
+              onChange={(e) => { setThreadInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleThreadSend(); } }}
+              placeholder="اكتب رداً..."
+              rows={1}
+              maxLength={500}
+              className="flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed select-text"
+              style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
+            />
+            <button onClick={handleThreadSend} disabled={!threadInput.trim() || threadSending}
+              className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-40 glow-primary"
+              style={{ background: threadInput.trim() && !threadSending ? "var(--gradient-primary)" : "hsl(var(--secondary))" }}>
+              <Send className="w-4 h-4" style={{ color: threadInput.trim() && !threadSending ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))" }} />
+            </button>
+          </div>
+        </div>
+
+        {profileModal && (
+          <UserProfileModal
+            userId={profileModal}
+            username={getProfile(profileModal).username}
+            avatarUrl={getProfile(profileModal).avatar_url}
+            currentUserId={userId}
+            isOnline={onlineUsers.has(profileModal)}
+            isAdmin={adminIds.has(profileModal)}
+            allowDms={profilesMap[profileModal]?.allow_dms ?? true}
+            onClose={() => setProfileModal(null)}
+            onStartDM={(uid) => { setDmInitialUserId(uid); setShowDMs(true); setProfileModal(null); }}
+          />
+        )}
+      </div>
+    );
+  }
+        currentUserId={userId}
+        currentUsername={username}
+        profilesMap={profilesMap}
+        onlineUsers={onlineUsers}
+        initialConversationUserId={dmInitialUserId}
+        onBack={handleBackFromDMs}
+        isAdmin={isCurrentUserAdmin}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
       {/* Header */}
