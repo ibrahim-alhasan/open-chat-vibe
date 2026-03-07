@@ -691,16 +691,8 @@ const Index = () => {
       </div>
     );
   }
-        currentUserId={userId}
-        currentUsername={username}
-        profilesMap={profilesMap}
-        onlineUsers={onlineUsers}
-        initialConversationUserId={dmInitialUserId}
-        onBack={handleBackFromDMs}
-        isAdmin={isCurrentUserAdmin}
-      />
-    );
-  }
+
+
 
   return (
     <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
