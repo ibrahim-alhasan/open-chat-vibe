@@ -460,7 +460,6 @@ const Index = () => {
     
     const content = input.trim();
     setInput("");
-    setReplyTo(null);
     setSending(true);
     
     presenceChannelRef.current?.track({ 
@@ -474,9 +473,6 @@ const Index = () => {
       username, 
       user_id: userId, 
       content,
-      reply_to: replyTo?.id ?? null,
-      reply_to_username: replyTo ? getProfile(replyTo.user_id || "").username : null,
-      reply_to_content: replyTo?.content?.slice(0, 80) ?? null,
     });
     
     setSending(false);
