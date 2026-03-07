@@ -380,6 +380,16 @@ const ChatMessage = ({
                   {/* Divider */}
                   <div className="w-px h-6 mx-0.5" style={{ background: "hsl(var(--border))" }} />
                   
+                  {/* Copy */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(message.content); setCopied(true); setTimeout(() => setCopied(false), 1500); setShowActionsMenu(false); }}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:scale-110"
+                    style={{ background: "hsl(var(--secondary))" }}
+                    title="نسخ"
+                  >
+                    {copied ? <Check className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} /> : <Copy className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />}
+                  </button>
+
                   {/* Reply */}
                   <button
                     onClick={(e) => { e.stopPropagation(); onReply(message); setShowActionsMenu(false); }}
