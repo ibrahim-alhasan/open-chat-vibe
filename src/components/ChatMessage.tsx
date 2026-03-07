@@ -1,4 +1,4 @@
-import { Reply, CornerUpLeft, Trash2 } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2, Copy, Check } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useState, useEffect, useRef } from "react";
