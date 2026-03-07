@@ -33,9 +33,11 @@ interface ChatMessageProps {
   isOnline?: boolean;
   isAdmin?: boolean;
   isCurrentUserAdmin?: boolean;
+  replyCount?: number;
   onReply: (message: Message) => void;
   onUsernameClick?: (userId: string) => void;
   onDelete?: (messageId: string) => void;
+  onOpenThread?: (message: Message) => void;
 }
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
