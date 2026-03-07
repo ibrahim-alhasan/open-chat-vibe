@@ -533,10 +533,6 @@ const DirectMessages = ({
         className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3"
         style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}
       >
-        <button onClick={() => { if (activeConversation) { setActiveConversation(null); setReplyTo(null); setImagePreview(null); setSelectedImage(null); } else onBack(); }}
-          className="p-2 rounded-lg" style={{ color: "hsl(var(--muted-foreground))" }}>
-          <ChevronLeft className="w-5 h-5" />
-        </button>
         {activeConversation && activeProfile ? (
           <div className="flex items-center justify-between flex-1">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">

@@ -590,9 +590,6 @@ const Index = () => {
         {/* Thread Header */}
         <header className="flex-shrink-0 px-4 py-3 flex items-center gap-3"
           style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))", boxShadow: "0 1px 20px hsl(220 16% 4% / 0.4)" }}>
-          <button onClick={handleCloseThread} className="p-1.5 rounded-lg transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
-            <ArrowRight className="w-5 h-5" />
-          </button>
           <div className="flex-1 min-w-0">
             <h1 className="font-bold text-sm" style={{ color: "hsl(var(--foreground))" }}>الردود</h1>
             <p className="text-xs truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
