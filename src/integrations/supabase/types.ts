@@ -53,6 +53,30 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_settings: {
+        Row: {
+          id: string
+          is_locked: boolean
+          locked_at: string | null
+          locked_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          is_locked?: boolean
+          locked_at?: string | null
+          locked_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          is_locked?: boolean
+          locked_at?: string | null
+          locked_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       direct_messages: {
         Row: {
           content: string
