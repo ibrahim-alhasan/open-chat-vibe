@@ -400,6 +400,12 @@ const Index = () => {
 
   if (!username) return <UsernameModal onJoin={handleJoin} />;
 
+  if (showChatInfo) {
+    return (
+      <ChatInfo totalUsers={totalUsers} onlineCount={onlineCount} profilesMap={profilesMap} adminIds={adminIds} onlineUsers={onlineUsers} onClose={() => setShowChatInfo(false)} onUsernameClick={(uid) => { setShowChatInfo(false); setProfileModal(uid); }} />
+    );
+  }
+
   if (showDMs) {
     return (
       <DirectMessages currentUserId={userId} currentUsername={username} profilesMap={profilesMap} onlineUsers={onlineUsers} initialConversationUserId={dmInitialUserId} onBack={handleBackFromDMs} isAdmin={isCurrentUserAdmin} />
