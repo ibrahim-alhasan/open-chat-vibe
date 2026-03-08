@@ -3,6 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile, Gamepad2 } from "lucide-react";
 import LinkifiedText from "@/components/LinkifiedText";
 import TicTacToe from "@/components/TicTacToe";
+import RockPaperScissors from "@/components/RockPaperScissors";
+import ConnectFour from "@/components/ConnectFour";
+import NumberBattle from "@/components/NumberBattle";
+import CoinFlip from "@/components/CoinFlip";
+import ColorGuess from "@/components/ColorGuess";
+import MathChallenge from "@/components/MathChallenge";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
