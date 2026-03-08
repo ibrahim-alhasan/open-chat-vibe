@@ -479,7 +479,7 @@ const Index = () => {
           <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
             <MessageCircle className="w-4.5 h-4.5" style={{ color: "hsl(var(--primary-foreground))" }} />
           </div>
-          <div>
+          <button onClick={() => setShowChatInfo(true)} className="text-right hover:opacity-80 transition-opacity">
             <h1 className="font-semibold text-[15px]" style={{ color: "hsl(var(--foreground))" }}>الدردشة العامة</h1>
             <div className="flex items-center gap-2.5">
               <div className="flex items-center gap-1">
@@ -491,7 +491,7 @@ const Index = () => {
                 <span className="text-[11px]" style={{ color: "hsl(var(--muted-foreground))" }}>{totalUsers}</span>
               </div>
             </div>
-          </div>
+          </button>
         </div>
         <div className="flex items-center gap-1">
           {isCurrentUserAdmin && (
