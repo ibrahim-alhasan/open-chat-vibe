@@ -413,7 +413,7 @@ const Index = () => {
 
   if (showChatInfo) {
     return (
-      <ChatInfo totalUsers={totalUsers} onlineCount={onlineCount} profilesMap={profilesMap} adminIds={adminIds} onlineUsers={onlineUsers} onClose={() => setShowChatInfo(false)} onUsernameClick={(uid) => { setShowChatInfo(false); setProfileModal(uid); }} />
+      <ChatInfo totalUsers={totalUsers} onlineCount={onlineCount} profilesMap={profilesMap} adminIds={adminIds} onlineUsers={onlineUsers} onUsernameClick={(uid) => { setShowChatInfo(false); setProfileModal(uid); }} />
     );
   }
 
