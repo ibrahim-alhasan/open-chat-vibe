@@ -421,12 +421,20 @@ const DirectMessages = ({
     if (!activeConversation) return;
     setShowGameMenu(false);
 
-    // Create game
+    // Set initial board based on game type
+    let initialBoard = "---------";
+    if (gameType === "rps" || gameType === "numberbattle") initialBoard = "-:-";
+    else if (gameType === "coinflip") initialBoard = "-:-:-";
+    else if (gameType === "colorguess") initialBoard = "-:-";
+    else if (gameType === "mathchallenge") initialBoard = "pending";
+    else if (gameType === "connect4") initialBoard = "-".repeat(42);
+
     const { data: game } = await supabase.from("games").insert({
       game_type: gameType,
       player_x: currentUserId,
       current_turn: currentUserId,
       status: "pending",
+      board: initialBoard,
     }).select().single();
 
     if (!game) return;
