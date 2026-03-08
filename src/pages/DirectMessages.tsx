@@ -981,14 +981,25 @@ const DirectMessages = ({
                       style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
                     >
                       <p className="text-xs font-bold px-2 py-1 mb-1" style={{ color: "hsl(var(--foreground))" }}>اختر لعبة 🎮</p>
-                      <button
-                        onClick={() => handleSendGameInvite("tictactoe")}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all hover:scale-[1.02] active:scale-95"
-                        style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}
-                      >
-                        <span className="text-base">❌⭕</span>
-                        <span>إكس أو (XO)</span>
-                      </button>
+                      <div className="space-y-1 max-h-[250px] overflow-y-auto">
+                        {[
+                          { type: "tictactoe", emoji: "❌⭕", label: "إكس أو" },
+                          { type: "rps", emoji: "✊✋✌️", label: "حجر ورقة مقص" },
+                          { type: "connect4", emoji: "🔴🟡", label: "أربعة في صف" },
+                          { type: "numberbattle", emoji: "🔢", label: "معركة الأرقام" },
+                          { type: "coinflip", emoji: "🪙", label: "رمي العملة" },
+                          { type: "colorguess", emoji: "🎨", label: "تخمين اللون" },
+                          { type: "mathchallenge", emoji: "🧮", label: "تحدي الرياضيات" },
+                        ].map(g => (
+                          <button key={g.type}
+                            onClick={() => handleSendGameInvite(g.type)}
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all hover:scale-[1.02] active:scale-95"
+                            style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}>
+                            <span className="text-base">{g.emoji}</span>
+                            <span>{g.label}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
