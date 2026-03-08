@@ -6,56 +6,56 @@
 
 @layer base {
   :root {
-    /* Dark chat theme - always dark */
-    --background: 220 16% 8%;
-    --foreground: 210 20% 92%;
+    /* WhatsApp-inspired dark theme */
+    --background: 200 12% 7%;
+    --foreground: 0 0% 93%;
 
-    --card: 220 14% 11%;
-    --card-foreground: 210 20% 92%;
+    --card: 200 10% 10%;
+    --card-foreground: 0 0% 93%;
 
-    --popover: 220 14% 11%;
-    --popover-foreground: 210 20% 92%;
+    --popover: 200 10% 10%;
+    --popover-foreground: 0 0% 93%;
 
-    --primary: 199 89% 48%;
-    --primary-foreground: 220 16% 8%;
+    --primary: 142 70% 45%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 12% 16%;
-    --secondary-foreground: 210 15% 75%;
+    --secondary: 200 8% 14%;
+    --secondary-foreground: 0 0% 70%;
 
-    --muted: 220 12% 14%;
-    --muted-foreground: 215 12% 50%;
+    --muted: 200 8% 12%;
+    --muted-foreground: 200 5% 50%;
 
-    --accent: 199 89% 48%;
-    --accent-foreground: 220 16% 8%;
+    --accent: 142 70% 45%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 220 12% 18%;
-    --input: 220 12% 16%;
-    --ring: 199 89% 48%;
+    --border: 200 8% 16%;
+    --input: 200 8% 14%;
+    --ring: 142 70% 45%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
-    /* Chat specific tokens */
-    --chat-bg: 220 16% 8%;
-    --chat-header: 220 14% 10%;
-    --chat-sidebar: 220 14% 10%;
-    --chat-input-bg: 220 12% 13%;
-    --chat-bubble-own: 199 70% 20%;
-    --chat-bubble-other: 220 12% 16%;
-    --chat-bubble-own-border: 199 89% 35%;
-    --chat-bubble-other-border: 220 12% 22%;
-    --chat-reply-bg: 220 12% 12%;
-    --chat-timestamp: 215 12% 45%;
+    /* Chat specific tokens - WhatsApp style */
+    --chat-bg: 200 12% 7%;
+    --chat-header: 200 10% 11%;
+    --chat-sidebar: 200 10% 10%;
+    --chat-input-bg: 200 8% 12%;
+    --chat-bubble-own: 142 35% 15%;
+    --chat-bubble-other: 200 8% 14%;
+    --chat-bubble-own-border: 142 40% 22%;
+    --chat-bubble-other-border: 200 8% 20%;
+    --chat-reply-bg: 200 8% 10%;
+    --chat-timestamp: 200 5% 48%;
     --chat-online: 142 71% 45%;
-    --chat-glow: 199 89% 48%;
+    --chat-glow: 142 70% 45%;
     --chat-admin: 45 93% 58%;
     
-    --gradient-header: linear-gradient(135deg, hsl(220, 14%, 10%), hsl(220, 16%, 8%));
-    --gradient-primary: linear-gradient(135deg, hsl(199, 89%, 48%), hsl(220, 89%, 55%));
-    --shadow-glow: 0 0 20px hsl(199 89% 48% / 0.25);
-    --shadow-card: 0 4px 24px hsl(220 16% 4% / 0.6);
+    --gradient-header: linear-gradient(135deg, hsl(200, 10%, 11%), hsl(200, 12%, 7%));
+    --gradient-primary: linear-gradient(135deg, hsl(142, 70%, 45%), hsl(142, 60%, 38%));
+    --shadow-glow: 0 0 15px hsl(142 70% 45% / 0.2);
+    --shadow-card: 0 4px 24px hsl(200 12% 4% / 0.6);
   }
 }
 
@@ -121,11 +121,11 @@
   }
 
   .animate-fade-in {
-    animation: fadeIn 0.3s ease-out;
+    animation: fadeIn 0.2s ease-out;
   }
 
   .animate-slide-up {
-    animation: slideUp 0.3s ease-out;
+    animation: slideUp 0.2s ease-out;
   }
 
   .animate-pulse-dot {
@@ -137,12 +137,12 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
