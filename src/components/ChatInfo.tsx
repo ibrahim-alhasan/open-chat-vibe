@@ -8,7 +8,6 @@ interface ChatInfoProps {
   profilesMap: Record<string, { username: string; avatar_url: string | null }>;
   adminIds: Set<string>;
   onlineUsers: Set<string>;
-  onClose: () => void;
   onUsernameClick: (userId: string) => void;
 }
 
