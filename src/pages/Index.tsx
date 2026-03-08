@@ -665,7 +665,8 @@ const Index = () => {
       )}
 
       {showSettings && (
-        <SettingsModal currentUsername={username} currentAvatarUrl={avatarUrl} userId={userId} onClose={() => setShowSettings(false)} onSave={handleSettingsSave} />
+        <SettingsModal currentUsername={username} currentAvatarUrl={avatarUrl} userId={userId} onClose={() => setShowSettings(false)} onSave={handleSettingsSave} chatBg={chatBg} onChatBgChange={(bg) => { setChatBg(bg); if (bg) localStorage.setItem("chat_bg_image", bg); else localStorage.removeItem("chat_bg_image"); }} />
+      )
       )}
 
       {profileModal && (
