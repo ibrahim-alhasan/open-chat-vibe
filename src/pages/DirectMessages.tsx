@@ -411,7 +411,31 @@ const DirectMessages = ({
     }
   };
 
-  // دوال السحب (Swipe)
+  const handleSendGameInvite = async (gameType: string) => {
+    if (!activeConversation) return;
+    setShowGameMenu(false);
+
+    // Create game
+    const { data: game } = await supabase.from("games").insert({
+      game_type: gameType,
+      player_x: currentUserId,
+      current_turn: currentUserId,
+      status: "pending",
+    }).select().single();
+
+    if (!game) return;
+
+    const receiverProfile = getProfile(activeConversation);
+    // Send game invite as a special message
+    await supabase.from("direct_messages").insert({
+      sender_username: currentUsername,
+      receiver_username: receiverProfile.username,
+      sender_user_id: currentUserId,
+      receiver_user_id: activeConversation,
+      content: `🎮 GAME:${gameType}:${game.id}`,
+    });
+  };
+
   const handleTouchStart = (msgId: string, e: React.TouchEvent) => {
     if (showActionsForMsg || emojiPickerMsg) return;
     
