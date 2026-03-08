@@ -50,6 +50,7 @@ const Index = () => {
   const [threadSending, setThreadSending] = useState(false);
   const [chatLocked, setChatLocked] = useState(false);
   const [showChatInfo, setShowChatInfo] = useState(false);
+  const [chatBg, setChatBg] = useState<string | null>(() => localStorage.getItem("chat_bg_image"));
   const threadEndRef = useRef<HTMLDivElement>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -531,7 +532,7 @@ const Index = () => {
       </header>
 
       {/* Messages area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2 relative">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2 relative" style={chatBg ? { backgroundImage: `url(${chatBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' } : undefined}>
         {loadingMore && (
           <div className="flex justify-center py-2">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full" style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
@@ -664,7 +665,7 @@ const Index = () => {
       )}
 
       {showSettings && (
-        <SettingsModal currentUsername={username} currentAvatarUrl={avatarUrl} userId={userId} onClose={() => setShowSettings(false)} onSave={handleSettingsSave} />
+        <SettingsModal currentUsername={username} currentAvatarUrl={avatarUrl} userId={userId} onClose={() => setShowSettings(false)} onSave={handleSettingsSave} chatBg={chatBg} onChatBgChange={(bg) => { setChatBg(bg); if (bg) localStorage.setItem("chat_bg_image", bg); else localStorage.removeItem("chat_bg_image"); }} />
       )}
 
       {profileModal && (
