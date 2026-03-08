@@ -3,6 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile, Gamepad2 } from "lucide-react";
 import LinkifiedText from "@/components/LinkifiedText";
 import TicTacToe from "@/components/TicTacToe";
+import RockPaperScissors from "@/components/RockPaperScissors";
+import ConnectFour from "@/components/ConnectFour";
+import NumberBattle from "@/components/NumberBattle";
+import CoinFlip from "@/components/CoinFlip";
+import ColorGuess from "@/components/ColorGuess";
+import MathChallenge from "@/components/MathChallenge";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -415,12 +421,20 @@ const DirectMessages = ({
     if (!activeConversation) return;
     setShowGameMenu(false);
 
-    // Create game
+    // Set initial board based on game type
+    let initialBoard = "---------";
+    if (gameType === "rps" || gameType === "numberbattle") initialBoard = "-:-";
+    else if (gameType === "coinflip") initialBoard = "-:-:-";
+    else if (gameType === "colorguess") initialBoard = "-:-";
+    else if (gameType === "mathchallenge") initialBoard = "pending";
+    else if (gameType === "connect4") initialBoard = "-".repeat(42);
+
     const { data: game } = await supabase.from("games").insert({
       game_type: gameType,
       player_x: currentUserId,
       current_turn: currentUserId,
       status: "pending",
+      board: initialBoard,
     }).select().single();
 
     if (!game) return;
@@ -755,10 +769,19 @@ const DirectMessages = ({
                         {msg.content && msg.content.startsWith("🎮 GAME:") ? (
                           (() => {
                             const parts = msg.content.split(":");
+                            const gameType = parts[1];
                             const gameId = parts[2];
+                            const gameProps = { gameId, currentUserId, profilesMap };
+                            let GameComponent: React.ComponentType<typeof gameProps> = TicTacToe;
+                            if (gameType === "rps") GameComponent = RockPaperScissors;
+                            else if (gameType === "connect4") GameComponent = ConnectFour;
+                            else if (gameType === "numberbattle") GameComponent = NumberBattle;
+                            else if (gameType === "coinflip") GameComponent = CoinFlip;
+                            else if (gameType === "colorguess") GameComponent = ColorGuess;
+                            else if (gameType === "mathchallenge") GameComponent = MathChallenge;
                             return (
                               <div className={`${isOwn ? "flex justify-end" : "flex justify-start"}`} onClick={(e) => e.stopPropagation()}>
-                                <TicTacToe gameId={gameId} currentUserId={currentUserId} profilesMap={profilesMap} />
+                                <GameComponent {...gameProps} />
                               </div>
                             );
                           })()
@@ -966,14 +989,25 @@ const DirectMessages = ({
                       style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
                     >
                       <p className="text-xs font-bold px-2 py-1 mb-1" style={{ color: "hsl(var(--foreground))" }}>اختر لعبة 🎮</p>
-                      <button
-                        onClick={() => handleSendGameInvite("tictactoe")}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all hover:scale-[1.02] active:scale-95"
-                        style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}
-                      >
-                        <span className="text-base">❌⭕</span>
-                        <span>إكس أو (XO)</span>
-                      </button>
+                      <div className="space-y-1 max-h-[250px] overflow-y-auto">
+                        {[
+                          { type: "tictactoe", emoji: "❌⭕", label: "إكس أو" },
+                          { type: "rps", emoji: "✊✋✌️", label: "حجر ورقة مقص" },
+                          { type: "connect4", emoji: "🔴🟡", label: "أربعة في صف" },
+                          { type: "numberbattle", emoji: "🔢", label: "معركة الأرقام" },
+                          { type: "coinflip", emoji: "🪙", label: "رمي العملة" },
+                          { type: "colorguess", emoji: "🎨", label: "تخمين اللون" },
+                          { type: "mathchallenge", emoji: "🧮", label: "تحدي الرياضيات" },
+                        ].map(g => (
+                          <button key={g.type}
+                            onClick={() => handleSendGameInvite(g.type)}
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all hover:scale-[1.02] active:scale-95"
+                            style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}>
+                            <span className="text-base">{g.emoji}</span>
+                            <span>{g.label}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
