@@ -122,6 +122,45 @@ export type Database = {
         }
         Relationships: []
       }
+      games: {
+        Row: {
+          board: string
+          created_at: string
+          current_turn: string
+          game_type: string
+          id: string
+          player_o: string | null
+          player_x: string
+          status: string
+          updated_at: string
+          winner: string | null
+        }
+        Insert: {
+          board?: string
+          created_at?: string
+          current_turn: string
+          game_type?: string
+          id?: string
+          player_o?: string | null
+          player_x: string
+          status?: string
+          updated_at?: string
+          winner?: string | null
+        }
+        Update: {
+          board?: string
+          created_at?: string
+          current_turn?: string
+          game_type?: string
+          id?: string
+          player_o?: string | null
+          player_x?: string
+          status?: string
+          updated_at?: string
+          winner?: string | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string

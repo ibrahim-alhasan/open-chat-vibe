@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile } from "lucide-react";
+import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile, Gamepad2 } from "lucide-react";
 import LinkifiedText from "@/components/LinkifiedText";
+import TicTacToe from "@/components/TicTacToe";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -87,6 +88,7 @@ const DirectMessages = ({
   const [showActionsForMsg, setShowActionsForMsg] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [showGameMenu, setShowGameMenu] = useState(false);
   
   // Swipe state
   const [swipeState, setSwipeState] = useState<{ 
@@ -409,7 +411,31 @@ const DirectMessages = ({
     }
   };
 
-  // دوال السحب (Swipe)
+  const handleSendGameInvite = async (gameType: string) => {
+    if (!activeConversation) return;
+    setShowGameMenu(false);
+
+    // Create game
+    const { data: game } = await supabase.from("games").insert({
+      game_type: gameType,
+      player_x: currentUserId,
+      current_turn: currentUserId,
+      status: "pending",
+    }).select().single();
+
+    if (!game) return;
+
+    const receiverProfile = getProfile(activeConversation);
+    // Send game invite as a special message
+    await supabase.from("direct_messages").insert({
+      sender_username: currentUsername,
+      receiver_username: receiverProfile.username,
+      sender_user_id: currentUserId,
+      receiver_user_id: activeConversation,
+      content: `🎮 GAME:${gameType}:${game.id}`,
+    });
+  };
+
   const handleTouchStart = (msgId: string, e: React.TouchEvent) => {
     if (showActionsForMsg || emojiPickerMsg) return;
     
@@ -725,16 +751,31 @@ const DirectMessages = ({
                           </div>
                         )}
 
-                        {/* Text message */}
-                        {msg.content && msg.content !== "📷 صورة" && (
-                          <div
-                            className={`px-3 sm:px-3 py-2 rounded-2xl text-sm break-words select-none ${
-                              isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"
-                            }`}
-                            style={{ direction: "rtl", textAlign: "right", maxWidth: "100%" }}
-                          >
-                            <LinkifiedText text={msg.content} />
-                          </div>
+                        {/* Game message */}
+                        {msg.content && msg.content.startsWith("🎮 GAME:") ? (
+                          (() => {
+                            const parts = msg.content.split(":");
+                            const gameId = parts[2];
+                            return (
+                              <div className={`${isOwn ? "flex justify-end" : "flex justify-start"}`} onClick={(e) => e.stopPropagation()}>
+                                <TicTacToe gameId={gameId} currentUserId={currentUserId} profilesMap={profilesMap} />
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <>
+                            {/* Text message */}
+                            {msg.content && msg.content !== "📷 صورة" && (
+                              <div
+                                className={`px-3 sm:px-3 py-2 rounded-2xl text-sm break-words select-none ${
+                                  isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"
+                                }`}
+                                style={{ direction: "rtl", textAlign: "right", maxWidth: "100%" }}
+                              >
+                                <LinkifiedText text={msg.content} />
+                              </div>
+                            )}
+                          </>
                         )}
 
                         {/* Reactions - تظهر أسفل الرسالة */}
@@ -908,6 +949,34 @@ const DirectMessages = ({
                 >
                   <Camera className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
                 </button>
+
+                {/* Game button */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowGameMenu(!showGameMenu)}
+                    className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90"
+                    style={{ background: showGameMenu ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))" }}
+                  >
+                    <Gamepad2 className="w-4 h-4" style={{ color: showGameMenu ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }} />
+                  </button>
+                  
+                  {showGameMenu && (
+                    <div 
+                      className="absolute bottom-12 left-0 z-50 p-2 rounded-xl animate-fade-in min-w-[160px]"
+                      style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
+                    >
+                      <p className="text-xs font-bold px-2 py-1 mb-1" style={{ color: "hsl(var(--foreground))" }}>اختر لعبة 🎮</p>
+                      <button
+                        onClick={() => handleSendGameInvite("tictactoe")}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all hover:scale-[1.02] active:scale-95"
+                        style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}
+                      >
+                        <span className="text-base">❌⭕</span>
+                        <span>إكس أو (XO)</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 <textarea
                   ref={inputRef}
