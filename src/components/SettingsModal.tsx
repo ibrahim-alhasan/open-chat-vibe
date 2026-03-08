@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Camera, User, Save, MessageSquareOff, MessageSquare } from "lucide-react";
+import { X, Camera, User, Save, MessageSquareOff, MessageSquare, Image, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SettingsModalProps {
@@ -8,9 +8,11 @@ interface SettingsModalProps {
   userId: string;
   onClose: () => void;
   onSave: (newUsername: string, newAvatarUrl: string | null) => void;
+  chatBg: string | null;
+  onChatBgChange: (bg: string | null) => void;
 }
 
-const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onSave }: SettingsModalProps) => {
+const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onSave, chatBg, onChatBgChange }: SettingsModalProps) => {
   const [username, setUsername] = useState(currentUsername);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(currentAvatarUrl);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -18,6 +20,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bgInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
