@@ -532,7 +532,7 @@ const Index = () => {
       </header>
 
       {/* Messages area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2 relative">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2 relative" style={chatBg ? { backgroundImage: `url(${chatBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' } : undefined}>
         {loadingMore && (
           <div className="flex justify-center py-2">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full" style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
