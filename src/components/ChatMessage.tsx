@@ -1,4 +1,5 @@
 import { Reply, CornerUpLeft, Trash2, Copy, Check } from "lucide-react";
+import LinkifiedText from "@/components/LinkifiedText";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useState, useEffect, useRef } from "react";
@@ -333,7 +334,7 @@ const ChatMessage = ({
             }}
             onClick={handleBubbleClick}
           >
-            {message.content}
+            <LinkifiedText text={message.content} />
           </div>
 
           {/* Actions popup - fixed above message */}

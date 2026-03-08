@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile } from "lucide-react";
+import LinkifiedText from "@/components/LinkifiedText";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -494,11 +495,14 @@ const DirectMessages = ({
     }
   };
 
-  // النقر العادي على الرسالة
+  // النقر العادي على الرسالة - يظهر التفاعلات مباشرة
   const handleMessageClick = (msgId: string) => {
-    if (isMobile) {
-      // على الهاتف، النقر يظهر قائمة الإجراءات (بدون حذف)
-      setShowActionsForMsg(showActionsForMsg === msgId ? null : msgId);
+    if (emojiPickerMsg === msgId) {
+      setEmojiPickerMsg(null);
+      setShowActionsForMsg(null);
+    } else {
+      setEmojiPickerMsg(msgId);
+      setShowActionsForMsg(null);
     }
   };
 
@@ -729,7 +733,7 @@ const DirectMessages = ({
                             }`}
                             style={{ direction: "rtl", textAlign: "right", maxWidth: "100%" }}
                           >
-                            {msg.content}
+                            <LinkifiedText text={msg.content} />
                           </div>
                         )}
 
