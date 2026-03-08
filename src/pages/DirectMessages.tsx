@@ -733,7 +733,7 @@ const DirectMessages = ({
                             }`}
                             style={{ direction: "rtl", textAlign: "right", maxWidth: "100%" }}
                           >
-                            {msg.content}
+                            <LinkifiedText text={msg.content} />
                           </div>
                         )}
 

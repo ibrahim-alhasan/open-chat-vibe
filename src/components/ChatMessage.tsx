@@ -334,7 +334,7 @@ const ChatMessage = ({
             }}
             onClick={handleBubbleClick}
           >
-            {message.content}
+            <LinkifiedText text={message.content} />
           </div>
 
           {/* Actions popup - fixed above message */}
