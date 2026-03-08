@@ -751,16 +751,31 @@ const DirectMessages = ({
                           </div>
                         )}
 
-                        {/* Text message */}
-                        {msg.content && msg.content !== "📷 صورة" && (
-                          <div
-                            className={`px-3 sm:px-3 py-2 rounded-2xl text-sm break-words select-none ${
-                              isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"
-                            }`}
-                            style={{ direction: "rtl", textAlign: "right", maxWidth: "100%" }}
-                          >
-                            <LinkifiedText text={msg.content} />
-                          </div>
+                        {/* Game message */}
+                        {msg.content && msg.content.startsWith("🎮 GAME:") ? (
+                          (() => {
+                            const parts = msg.content.split(":");
+                            const gameId = parts[2];
+                            return (
+                              <div className={`${isOwn ? "flex justify-end" : "flex justify-start"}`} onClick={(e) => e.stopPropagation()}>
+                                <TicTacToe gameId={gameId} currentUserId={currentUserId} profilesMap={profilesMap} />
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <>
+                            {/* Text message */}
+                            {msg.content && msg.content !== "📷 صورة" && (
+                              <div
+                                className={`px-3 sm:px-3 py-2 rounded-2xl text-sm break-words select-none ${
+                                  isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"
+                                }`}
+                                style={{ direction: "rtl", textAlign: "right", maxWidth: "100%" }}
+                              >
+                                <LinkifiedText text={msg.content} />
+                              </div>
+                            )}
+                          </>
                         )}
 
                         {/* Reactions - تظهر أسفل الرسالة */}
