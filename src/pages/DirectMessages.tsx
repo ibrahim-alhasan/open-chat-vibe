@@ -494,11 +494,14 @@ const DirectMessages = ({
     }
   };
 
-  // النقر العادي على الرسالة
+  // النقر العادي على الرسالة - يظهر التفاعلات مباشرة
   const handleMessageClick = (msgId: string) => {
-    if (isMobile) {
-      // على الهاتف، النقر يظهر قائمة الإجراءات (بدون حذف)
-      setShowActionsForMsg(showActionsForMsg === msgId ? null : msgId);
+    if (emojiPickerMsg === msgId) {
+      setEmojiPickerMsg(null);
+      setShowActionsForMsg(null);
+    } else {
+      setEmojiPickerMsg(msgId);
+      setShowActionsForMsg(null);
     }
   };
 

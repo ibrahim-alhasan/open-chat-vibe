@@ -529,6 +529,13 @@ const Index = () => {
   const handleCloseThread = () => {
     setThreadMessage(null);
     setThreadInput("");
+    // Scroll to bottom when returning from thread
+    setTimeout(() => {
+      forceScrollToBottom();
+    }, 100);
+    setTimeout(() => {
+      forceScrollToBottom();
+    }, 300);
   };
 
   const handleThreadSend = async () => {
