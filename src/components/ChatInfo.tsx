@@ -18,7 +18,7 @@ interface UserMessageCount {
   count: number;
 }
 
-const ChatInfo = ({ totalUsers, onlineCount, profilesMap, adminIds, onlineUsers, onClose, onUsernameClick }: ChatInfoProps) => {
+const ChatInfo = ({ totalUsers, onlineCount, profilesMap, adminIds, onlineUsers, onUsernameClick }: ChatInfoProps) => {
   const [topUsers, setTopUsers] = useState<UserMessageCount[]>([]);
   const [totalMessages, setTotalMessages] = useState(0);
   const [todayMessages, setTodayMessages] = useState(0);
