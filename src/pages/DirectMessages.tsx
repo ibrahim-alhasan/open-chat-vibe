@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile } from "lucide-react";
+import LinkifiedText from "@/components/LinkifiedText";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
