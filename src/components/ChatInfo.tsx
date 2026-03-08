@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowRight, MessageCircle, Users, Crown, Trophy, Calendar, BarChart3 } from "lucide-react";
+import { MessageCircle, Users, Crown, Trophy, Calendar, BarChart3 } from "lucide-react";
 
 interface ChatInfoProps {
   totalUsers: number;
@@ -8,7 +8,6 @@ interface ChatInfoProps {
   profilesMap: Record<string, { username: string; avatar_url: string | null }>;
   adminIds: Set<string>;
   onlineUsers: Set<string>;
-  onClose: () => void;
   onUsernameClick: (userId: string) => void;
 }
 
@@ -19,7 +18,7 @@ interface UserMessageCount {
   count: number;
 }
 
-const ChatInfo = ({ totalUsers, onlineCount, profilesMap, adminIds, onlineUsers, onClose, onUsernameClick }: ChatInfoProps) => {
+const ChatInfo = ({ totalUsers, onlineCount, profilesMap, adminIds, onlineUsers, onUsernameClick }: ChatInfoProps) => {
   const [topUsers, setTopUsers] = useState<UserMessageCount[]>([]);
   const [totalMessages, setTotalMessages] = useState(0);
   const [todayMessages, setTodayMessages] = useState(0);
@@ -101,9 +100,6 @@ const ChatInfo = ({ totalUsers, onlineCount, profilesMap, adminIds, onlineUsers,
     <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
       {/* Header */}
       <header className="flex-shrink-0 px-4 py-2.5 flex items-center gap-3" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
-        <button onClick={onClose} className="p-1.5 rounded-full hover:opacity-70 transition-opacity" style={{ color: "hsl(var(--foreground))" }}>
-          <ArrowRight className="w-5 h-5" />
-        </button>
         <div className="flex-1 min-w-0">
           <h1 className="font-semibold text-[15px]" style={{ color: "hsl(var(--foreground))" }}>معلومات الدردشة</h1>
         </div>

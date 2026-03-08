@@ -101,6 +101,17 @@ const Index = () => {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [hasMoreMessages, loading]);
 
+  // الاستماع لزر الرجوع في المتصفح
+  useEffect(() => {
+    const handlePopState = () => {
+      setShowChatInfo(false);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+
+
   useEffect(() => {
     if (!loading && messages.length > 0 && isFirstLoadRef.current) {
       setTimeout(() => { forceScrollToBottom(); isFirstLoadRef.current = false; }, 100);
@@ -402,7 +413,7 @@ const Index = () => {
 
   if (showChatInfo) {
     return (
-      <ChatInfo totalUsers={totalUsers} onlineCount={onlineCount} profilesMap={profilesMap} adminIds={adminIds} onlineUsers={onlineUsers} onClose={() => setShowChatInfo(false)} onUsernameClick={(uid) => { setShowChatInfo(false); setProfileModal(uid); }} />
+      <ChatInfo totalUsers={totalUsers} onlineCount={onlineCount} profilesMap={profilesMap} adminIds={adminIds} onlineUsers={onlineUsers} onUsernameClick={(uid) => { setShowChatInfo(false); setProfileModal(uid); }} />
     );
   }
 
