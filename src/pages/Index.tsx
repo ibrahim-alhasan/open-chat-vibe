@@ -101,6 +101,17 @@ const Index = () => {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [hasMoreMessages, loading]);
 
+  // الاستماع لزر الرجوع في المتصفح
+  useEffect(() => {
+    const handlePopState = () => {
+      setShowChatInfo(false);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+
+
   useEffect(() => {
     if (!loading && messages.length > 0 && isFirstLoadRef.current) {
       setTimeout(() => { forceScrollToBottom(); isFirstLoadRef.current = false; }, 100);
