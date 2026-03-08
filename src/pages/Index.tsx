@@ -49,6 +49,7 @@ const Index = () => {
   const [threadInput, setThreadInput] = useState("");
   const [threadSending, setThreadSending] = useState(false);
   const [chatLocked, setChatLocked] = useState(false);
+  const [showChatInfo, setShowChatInfo] = useState(false);
   const threadEndRef = useRef<HTMLDivElement>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
