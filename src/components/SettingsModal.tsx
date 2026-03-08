@@ -132,6 +132,40 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
               </button>
             </div>
 
+            {/* Chat Background */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
+                <div className="flex items-center gap-2">
+                  <Image className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
+                  <span className="text-sm" style={{ color: "hsl(var(--foreground))" }}>خلفية الدردشة</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {chatBg && (
+                    <button type="button" onClick={() => onChatBgChange(null)} className="p-1.5 rounded-lg hover:opacity-70 transition-colors" style={{ color: "hsl(var(--destructive))" }}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button type="button" onClick={() => bgInputRef.current?.click()}
+                    className="px-3 py-1 rounded-lg text-[12px] font-medium transition-all active:scale-95"
+                    style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}>
+                    {chatBg ? "تغيير" : "اختيار صورة"}
+                  </button>
+                </div>
+                <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (ev) => onChatBgChange(ev.target?.result as string);
+                  reader.readAsDataURL(file);
+                }} />
+              </div>
+              {chatBg && (
+                <div className="w-full h-16 rounded-xl overflow-hidden" style={{ border: "1px solid hsl(var(--border))" }}>
+                  <img src={chatBg} alt="خلفية" className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
+
             <button type="submit" disabled={saving}
               className="w-full py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60"
               style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}>
