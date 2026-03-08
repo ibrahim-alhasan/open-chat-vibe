@@ -761,10 +761,19 @@ const DirectMessages = ({
                         {msg.content && msg.content.startsWith("🎮 GAME:") ? (
                           (() => {
                             const parts = msg.content.split(":");
+                            const gameType = parts[1];
                             const gameId = parts[2];
+                            const gameProps = { gameId, currentUserId, profilesMap };
+                            let GameComponent: React.ComponentType<typeof gameProps> = TicTacToe;
+                            if (gameType === "rps") GameComponent = RockPaperScissors;
+                            else if (gameType === "connect4") GameComponent = ConnectFour;
+                            else if (gameType === "numberbattle") GameComponent = NumberBattle;
+                            else if (gameType === "coinflip") GameComponent = CoinFlip;
+                            else if (gameType === "colorguess") GameComponent = ColorGuess;
+                            else if (gameType === "mathchallenge") GameComponent = MathChallenge;
                             return (
                               <div className={`${isOwn ? "flex justify-end" : "flex justify-start"}`} onClick={(e) => e.stopPropagation()}>
-                                <TicTacToe gameId={gameId} currentUserId={currentUserId} profilesMap={profilesMap} />
+                                <GameComponent {...gameProps} />
                               </div>
                             );
                           })()
