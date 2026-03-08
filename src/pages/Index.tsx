@@ -5,6 +5,7 @@ import UsernameModal from "@/components/UsernameModal";
 import SettingsModal from "@/components/SettingsModal";
 import UserProfileModal from "@/components/UserProfileModal";
 import DirectMessages from "@/pages/DirectMessages";
+import ChatInfo from "@/components/ChatInfo";
 import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 50;
@@ -48,6 +49,7 @@ const Index = () => {
   const [threadInput, setThreadInput] = useState("");
   const [threadSending, setThreadSending] = useState(false);
   const [chatLocked, setChatLocked] = useState(false);
+  const [showChatInfo, setShowChatInfo] = useState(false);
   const threadEndRef = useRef<HTMLDivElement>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -398,6 +400,12 @@ const Index = () => {
 
   if (!username) return <UsernameModal onJoin={handleJoin} />;
 
+  if (showChatInfo) {
+    return (
+      <ChatInfo totalUsers={totalUsers} onlineCount={onlineCount} profilesMap={profilesMap} adminIds={adminIds} onlineUsers={onlineUsers} onClose={() => setShowChatInfo(false)} onUsernameClick={(uid) => { setShowChatInfo(false); setProfileModal(uid); }} />
+    );
+  }
+
   if (showDMs) {
     return (
       <DirectMessages currentUserId={userId} currentUsername={username} profilesMap={profilesMap} onlineUsers={onlineUsers} initialConversationUserId={dmInitialUserId} onBack={handleBackFromDMs} isAdmin={isCurrentUserAdmin} />
@@ -471,7 +479,7 @@ const Index = () => {
           <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
             <MessageCircle className="w-4.5 h-4.5" style={{ color: "hsl(var(--primary-foreground))" }} />
           </div>
-          <div>
+          <button onClick={() => setShowChatInfo(true)} className="text-right hover:opacity-80 transition-opacity">
             <h1 className="font-semibold text-[15px]" style={{ color: "hsl(var(--foreground))" }}>الدردشة العامة</h1>
             <div className="flex items-center gap-2.5">
               <div className="flex items-center gap-1">
@@ -483,7 +491,7 @@ const Index = () => {
                 <span className="text-[11px]" style={{ color: "hsl(var(--muted-foreground))" }}>{totalUsers}</span>
               </div>
             </div>
-          </div>
+          </button>
         </div>
         <div className="flex items-center gap-1">
           {isCurrentUserAdmin && (
