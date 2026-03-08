@@ -950,6 +950,34 @@ const DirectMessages = ({
                   <Camera className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
                 </button>
 
+                {/* Game button */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowGameMenu(!showGameMenu)}
+                    className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90"
+                    style={{ background: showGameMenu ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))" }}
+                  >
+                    <Gamepad2 className="w-4 h-4" style={{ color: showGameMenu ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }} />
+                  </button>
+                  
+                  {showGameMenu && (
+                    <div 
+                      className="absolute bottom-12 left-0 z-50 p-2 rounded-xl animate-fade-in min-w-[160px]"
+                      style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
+                    >
+                      <p className="text-xs font-bold px-2 py-1 mb-1" style={{ color: "hsl(var(--foreground))" }}>اختر لعبة 🎮</p>
+                      <button
+                        onClick={() => handleSendGameInvite("tictactoe")}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all hover:scale-[1.02] active:scale-95"
+                        style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))" }}
+                      >
+                        <span className="text-base">❌⭕</span>
+                        <span>إكس أو (XO)</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <textarea
                   ref={inputRef}
                   value={input}
