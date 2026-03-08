@@ -88,6 +88,7 @@ const DirectMessages = ({
   const [showActionsForMsg, setShowActionsForMsg] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [showGameMenu, setShowGameMenu] = useState(false);
   
   // Swipe state
   const [swipeState, setSwipeState] = useState<{ 
