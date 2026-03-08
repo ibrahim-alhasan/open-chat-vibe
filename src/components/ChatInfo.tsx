@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowRight, MessageCircle, Users, Crown, Trophy, Calendar, BarChart3 } from "lucide-react";
+import { MessageCircle, Users, Crown, Trophy, Calendar, BarChart3 } from "lucide-react";
 
 interface ChatInfoProps {
   totalUsers: number;
