@@ -437,6 +437,7 @@ const Index = () => {
     );
   }
 
+  if (showDMs) {
     return (
       <DirectMessages currentUserId={userId} currentUsername={username} profilesMap={profilesMap} onlineUsers={onlineUsers} initialConversationUserId={dmInitialUserId} onBack={handleBackFromDMs} isAdmin={isCurrentUserAdmin} />
     );
