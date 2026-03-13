@@ -420,7 +420,23 @@ const Index = () => {
     );
   }
 
-  if (showDMs) {
+  if (showAdminPanel && isCurrentUserAdmin) {
+    return (
+      <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
+        <header className="flex-shrink-0 px-4 py-2.5 flex items-center gap-3" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
+          <button onClick={() => setShowAdminPanel(false)} className="p-1.5 rounded-full hover:opacity-70" style={{ color: "hsl(var(--primary))" }}>
+            <ChevronDown className="w-5 h-5 rotate-90" />
+          </button>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
+            <h1 className="font-semibold text-[15px]" style={{ color: "hsl(var(--foreground))" }}>لوحة المشرفين</h1>
+          </div>
+        </header>
+        <AdminPanel profilesMap={profilesMap} />
+      </div>
+    );
+  }
+
     return (
       <DirectMessages currentUserId={userId} currentUsername={username} profilesMap={profilesMap} onlineUsers={onlineUsers} initialConversationUserId={dmInitialUserId} onBack={handleBackFromDMs} isAdmin={isCurrentUserAdmin} />
     );
