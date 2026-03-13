@@ -6,6 +6,7 @@ import SettingsModal from "@/components/SettingsModal";
 import UserProfileModal from "@/components/UserProfileModal";
 import DirectMessages from "@/pages/DirectMessages";
 import ChatInfo from "@/components/ChatInfo";
+import AdminPanel from "@/components/AdminPanel";
 import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 50;
@@ -51,6 +52,7 @@ const Index = () => {
   const [chatLocked, setChatLocked] = useState(false);
   const [showChatInfo, setShowChatInfo] = useState(false);
   const [chatBg, setChatBg] = useState<string | null>(() => localStorage.getItem("chat_bg_image"));
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const threadEndRef = useRef<HTMLDivElement>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -418,6 +420,23 @@ const Index = () => {
     );
   }
 
+  if (showAdminPanel && isCurrentUserAdmin) {
+    return (
+      <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
+        <header className="flex-shrink-0 px-4 py-2.5 flex items-center gap-3" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
+          <button onClick={() => setShowAdminPanel(false)} className="p-1.5 rounded-full hover:opacity-70" style={{ color: "hsl(var(--primary))" }}>
+            <ChevronDown className="w-5 h-5 rotate-90" />
+          </button>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
+            <h1 className="font-semibold text-[15px]" style={{ color: "hsl(var(--foreground))" }}>لوحة المشرفين</h1>
+          </div>
+        </header>
+        <AdminPanel profilesMap={profilesMap} />
+      </div>
+    );
+  }
+
   if (showDMs) {
     return (
       <DirectMessages currentUserId={userId} currentUsername={username} profilesMap={profilesMap} onlineUsers={onlineUsers} initialConversationUserId={dmInitialUserId} onBack={handleBackFromDMs} isAdmin={isCurrentUserAdmin} />
@@ -506,6 +525,13 @@ const Index = () => {
           </button>
         </div>
         <div className="flex items-center gap-1">
+          {isCurrentUserAdmin && (
+            <button onClick={() => setShowAdminPanel(true)} title="لوحة المشرفين"
+              className="p-2 rounded-full transition-colors hover:opacity-70"
+              style={{ color: "hsl(var(--primary))" }}>
+              <ShieldCheck className="w-4.5 h-4.5" />
+            </button>
+          )}
           {isCurrentUserAdmin && (
             <button onClick={handleToggleChatLock} title={chatLocked ? "فتح الدردشة" : "إغلاق الدردشة"}
               className="p-2 rounded-full transition-colors hover:opacity-70"
