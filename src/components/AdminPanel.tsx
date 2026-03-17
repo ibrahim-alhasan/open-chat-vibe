@@ -135,7 +135,53 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
     );
     setConvMessages(allMessages);
     setConvLoading(false);
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   };
+
+  const refreshConversation = async () => {
+    if (!selectedConv || refreshing) return;
+    setRefreshing(true);
+    const allMessages = await fetchAllRows("direct_messages",
+      supabase
+        .from("direct_messages")
+        .select("*")
+        .or(
+          `and(sender_user_id.eq.${selectedConv.userA},receiver_user_id.eq.${selectedConv.userB}),and(sender_user_id.eq.${selectedConv.userB},receiver_user_id.eq.${selectedConv.userA})`
+        )
+        .order("created_at", { ascending: true })
+    );
+    setConvMessages(allMessages);
+    setRefreshing(false);
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+  };
+
+  // Realtime subscription for active conversation
+  useEffect(() => {
+    if (!selectedConv) return;
+    const { userA, userB } = selectedConv;
+    const channel = supabase
+      .channel(`admin-dm-${userA}-${userB}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, (payload) => {
+        const msg = payload.new as any;
+        const isRelevant =
+          (msg.sender_user_id === userA && msg.receiver_user_id === userB) ||
+          (msg.sender_user_id === userB && msg.receiver_user_id === userA);
+        if (isRelevant) {
+          setConvMessages((prev) => {
+            if (prev.find((m: any) => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
+          setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+        }
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "direct_messages" }, (payload) => {
+        const deleted = payload.old as { id: string };
+        setConvMessages((prev) => prev.filter((m: any) => m.id !== deleted.id));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedConv]);
 
   const formatTime = (t: string) => {
     const d = new Date(t);
