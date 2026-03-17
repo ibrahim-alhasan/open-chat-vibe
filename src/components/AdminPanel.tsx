@@ -48,17 +48,33 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
     fetchData();
   }, []);
 
+  const fetchAllRows = async (table: string, query: any) => {
+    const pageSize = 1000;
+    let allData: any[] = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await query.range(from, from + pageSize - 1);
+      if (error || !data || data.length === 0) break;
+      allData = allData.concat(data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    return allData;
+  };
+
   const fetchData = async () => {
     setLoading(true);
-    const [dmsRes, imagesRes] = await Promise.all([
-      supabase.from("direct_messages").select("*").order("created_at", { ascending: false }),
-      supabase.from("direct_messages").select("*").not("image_url", "is", null).order("created_at", { ascending: false }),
+    const [allDms, allImages] = await Promise.all([
+      fetchAllRows("direct_messages", supabase.from("direct_messages").select("*").order("created_at", { ascending: false })),
+      fetchAllRows("direct_messages", supabase.from("direct_messages").select("*").not("image_url", "is", null).order("created_at", { ascending: false })),
     ]);
+    const dmsData = allDms;
+    const imagesData = allImages;
 
     // Build conversations
-    if (dmsRes.data) {
+    if (dmsData) {
       const convMap = new Map<string, DmConversation>();
-      for (const dm of dmsRes.data) {
+      for (const dm of dmsData) {
         const a = dm.sender_user_id || dm.sender_username;
         const b = dm.receiver_user_id || dm.receiver_username;
         const key = [a, b].sort().join("||");
@@ -83,8 +99,8 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
       setConversations(Array.from(convMap.values()));
     }
 
-    if (imagesRes.data) {
-      setImages(imagesRes.data as DmImage[]);
+    if (imagesData) {
+      setImages(imagesData as DmImage[]);
     }
     setLoading(false);
   };
@@ -92,14 +108,16 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
   const openConversation = async (userA: string, userB: string) => {
     setSelectedConv({ userA, userB });
     setConvLoading(true);
-    const { data } = await supabase
-      .from("direct_messages")
-      .select("*")
-      .or(
-        `and(sender_user_id.eq.${userA},receiver_user_id.eq.${userB}),and(sender_user_id.eq.${userB},receiver_user_id.eq.${userA})`
-      )
-      .order("created_at", { ascending: true });
-    setConvMessages(data || []);
+    const allMessages = await fetchAllRows("direct_messages",
+      supabase
+        .from("direct_messages")
+        .select("*")
+        .or(
+          `and(sender_user_id.eq.${userA},receiver_user_id.eq.${userB}),and(sender_user_id.eq.${userB},receiver_user_id.eq.${userA})`
+        )
+        .order("created_at", { ascending: true })
+    );
+    setConvMessages(allMessages);
     setConvLoading(false);
   };
 
