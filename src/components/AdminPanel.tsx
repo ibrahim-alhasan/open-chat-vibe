@@ -34,6 +34,17 @@ interface DmImage {
 
 type Tab = "conversations" | "images";
 
+const getUserColor = (username: string) => {
+  const colors = [
+    "hsl(199, 89%, 55%)", "hsl(142, 71%, 45%)", "hsl(38, 92%, 55%)",
+    "hsl(280, 65%, 60%)", "hsl(0, 72%, 60%)", "hsl(32, 98%, 55%)",
+    "hsl(168, 75%, 42%)", "hsl(220, 80%, 60%)",
+  ];
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+};
+
 const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
   const [tab, setTab] = useState<Tab>("conversations");
   const [conversations, setConversations] = useState<DmConversation[]>([]);
@@ -44,6 +55,8 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
   const [convLoading, setConvLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const getProfile = (uid: string) => profilesMap[uid] || { username: uid?.slice(0, 6) || "؟", avatar_url: null };
 
