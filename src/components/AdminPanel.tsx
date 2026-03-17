@@ -72,9 +72,9 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
     const imagesData = allImages;
 
     // Build conversations
-    if (dmsRes.data) {
+    if (dmsData) {
       const convMap = new Map<string, DmConversation>();
-      for (const dm of dmsRes.data) {
+      for (const dm of dmsData) {
         const a = dm.sender_user_id || dm.sender_username;
         const b = dm.receiver_user_id || dm.receiver_username;
         const key = [a, b].sort().join("||");
