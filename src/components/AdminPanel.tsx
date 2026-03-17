@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, Image, ChevronRight, Search } from "lucide-react";
+import { MessageSquare, Image, ChevronRight, Search, RefreshCw } from "lucide-react";
+import LinkifiedText from "@/components/LinkifiedText";
+import { formatDistanceToNow } from "date-fns";
+import { ar } from "date-fns/locale";
 
 interface AdminPanelProps {
   profilesMap: Record<string, { username: string; avatar_url: string | null }>;
