@@ -99,8 +99,8 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
       setConversations(Array.from(convMap.values()));
     }
 
-    if (imagesRes.data) {
-      setImages(imagesRes.data as DmImage[]);
+    if (imagesData) {
+      setImages(imagesData as DmImage[]);
     }
     setLoading(false);
   };
