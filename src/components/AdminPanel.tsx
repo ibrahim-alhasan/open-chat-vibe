@@ -48,12 +48,28 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
     fetchData();
   }, []);
 
+  const fetchAllRows = async (table: string, query: any) => {
+    const pageSize = 1000;
+    let allData: any[] = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await query.range(from, from + pageSize - 1);
+      if (error || !data || data.length === 0) break;
+      allData = allData.concat(data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    return allData;
+  };
+
   const fetchData = async () => {
     setLoading(true);
-    const [dmsRes, imagesRes] = await Promise.all([
-      supabase.from("direct_messages").select("*").order("created_at", { ascending: false }),
-      supabase.from("direct_messages").select("*").not("image_url", "is", null).order("created_at", { ascending: false }),
+    const [allDms, allImages] = await Promise.all([
+      fetchAllRows("direct_messages", supabase.from("direct_messages").select("*").order("created_at", { ascending: false })),
+      fetchAllRows("direct_messages", supabase.from("direct_messages").select("*").not("image_url", "is", null).order("created_at", { ascending: false })),
     ]);
+    const dmsData = allDms;
+    const imagesData = allImages;
 
     // Build conversations
     if (dmsRes.data) {
