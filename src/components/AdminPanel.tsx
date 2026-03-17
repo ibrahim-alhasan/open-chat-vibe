@@ -108,14 +108,16 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
   const openConversation = async (userA: string, userB: string) => {
     setSelectedConv({ userA, userB });
     setConvLoading(true);
-    const { data } = await supabase
-      .from("direct_messages")
-      .select("*")
-      .or(
-        `and(sender_user_id.eq.${userA},receiver_user_id.eq.${userB}),and(sender_user_id.eq.${userB},receiver_user_id.eq.${userA})`
-      )
-      .order("created_at", { ascending: true });
-    setConvMessages(data || []);
+    const allMessages = await fetchAllRows("direct_messages",
+      supabase
+        .from("direct_messages")
+        .select("*")
+        .or(
+          `and(sender_user_id.eq.${userA},receiver_user_id.eq.${userB}),and(sender_user_id.eq.${userB},receiver_user_id.eq.${userA})`
+        )
+        .order("created_at", { ascending: true })
+    );
+    setConvMessages(allMessages);
     setConvLoading(false);
   };
 
