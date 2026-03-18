@@ -7,7 +7,7 @@ import UserProfileModal from "@/components/UserProfileModal";
 import DirectMessages from "@/pages/DirectMessages";
 import ChatInfo from "@/components/ChatInfo";
 import AdminPanel from "@/components/AdminPanel";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 50;
 
@@ -27,6 +27,7 @@ const Index = () => {
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [profilesMap, setProfilesMap] = useState<Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }>>({});
   const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
+  const [bannedUserIds, setBannedUserIds] = useState<Set<string>>(new Set());
   const [input, setInput] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,6 +85,7 @@ const Index = () => {
 
   const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
   const isCurrentUserAdmin = adminIds.has(userId);
+  const isUserBanned = bannedUserIds.has(userId);
 
   // مراقبة التمرير
   useEffect(() => {
@@ -153,13 +155,14 @@ const Index = () => {
     const fetchInitialData = async () => {
       setLoading(true);
       try {
-        const [messagesRes, reactionsRes, profilesRes, totalCountRes, adminsRes, chatSettingsRes] = await Promise.all([
+        const [messagesRes, reactionsRes, profilesRes, totalCountRes, adminsRes, chatSettingsRes, bannedRes] = await Promise.all([
           supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(MESSAGES_PER_PAGE),
           supabase.from("reactions").select("*"),
           supabase.from("profiles").select("*"),
           supabase.from("profiles").select("*", { count: 'exact', head: true }),
           supabase.from("admins").select("user_id"),
           supabase.from("chat_settings").select("*").limit(1).single(),
+          supabase.from("banned_users").select("user_id"),
         ]);
 
         if (!messagesRes.error && messagesRes.data) {
@@ -178,6 +181,7 @@ const Index = () => {
         }
         if (!totalCountRes.error) setTotalUsers(totalCountRes.count || 0);
         if (!adminsRes.error && adminsRes.data) setAdminIds(new Set(adminsRes.data.map((a: any) => a.user_id)));
+        if (!bannedRes.error && bannedRes.data) setBannedUserIds(new Set(bannedRes.data.map((b: any) => b.user_id)));
         if (!chatSettingsRes.error && chatSettingsRes.data) setChatLocked(chatSettingsRes.data.is_locked);
       } catch (error) {
         console.error("Error fetching initial data:", error);
@@ -257,6 +261,14 @@ const Index = () => {
         const settings = payload.new as any;
         setChatLocked(settings.is_locked);
       })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "banned_users" }, (payload) => {
+        const banned = payload.new as any;
+        setBannedUserIds(prev => new Set([...prev, banned.user_id]));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "banned_users" }, (payload) => {
+        const unbanned = payload.old as any;
+        setBannedUserIds(prev => { const s = new Set(prev); s.delete(unbanned.user_id); return s; });
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [scrollToBottom, userId]);
@@ -329,7 +341,7 @@ const Index = () => {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || !username || sending || chatLocked) return;
+    if (!input.trim() || !username || sending || chatLocked || isUserBanned) return;
     const content = input.trim();
     setInput("");
     setSending(true);
@@ -496,7 +508,7 @@ const Index = () => {
         </div>
 
         {profileModal && (
-          <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={() => setProfileModal(null)} onStartDM={(uid) => { setDmInitialUserId(uid); setShowDMs(true); setProfileModal(null); }} />
+          <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} isCurrentUserAdmin={isCurrentUserAdmin} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={() => setProfileModal(null)} onStartDM={(uid) => { setDmInitialUserId(uid); setShowDMs(true); setProfileModal(null); }} />
         )}
       </div>
     );
@@ -633,8 +645,18 @@ const Index = () => {
         </div>
       )}
 
-      {/* Chat locked message */}
-      {chatLocked && !isCurrentUserAdmin ? (
+      {/* Banned user message */}
+      {isUserBanned && !isCurrentUserAdmin ? (
+        <div className="flex-shrink-0 px-3 pb-3 pt-2">
+          <div className="rounded-2xl p-4 text-center space-y-2" style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)" }}>
+            <div className="flex items-center justify-center gap-2">
+              <Ban className="w-4 h-4" style={{ color: "hsl(var(--destructive))" }} />
+              <span className="text-[13px] font-medium" style={{ color: "hsl(var(--destructive))" }}>تم حظرك من الدردشة العامة</span>
+            </div>
+            <p className="text-[12px]" style={{ color: "hsl(var(--muted-foreground))" }}>تواصل مع المشرفين لمزيد من المعلومات</p>
+          </div>
+        </div>
+      ) : chatLocked && !isCurrentUserAdmin ? (
         <div className="flex-shrink-0 px-3 pb-3 pt-2">
           <div className="rounded-2xl p-4 text-center space-y-3" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
             <div className="flex items-center justify-center gap-2">
@@ -695,7 +717,7 @@ const Index = () => {
       )}
 
       {profileModal && (
-        <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={() => setProfileModal(null)} onStartDM={(uid) => { setDmInitialUserId(uid); setShowDMs(true); setProfileModal(null); }} />
+        <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} isCurrentUserAdmin={isCurrentUserAdmin} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={() => setProfileModal(null)} onStartDM={(uid) => { setDmInitialUserId(uid); setShowDMs(true); setProfileModal(null); }} />
       )}
     </div>
   );
