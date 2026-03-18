@@ -9,6 +9,7 @@ interface UserProfileModalProps {
   currentUserId: string;
   isOnline?: boolean;
   isAdmin?: boolean;
+  isCurrentUserAdmin?: boolean;
   allowDms?: boolean;
   onClose: () => void;
   onStartDM: (userId: string) => void;
