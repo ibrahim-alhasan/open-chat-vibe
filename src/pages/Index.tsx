@@ -637,8 +637,18 @@ const Index = () => {
         </div>
       )}
 
-      {/* Chat locked message */}
-      {chatLocked && !isCurrentUserAdmin ? (
+      {/* Banned user message */}
+      {isUserBanned && !isCurrentUserAdmin ? (
+        <div className="flex-shrink-0 px-3 pb-3 pt-2">
+          <div className="rounded-2xl p-4 text-center space-y-2" style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)" }}>
+            <div className="flex items-center justify-center gap-2">
+              <Ban className="w-4 h-4" style={{ color: "hsl(var(--destructive))" }} />
+              <span className="text-[13px] font-medium" style={{ color: "hsl(var(--destructive))" }}>تم حظرك من الدردشة العامة</span>
+            </div>
+            <p className="text-[12px]" style={{ color: "hsl(var(--muted-foreground))" }}>تواصل مع المشرفين لمزيد من المعلومات</p>
+          </div>
+        </div>
+      ) : chatLocked && !isCurrentUserAdmin ? (
         <div className="flex-shrink-0 px-3 pb-3 pt-2">
           <div className="rounded-2xl p-4 text-center space-y-3" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
             <div className="flex items-center justify-center gap-2">
