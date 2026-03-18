@@ -95,8 +95,8 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
         const b = dm.receiver_user_id || dm.receiver_username;
         const key = [a, b].sort().join("||");
         if (!convMap.has(key)) {
-          const profileA = dm.sender_user_id ? getProfile(dm.sender_user_id) : { username: dm.sender_username, avatar_url: null };
-          const profileB = dm.receiver_user_id ? getProfile(dm.receiver_user_id) : { username: dm.receiver_username, avatar_url: null };
+          const profileA = dm.sender_user_id ? getProfile(dm.sender_user_id, dm.sender_username) : { username: dm.sender_username, avatar_url: null };
+          const profileB = dm.receiver_user_id ? getProfile(dm.receiver_user_id, dm.receiver_username) : { username: dm.receiver_username, avatar_url: null };
           convMap.set(key, {
             participantA: a,
             participantB: b,
