@@ -58,7 +58,7 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
   const [refreshing, setRefreshing] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const getProfile = (uid: string) => profilesMap[uid] || { username: uid?.slice(0, 6) || "؟", avatar_url: null };
+  const getProfile = (uid: string, fallbackUsername?: string) => profilesMap[uid] || { username: fallbackUsername || uid?.slice(0, 6) || "؟", avatar_url: null };
 
   useEffect(() => {
     fetchData();
