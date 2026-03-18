@@ -154,13 +154,14 @@ const Index = () => {
     const fetchInitialData = async () => {
       setLoading(true);
       try {
-        const [messagesRes, reactionsRes, profilesRes, totalCountRes, adminsRes, chatSettingsRes] = await Promise.all([
+        const [messagesRes, reactionsRes, profilesRes, totalCountRes, adminsRes, chatSettingsRes, bannedRes] = await Promise.all([
           supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(MESSAGES_PER_PAGE),
           supabase.from("reactions").select("*"),
           supabase.from("profiles").select("*"),
           supabase.from("profiles").select("*", { count: 'exact', head: true }),
           supabase.from("admins").select("user_id"),
           supabase.from("chat_settings").select("*").limit(1).single(),
+          supabase.from("banned_users").select("user_id"),
         ]);
 
         if (!messagesRes.error && messagesRes.data) {
