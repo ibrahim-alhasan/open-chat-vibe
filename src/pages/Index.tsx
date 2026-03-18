@@ -261,6 +261,14 @@ const Index = () => {
         const settings = payload.new as any;
         setChatLocked(settings.is_locked);
       })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "banned_users" }, (payload) => {
+        const banned = payload.new as any;
+        setBannedUserIds(prev => new Set([...prev, banned.user_id]));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "banned_users" }, (payload) => {
+        const unbanned = payload.old as any;
+        setBannedUserIds(prev => { const s = new Set(prev); s.delete(unbanned.user_id); return s; });
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [scrollToBottom, userId]);
