@@ -138,6 +138,32 @@ const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline
               {isBlocked ? <UserCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
               {isBlocked ? "إلغاء الحظر" : "حظر المستخدم"}
             </button>
+
+            {isCurrentUserAdmin && !isAdmin && (
+              <button
+                onClick={async () => {
+                  setLoadingBan(true);
+                  if (isBannedFromChat) {
+                    await supabase.from("banned_users").delete().eq("user_id", userId);
+                    setIsBannedFromChat(false);
+                  } else {
+                    await supabase.from("banned_users").insert({ user_id: userId, banned_by: currentUserId });
+                    setIsBannedFromChat(true);
+                  }
+                  setLoadingBan(false);
+                }}
+                disabled={loadingBan}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-6 rounded-2xl text-sm font-medium transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
+                style={{ 
+                  background: isBannedFromChat ? "hsl(142, 71%, 45%, 0.1)" : "hsl(var(--destructive) / 0.15)", 
+                  color: isBannedFromChat ? "hsl(142, 71%, 45%)" : "hsl(var(--destructive))",
+                  border: `1px solid ${isBannedFromChat ? "hsl(142, 71%, 45%, 0.3)" : "hsl(var(--destructive) / 0.3)"}`,
+                }}
+              >
+                {isBannedFromChat ? <UserCheck className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                {isBannedFromChat ? "إلغاء الحظر من العامة" : "حظر من الدردشة العامة"}
+              </button>
+            )}
           </div>
         )}
       </div>
