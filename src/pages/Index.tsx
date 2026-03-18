@@ -332,7 +332,7 @@ const Index = () => {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || !username || sending || chatLocked) return;
+    if (!input.trim() || !username || sending || chatLocked || isUserBanned) return;
     const content = input.trim();
     setInput("");
     setSending(true);
