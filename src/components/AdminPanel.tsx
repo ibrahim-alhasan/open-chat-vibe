@@ -256,7 +256,7 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
           ) : (
             convMessages.map((msg: any) => {
               const isUserA = msg.sender_user_id === selectedConv.userA;
-              const senderProfile = msg.sender_user_id ? getProfile(msg.sender_user_id) : { username: msg.sender_username, avatar_url: null };
+              const senderProfile = msg.sender_user_id ? getProfile(msg.sender_user_id, msg.sender_username) : { username: msg.sender_username, avatar_url: null };
               const senderColor = getUserColor(senderProfile.username);
 
               return (
