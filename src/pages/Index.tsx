@@ -180,6 +180,7 @@ const Index = () => {
         }
         if (!totalCountRes.error) setTotalUsers(totalCountRes.count || 0);
         if (!adminsRes.error && adminsRes.data) setAdminIds(new Set(adminsRes.data.map((a: any) => a.user_id)));
+        if (!bannedRes.error && bannedRes.data) setBannedUserIds(new Set(bannedRes.data.map((b: any) => b.user_id)));
         if (!chatSettingsRes.error && chatSettingsRes.data) setChatLocked(chatSettingsRes.data.is_locked);
       } catch (error) {
         console.error("Error fetching initial data:", error);
