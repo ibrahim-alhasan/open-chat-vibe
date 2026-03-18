@@ -27,6 +27,7 @@ const Index = () => {
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [profilesMap, setProfilesMap] = useState<Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }>>({});
   const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
+  const [bannedUserIds, setBannedUserIds] = useState<Set<string>>(new Set());
   const [input, setInput] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
