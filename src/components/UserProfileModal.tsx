@@ -34,18 +34,24 @@ const VerifiedBadge = ({ size = 20 }: { size?: number }) => (
   </svg>
 );
 
-const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline, isAdmin, allowDms = true, onClose, onStartDM }: UserProfileModalProps) => {
+const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline, isAdmin, isCurrentUserAdmin, allowDms = true, onClose, onStartDM }: UserProfileModalProps) => {
   const userColor = isAdmin ? "#1D9BF0" : getUserColor(username);
   const isOwnProfile = userId === currentUserId;
   const [isBlocked, setIsBlocked] = useState(false);
   const [loadingBlock, setLoadingBlock] = useState(false);
+  const [isBannedFromChat, setIsBannedFromChat] = useState(false);
+  const [loadingBan, setLoadingBan] = useState(false);
 
   useEffect(() => {
-    const checkBlocked = async () => {
-      const { data } = await supabase.from("blocked_users").select("id").eq("blocker_user_id", currentUserId).eq("blocked_user_id", userId).maybeSingle();
-      setIsBlocked(!!data);
+    const checkStatus = async () => {
+      const [blockedRes, bannedRes] = await Promise.all([
+        supabase.from("blocked_users").select("id").eq("blocker_user_id", currentUserId).eq("blocked_user_id", userId).maybeSingle(),
+        supabase.from("banned_users").select("id").eq("user_id", userId).maybeSingle(),
+      ]);
+      setIsBlocked(!!blockedRes.data);
+      setIsBannedFromChat(!!bannedRes.data);
     };
-    if (!isOwnProfile) checkBlocked();
+    if (!isOwnProfile) checkStatus();
   }, [currentUserId, userId, isOwnProfile]);
 
   const toggleBlock = async () => {
