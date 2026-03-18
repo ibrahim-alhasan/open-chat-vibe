@@ -29,6 +29,20 @@ const ChatInfo = ({ totalUsers, onlineCount, profilesMap, adminIds, onlineUsers,
     fetchStats();
   }, []);
 
+  const fetchAllMessages = async () => {
+    const pageSize = 1000;
+    let allData: any[] = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await supabase.from("messages").select("user_id, username").range(from, from + pageSize - 1);
+      if (error || !data || data.length === 0) break;
+      allData = allData.concat(data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    return allData;
+  };
+
   const fetchStats = async () => {
     setLoading(true);
     try {
@@ -48,9 +62,9 @@ const ChatInfo = ({ totalUsers, onlineCount, profilesMap, adminIds, onlineUsers,
         setFirstMessageDate(firstMsg[0].created_at);
       }
 
-      // Top 10 users by message count
-      const { data: allMessages } = await supabase.from("messages").select("user_id, username");
-      if (allMessages) {
+      // Top 10 users by message count - fetch ALL messages
+      const allMessages = await fetchAllMessages();
+      if (allMessages.length > 0) {
         const countMap: Record<string, { count: number; username: string; user_id: string }> = {};
         for (const msg of allMessages) {
           const key = msg.user_id || msg.username;
