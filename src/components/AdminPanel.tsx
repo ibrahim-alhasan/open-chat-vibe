@@ -58,7 +58,7 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
   const [refreshing, setRefreshing] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const getProfile = (uid: string) => profilesMap[uid] || { username: uid?.slice(0, 6) || "؟", avatar_url: null };
+  const getProfile = (uid: string, fallbackUsername?: string) => profilesMap[uid] || { username: fallbackUsername || uid?.slice(0, 6) || "؟", avatar_url: null };
 
   useEffect(() => {
     fetchData();
@@ -95,8 +95,8 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
         const b = dm.receiver_user_id || dm.receiver_username;
         const key = [a, b].sort().join("||");
         if (!convMap.has(key)) {
-          const profileA = dm.sender_user_id ? getProfile(dm.sender_user_id) : { username: dm.sender_username, avatar_url: null };
-          const profileB = dm.receiver_user_id ? getProfile(dm.receiver_user_id) : { username: dm.receiver_username, avatar_url: null };
+          const profileA = dm.sender_user_id ? getProfile(dm.sender_user_id, dm.sender_username) : { username: dm.sender_username, avatar_url: null };
+          const profileB = dm.receiver_user_id ? getProfile(dm.receiver_user_id, dm.receiver_username) : { username: dm.receiver_username, avatar_url: null };
           convMap.set(key, {
             participantA: a,
             participantB: b,
@@ -203,8 +203,12 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
 
   // Conversation detail view
   if (selectedConv) {
-    const profileA = getProfile(selectedConv.userA);
-    const profileB = getProfile(selectedConv.userB);
+    // Find usernames from conversation messages
+    const firstMsg = convMessages[0];
+    const usernameA = firstMsg ? (firstMsg.sender_user_id === selectedConv.userA ? firstMsg.sender_username : firstMsg.receiver_username) : undefined;
+    const usernameB = firstMsg ? (firstMsg.sender_user_id === selectedConv.userB ? firstMsg.sender_username : firstMsg.receiver_username) : undefined;
+    const profileA = getProfile(selectedConv.userA, usernameA);
+    const profileB = getProfile(selectedConv.userB, usernameB);
     return (
       <div className="flex flex-col h-full" style={{ background: "hsl(var(--chat-bg, var(--background)))" }}>
         {/* Header */}
@@ -252,7 +256,7 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
           ) : (
             convMessages.map((msg: any) => {
               const isUserA = msg.sender_user_id === selectedConv.userA;
-              const senderProfile = msg.sender_user_id ? getProfile(msg.sender_user_id) : { username: msg.sender_username, avatar_url: null };
+              const senderProfile = msg.sender_user_id ? getProfile(msg.sender_user_id, msg.sender_username) : { username: msg.sender_username, avatar_url: null };
               const senderColor = getUserColor(senderProfile.username);
 
               return (
