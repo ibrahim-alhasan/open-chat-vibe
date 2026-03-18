@@ -85,6 +85,7 @@ const Index = () => {
 
   const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
   const isCurrentUserAdmin = adminIds.has(userId);
+  const isUserBanned = bannedUserIds.has(userId);
 
   // مراقبة التمرير
   useEffect(() => {
