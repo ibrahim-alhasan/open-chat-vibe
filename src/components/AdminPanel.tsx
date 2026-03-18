@@ -203,8 +203,12 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
 
   // Conversation detail view
   if (selectedConv) {
-    const profileA = getProfile(selectedConv.userA);
-    const profileB = getProfile(selectedConv.userB);
+    // Find usernames from conversation messages
+    const firstMsg = convMessages[0];
+    const usernameA = firstMsg ? (firstMsg.sender_user_id === selectedConv.userA ? firstMsg.sender_username : firstMsg.receiver_username) : undefined;
+    const usernameB = firstMsg ? (firstMsg.sender_user_id === selectedConv.userB ? firstMsg.sender_username : firstMsg.receiver_username) : undefined;
+    const profileA = getProfile(selectedConv.userA, usernameA);
+    const profileB = getProfile(selectedConv.userB, usernameB);
     return (
       <div className="flex flex-col h-full" style={{ background: "hsl(var(--chat-bg, var(--background)))" }}>
         {/* Header */}
