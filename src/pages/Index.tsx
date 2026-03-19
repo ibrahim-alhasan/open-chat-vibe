@@ -698,7 +698,7 @@ const Index = () => {
       )}
 
       {/* Banned user message */}
-      {isUserBanned && !isCurrentUserAdmin ? (
+      {!chatLockLoaded ? null : isUserBanned && !isCurrentUserAdmin ? (
         <div className="flex-shrink-0 px-3 pb-3 pt-2">
           <div className="rounded-2xl p-4 text-center space-y-2" style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)" }}>
             <div className="flex items-center justify-center gap-2">
