@@ -310,6 +310,7 @@ const DirectMessages = ({
   };
 
   const isConversationBlocked = activeConversation ? (blockedByMe.has(activeConversation) || blockedMe.has(activeConversation)) : false;
+  const isReceiverDmsDisabled = activeConversation ? (profilesMap[activeConversation]?.allow_dms === false) : false;
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -360,7 +361,7 @@ const DirectMessages = ({
   };
 
   const handleSend = async () => {
-    if ((!input.trim() && !selectedImage) || !activeConversation || sending || isConversationBlocked) return;
+    if ((!input.trim() && !selectedImage) || !activeConversation || sending || isConversationBlocked || isReceiverDmsDisabled) return;
     
     const content = input.trim();
     setInput("");
@@ -969,6 +970,11 @@ const DirectMessages = ({
               <div className="flex items-center justify-center py-3 rounded-2xl text-sm"
                 style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", border: "1px solid hsl(var(--border))" }}>
                 {blockedByMe.has(activeConversation!) ? "لقد حظرت هذا المستخدم" : "هذا المستخدم حظرك"}
+              </div>
+            ) : isReceiverDmsDisabled ? (
+              <div className="flex items-center justify-center py-3 rounded-2xl text-sm"
+                style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", border: "1px solid hsl(var(--border))" }}>
+                هذا المستخدم لا يسمح بالرسائل الخاصة
               </div>
             ) : (
               <div className="flex items-end gap-2 p-2 rounded-2xl" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
