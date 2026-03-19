@@ -521,6 +521,25 @@ const Index = () => {
           <div ref={threadEndRef} />
         </div>
 
+        {isUserBanned ? (
+          <div className="flex-shrink-0 px-3 pb-3 pt-2">
+            <div className="rounded-2xl p-3 text-center" style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)" }}>
+              <div className="flex items-center justify-center gap-2">
+                <Ban className="w-4 h-4" style={{ color: "hsl(var(--destructive))" }} />
+                <span className="text-[12px] font-medium" style={{ color: "hsl(var(--destructive))" }}>تم حظرك من الدردشة العامة</span>
+              </div>
+            </div>
+          </div>
+        ) : chatLocked && !isCurrentUserAdmin ? (
+          <div className="flex-shrink-0 px-3 pb-3 pt-2">
+            <div className="rounded-2xl p-3 text-center" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
+              <div className="flex items-center justify-center gap-2">
+                <Lock className="w-4 h-4" style={{ color: "hsl(var(--destructive))" }} />
+                <span className="text-[12px] font-medium" style={{ color: "hsl(var(--destructive))" }}>الدردشة مغلقة - لا يمكن الرد</span>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="flex-shrink-0 px-3 pb-3 pt-1.5">
           <div className="flex items-end gap-2 p-2 rounded-full" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
             <textarea value={threadInput}
@@ -538,6 +557,7 @@ const Index = () => {
             </button>
           </div>
         </div>
+        )}
 
         {profileModal && (
           <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} isCurrentUserAdmin={isCurrentUserAdmin} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={() => setProfileModal(null)} onStartDM={(uid) => { setDmInitialUserId(uid); setShowDMs(true); setProfileModal(null); }} />
