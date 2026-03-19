@@ -399,6 +399,8 @@ const Index = () => {
 
   const handleThreadSend = async () => {
     if (!threadInput.trim() || !username || threadSending || !threadMessage) return;
+    if (isUserBanned) return;
+    if (chatLocked && !isCurrentUserAdmin) return;
     const content = threadInput.trim();
     setThreadInput("");
     setThreadSending(true);
