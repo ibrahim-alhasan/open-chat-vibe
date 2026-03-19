@@ -50,7 +50,8 @@ const Index = () => {
   const [threadMessage, setThreadMessage] = useState<Message | null>(null);
   const [threadInput, setThreadInput] = useState("");
   const [threadSending, setThreadSending] = useState(false);
-  const [chatLocked, setChatLocked] = useState(false);
+  const [chatLocked, setChatLocked] = useState(true); // default locked until confirmed open
+  const [chatLockLoaded, setChatLockLoaded] = useState(false);
   const [showChatInfo, setShowChatInfo] = useState(false);
   const [chatBg, setChatBg] = useState<string | null>(() => localStorage.getItem("chat_bg_image"));
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -109,11 +110,34 @@ const Index = () => {
   // الاستماع لزر الرجوع في المتصفح
   useEffect(() => {
     const handlePopState = () => {
-      setShowChatInfo(false);
+      if (showAdminPanel) {
+        setShowAdminPanel(false);
+      } else if (showChatInfo) {
+        setShowChatInfo(false);
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [showAdminPanel, showChatInfo]);
+
+  // Push history state when opening sections
+  useEffect(() => {
+    if (showChatInfo) {
+      window.history.pushState({ page: 'chat-info' }, '', '/');
+    }
+  }, [showChatInfo]);
+
+  useEffect(() => {
+    if (showAdminPanel) {
+      window.history.pushState({ page: 'admin-panel' }, '', '/');
+    }
+  }, [showAdminPanel]);
+
+  useEffect(() => {
+    if (showDMs) {
+      window.history.pushState({ page: 'dms' }, '', '/');
+    }
+  }, [showDMs]);
 
 
 
@@ -182,7 +206,12 @@ const Index = () => {
         if (!totalCountRes.error) setTotalUsers(totalCountRes.count || 0);
         if (!adminsRes.error && adminsRes.data) setAdminIds(new Set(adminsRes.data.map((a: any) => a.user_id)));
         if (!bannedRes.error && bannedRes.data) setBannedUserIds(new Set(bannedRes.data.map((b: any) => b.user_id)));
-        if (!chatSettingsRes.error && chatSettingsRes.data) setChatLocked(chatSettingsRes.data.is_locked);
+        if (!chatSettingsRes.error && chatSettingsRes.data) {
+          setChatLocked(chatSettingsRes.data.is_locked);
+        } else {
+          setChatLocked(false);
+        }
+        setChatLockLoaded(true);
       } catch (error) {
         console.error("Error fetching initial data:", error);
       } finally {
@@ -341,7 +370,8 @@ const Index = () => {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || !username || sending || chatLocked || isUserBanned) return;
+    if (!input.trim() || !username || sending || isUserBanned) return;
+    if (chatLocked && !isCurrentUserAdmin) return;
     const content = input.trim();
     setInput("");
     setSending(true);
@@ -398,6 +428,8 @@ const Index = () => {
 
   const handleThreadSend = async () => {
     if (!threadInput.trim() || !username || threadSending || !threadMessage) return;
+    if (isUserBanned) return;
+    if (chatLocked && !isCurrentUserAdmin) return;
     const content = threadInput.trim();
     setThreadInput("");
     setThreadSending(true);
@@ -489,6 +521,25 @@ const Index = () => {
           <div ref={threadEndRef} />
         </div>
 
+        {isUserBanned ? (
+          <div className="flex-shrink-0 px-3 pb-3 pt-2">
+            <div className="rounded-2xl p-3 text-center" style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)" }}>
+              <div className="flex items-center justify-center gap-2">
+                <Ban className="w-4 h-4" style={{ color: "hsl(var(--destructive))" }} />
+                <span className="text-[12px] font-medium" style={{ color: "hsl(var(--destructive))" }}>تم حظرك من الدردشة العامة</span>
+              </div>
+            </div>
+          </div>
+        ) : chatLocked && !isCurrentUserAdmin ? (
+          <div className="flex-shrink-0 px-3 pb-3 pt-2">
+            <div className="rounded-2xl p-3 text-center" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
+              <div className="flex items-center justify-center gap-2">
+                <Lock className="w-4 h-4" style={{ color: "hsl(var(--destructive))" }} />
+                <span className="text-[12px] font-medium" style={{ color: "hsl(var(--destructive))" }}>الدردشة مغلقة - لا يمكن الرد</span>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="flex-shrink-0 px-3 pb-3 pt-1.5">
           <div className="flex items-end gap-2 p-2 rounded-full" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
             <textarea value={threadInput}
@@ -506,6 +557,7 @@ const Index = () => {
             </button>
           </div>
         </div>
+        )}
 
         {profileModal && (
           <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} isCurrentUserAdmin={isCurrentUserAdmin} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={() => setProfileModal(null)} onStartDM={(uid) => { setDmInitialUserId(uid); setShowDMs(true); setProfileModal(null); }} />
@@ -646,7 +698,7 @@ const Index = () => {
       )}
 
       {/* Banned user message */}
-      {isUserBanned && !isCurrentUserAdmin ? (
+      {!chatLockLoaded ? null : isUserBanned && !isCurrentUserAdmin ? (
         <div className="flex-shrink-0 px-3 pb-3 pt-2">
           <div className="rounded-2xl p-4 text-center space-y-2" style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)" }}>
             <div className="flex items-center justify-center gap-2">

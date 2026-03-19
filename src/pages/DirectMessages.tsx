@@ -177,19 +177,34 @@ const DirectMessages = ({
     fetchBlocked();
   }, [currentUserId]);
 
-  // Fetch DMs
+  // Fetch DMs - all messages with pagination
   useEffect(() => {
     const fetchDMs = async () => {
-      const [dmsRes, reactionsRes] = await Promise.all([
-        supabase.from("direct_messages").select("*")
+      // Fetch all DMs with pagination to avoid 1000 row limit
+      const PAGE_SIZE = 1000;
+      let allDms: DirectMessage[] = [];
+      let page = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        const { data, error } = await supabase.from("direct_messages").select("*")
           .or(`sender_user_id.eq.${currentUserId},receiver_user_id.eq.${currentUserId}`)
-          .order("created_at", { ascending: true }),
-        supabase.from("dm_reactions").select("*"),
-      ]);
-      if (!dmsRes.error && dmsRes.data) {
-        setMessages(dmsRes.data as DirectMessage[]);
-        buildConversations(dmsRes.data as DirectMessage[]);
+          .order("created_at", { ascending: true })
+          .range(from, to);
+        if (error || !data || data.length === 0) {
+          hasMore = false;
+        } else {
+          allDms = [...allDms, ...data as DirectMessage[]];
+          hasMore = data.length === PAGE_SIZE;
+          page++;
+        }
       }
+      
+      setMessages(allDms);
+      buildConversations(allDms);
+
+      const reactionsRes = await supabase.from("dm_reactions").select("*");
       if (!reactionsRes.error && reactionsRes.data) setDmReactions(reactionsRes.data as DmReaction[]);
       setLoading(false);
     };
