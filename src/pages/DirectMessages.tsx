@@ -971,6 +971,11 @@ const DirectMessages = ({
                 style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", border: "1px solid hsl(var(--border))" }}>
                 {blockedByMe.has(activeConversation!) ? "لقد حظرت هذا المستخدم" : "هذا المستخدم حظرك"}
               </div>
+            ) : isReceiverDmsDisabled ? (
+              <div className="flex items-center justify-center py-3 rounded-2xl text-sm"
+                style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", border: "1px solid hsl(var(--border))" }}>
+                هذا المستخدم لا يسمح بالرسائل الخاصة
+              </div>
             ) : (
               <div className="flex items-end gap-2 p-2 rounded-2xl" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
                 <input
