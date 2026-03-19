@@ -341,7 +341,8 @@ const Index = () => {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || !username || sending || chatLocked || isUserBanned) return;
+    if (!input.trim() || !username || sending || isUserBanned) return;
+    if (chatLocked && !isCurrentUserAdmin) return;
     const content = input.trim();
     setInput("");
     setSending(true);
