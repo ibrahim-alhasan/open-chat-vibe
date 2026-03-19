@@ -310,6 +310,7 @@ const DirectMessages = ({
   };
 
   const isConversationBlocked = activeConversation ? (blockedByMe.has(activeConversation) || blockedMe.has(activeConversation)) : false;
+  const isReceiverDmsDisabled = activeConversation ? (profilesMap[activeConversation]?.allow_dms === false) : false;
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
