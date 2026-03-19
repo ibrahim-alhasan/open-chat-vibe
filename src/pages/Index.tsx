@@ -50,7 +50,8 @@ const Index = () => {
   const [threadMessage, setThreadMessage] = useState<Message | null>(null);
   const [threadInput, setThreadInput] = useState("");
   const [threadSending, setThreadSending] = useState(false);
-  const [chatLocked, setChatLocked] = useState(false);
+  const [chatLocked, setChatLocked] = useState(true); // default locked until confirmed open
+  const [chatLockLoaded, setChatLockLoaded] = useState(false);
   const [showChatInfo, setShowChatInfo] = useState(false);
   const [chatBg, setChatBg] = useState<string | null>(() => localStorage.getItem("chat_bg_image"));
   const [showAdminPanel, setShowAdminPanel] = useState(false);
