@@ -361,7 +361,7 @@ const DirectMessages = ({
   };
 
   const handleSend = async () => {
-    if ((!input.trim() && !selectedImage) || !activeConversation || sending || isConversationBlocked) return;
+    if ((!input.trim() && !selectedImage) || !activeConversation || sending || isConversationBlocked || isReceiverDmsDisabled) return;
     
     const content = input.trim();
     setInput("");
