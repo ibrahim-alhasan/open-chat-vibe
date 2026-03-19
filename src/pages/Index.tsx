@@ -110,11 +110,34 @@ const Index = () => {
   // الاستماع لزر الرجوع في المتصفح
   useEffect(() => {
     const handlePopState = () => {
-      setShowChatInfo(false);
+      if (showAdminPanel) {
+        setShowAdminPanel(false);
+      } else if (showChatInfo) {
+        setShowChatInfo(false);
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [showAdminPanel, showChatInfo]);
+
+  // Push history state when opening sections
+  useEffect(() => {
+    if (showChatInfo) {
+      window.history.pushState({ page: 'chat-info' }, '', '/');
+    }
+  }, [showChatInfo]);
+
+  useEffect(() => {
+    if (showAdminPanel) {
+      window.history.pushState({ page: 'admin-panel' }, '', '/');
+    }
+  }, [showAdminPanel]);
+
+  useEffect(() => {
+    if (showDMs) {
+      window.history.pushState({ page: 'dms' }, '', '/');
+    }
+  }, [showDMs]);
 
 
 
