@@ -32,7 +32,7 @@ interface DmImage {
   created_at: string;
 }
 
-type Tab = "conversations" | "images";
+type Tab = "conversations" | "images" | "banned";
 
 const getUserColor = (username: string) => {
   const colors = [
