@@ -345,23 +345,38 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
       <div className="flex gap-0" style={{ borderBottom: "1px solid hsl(var(--border))" }}>
         <button
           onClick={() => setTab("conversations")}
-          className="flex-1 flex items-center justify-center gap-2 py-3 text-[13px] font-semibold transition-all"
+          className="flex-1 flex items-center justify-center gap-1.5 py-3 text-[12px] font-semibold transition-all"
           style={{
             color: tab === "conversations" ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
             borderBottom: tab === "conversations" ? "2px solid hsl(var(--primary))" : "2px solid transparent",
           }}
         >
-          <MessageSquare className="w-4 h-4" /> المحادثات الخاصة
+          <MessageSquare className="w-3.5 h-3.5" /> المحادثات
         </button>
         <button
           onClick={() => setTab("images")}
-          className="flex-1 flex items-center justify-center gap-2 py-3 text-[13px] font-semibold transition-all"
+          className="flex-1 flex items-center justify-center gap-1.5 py-3 text-[12px] font-semibold transition-all"
           style={{
             color: tab === "images" ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
             borderBottom: tab === "images" ? "2px solid hsl(var(--primary))" : "2px solid transparent",
           }}
         >
-          <Image className="w-4 h-4" /> الصور المرسلة
+          <Image className="w-3.5 h-3.5" /> الصور
+        </button>
+        <button
+          onClick={() => setTab("banned")}
+          className="flex-1 flex items-center justify-center gap-1.5 py-3 text-[12px] font-semibold transition-all"
+          style={{
+            color: tab === "banned" ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))",
+            borderBottom: tab === "banned" ? "2px solid hsl(var(--destructive))" : "2px solid transparent",
+          }}
+        >
+          <Ban className="w-3.5 h-3.5" /> المحظورون
+          {bannedUsers.length > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "hsl(var(--destructive) / 0.15)", color: "hsl(var(--destructive))" }}>
+              {bannedUsers.length}
+            </span>
+          )}
         </button>
       </div>
 
