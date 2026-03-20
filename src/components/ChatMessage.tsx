@@ -1,4 +1,4 @@
-import { Reply, CornerUpLeft, Trash2, Copy, Check } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck } from "lucide-react";
 import LinkifiedText from "@/components/LinkifiedText";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -72,6 +72,10 @@ const ChatMessage = ({
   const displayName = profile ? profile.username : message.username;
   const avatarUrl = isOwn ? currentAvatarUrl : (profile ? profile.avatar_url : null);
   const userColor = isAdmin ? "#1D9BF0" : getUserColor(displayName);
+  
+  // Check if message content is a sticker
+  const isSticker = message.content.startsWith("sticker:");
+  const stickerEmoji = isSticker ? message.content.replace("sticker:", "") : null;
   
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -194,9 +198,13 @@ const ChatMessage = ({
       {/* Avatar */}
       <div className="relative flex-shrink-0">
         {avatarUrl ? (
-          <img src={avatarUrl} alt="avatar" className={`w-8 h-8 rounded-full object-cover ${!isOwn ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`} onClick={handleAvatarClick} />
+          <img src={avatarUrl} alt="avatar" className={`w-8 h-8 rounded-full object-cover ${!isOwn ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`} 
+            style={isAdmin ? { border: "2px solid #1D9BF0" } : undefined}
+            onClick={handleAvatarClick} />
         ) : (
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${!isOwn ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`} style={{ background: `${userColor}18`, color: userColor }} onClick={handleAvatarClick}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${!isOwn ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`} 
+            style={{ background: isAdmin ? "#1D9BF018" : `${userColor}18`, color: isAdmin ? "#1D9BF0" : userColor, border: isAdmin ? "2px solid #1D9BF0" : undefined }} 
+            onClick={handleAvatarClick}>
             {getInitials(displayName)}
           </div>
         )}
@@ -218,10 +226,14 @@ const ChatMessage = ({
         {/* Username and time */}
         <div className={`flex items-center gap-1.5 w-full ${isOwn ? "justify-end" : "justify-start"}`}>
           <div className="flex items-center gap-0.5">
+            {isAdmin && !isOwn && <ShieldCheck className="w-3 h-3" style={{ color: "#1D9BF0" }} />}
             <span className={`text-[11px] font-semibold ${!isOwn && !isAdmin ? "cursor-pointer hover:underline" : ""}`} style={{ color: userColor }} onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}>
               {isOwn ? "أنت" : displayName}
             </span>
             {isAdmin && <VerifiedBadge />}
+            {isAdmin && !isOwn && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: "#1D9BF015", color: "#1D9BF0" }}>مشرف</span>
+            )}
           </div>
           <span className="text-[10px]" style={{ color: "hsl(var(--chat-timestamp))" }}>{timeAgo}</span>
         </div>
@@ -237,12 +249,25 @@ const ChatMessage = ({
           </div>
         )}
 
-        {/* Message bubble - WhatsApp style */}
+        {/* Message bubble */}
         <div className="relative w-full">
-          <div className={`px-3 py-2 rounded-lg text-[14px] leading-[1.4] break-words select-none ${isOwn ? "rounded-tr-none chat-bubble-own" : "rounded-tl-none chat-bubble-other"} ${isSwiping ? 'opacity-80' : ''} cursor-pointer active:brightness-90 transition-all`}
-            style={{ direction: "rtl", textAlign: "right" }} onClick={handleBubbleClick}>
-            <LinkifiedText text={message.content} />
-          </div>
+          {isSticker ? (
+            /* Sticker display - large emoji without bubble */
+            <div className={`text-[56px] leading-none py-1 ${isOwn ? "text-right" : "text-left"} cursor-pointer active:scale-95 transition-transform`} onClick={handleBubbleClick}>
+              {stickerEmoji}
+            </div>
+          ) : (
+            <div className={`px-3 py-2 rounded-lg text-[14px] leading-[1.4] break-words select-none ${isOwn ? "rounded-tr-none chat-bubble-own" : "rounded-tl-none chat-bubble-other"} ${isSwiping ? 'opacity-80' : ''} cursor-pointer active:brightness-90 transition-all`}
+              style={{ 
+                direction: "rtl", textAlign: "right",
+                ...(isAdmin && !isOwn ? { 
+                  background: "linear-gradient(135deg, hsl(207, 90%, 54%, 0.12), hsl(207, 90%, 54%, 0.05))",
+                  border: "1px solid hsl(207, 90%, 54%, 0.2)",
+                } : {})
+              }} onClick={handleBubbleClick}>
+              <LinkifiedText text={message.content} />
+            </div>
+          )}
 
           {/* Actions popup */}
           {showActionsMenu && (
@@ -260,7 +285,7 @@ const ChatMessage = ({
                   <button onClick={(e) => { e.stopPropagation(); setShowEmojiPicker(true); setShowActionsMenu(false); }}
                     className="w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-all hover:scale-110" style={{ background: "hsl(var(--secondary))" }}>➕</button>
                   <div className="w-px h-5 mx-0.5" style={{ background: "hsl(var(--border))" }} />
-                  <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(message.content); setCopied(true); setTimeout(() => setCopied(false), 1500); setShowActionsMenu(false); }}
+                  <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(isSticker ? stickerEmoji! : message.content); setCopied(true); setTimeout(() => setCopied(false), 1500); setShowActionsMenu(false); }}
                     className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-110" style={{ background: "hsl(var(--secondary))" }} title="نسخ">
                     {copied ? <Check className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} /> : <Copy className="w-3.5 h-3.5" style={{ color: "hsl(var(--muted-foreground))" }} />}
                   </button>
