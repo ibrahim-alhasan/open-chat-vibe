@@ -7,7 +7,10 @@ import UserProfileModal from "@/components/UserProfileModal";
 import DirectMessages from "@/pages/DirectMessages";
 import ChatInfo from "@/components/ChatInfo";
 import AdminPanel from "@/components/AdminPanel";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone } from "lucide-react";
+
+const ADMIN_STICKERS = ["🔥", "⭐", "🎉", "👏", "💪", "🏆", "✅", "❌", "⚠️", "📢", "🎯", "💎"];
+
 
 const MESSAGES_PER_PAGE = 50;
 
@@ -55,6 +58,7 @@ const Index = () => {
   const [showChatInfo, setShowChatInfo] = useState(false);
   const [chatBg, setChatBg] = useState<string | null>(() => localStorage.getItem("chat_bg_image"));
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
   const threadEndRef = useRef<HTMLDivElement>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -385,6 +389,26 @@ const Index = () => {
     setInput("");
     setSending(true);
     presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
+    await supabase.from("messages").insert({ username, user_id: userId, content });
+    setSending(false);
+    inputRef.current?.focus();
+    setShowStickerPicker(false);
+  };
+
+  const handleSendSticker = async (sticker: string) => {
+    if (!username || sending || isUserBanned) return;
+    if (chatLocked && !isCurrentUserAdmin) return;
+    setSending(true);
+    await supabase.from("messages").insert({ username, user_id: userId, content: `sticker:${sticker}` });
+    setSending(false);
+    setShowStickerPicker(false);
+  };
+
+  const handleSendAnnouncement = async () => {
+    if (!input.trim() || !username || sending) return;
+    const content = `📢 إعلان المشرف: ${input.trim()}`;
+    setInput("");
+    setSending(true);
     await supabase.from("messages").insert({ username, user_id: userId, content });
     setSending(false);
     inputRef.current?.focus();
@@ -753,12 +777,45 @@ const Index = () => {
               <span className="text-[11px]" style={{ color: "hsl(var(--destructive))" }}>الدردشة مغلقة - أنت مشرف يمكنك الكتابة</span>
             </div>
           )}
+
+          {/* Admin sticker picker */}
+          {showStickerPicker && isCurrentUserAdmin && (
+            <div className="mb-2 p-2 rounded-xl animate-fade-in" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
+              <p className="text-[11px] font-medium mb-1.5 px-1" style={{ color: "hsl(var(--muted-foreground))" }}>ملصقات المشرفين</p>
+              <div className="flex flex-wrap gap-1">
+                {ADMIN_STICKERS.map((sticker) => (
+                  <button key={sticker} onClick={() => handleSendSticker(sticker)}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg text-xl transition-all hover:scale-125 active:scale-90"
+                    style={{ background: "hsl(var(--secondary))" }}>
+                    {sticker}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-end gap-2">
+            {isCurrentUserAdmin && (
+              <div className="flex gap-1 flex-shrink-0">
+                <button onClick={() => setShowStickerPicker(!showStickerPicker)} title="ملصقات"
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
+                  style={{ background: showStickerPicker ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", color: showStickerPicker ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
+                  <Smile className="w-4 h-4" />
+                </button>
+                {input.trim() && (
+                  <button onClick={handleSendAnnouncement} title="إرسال كإعلان"
+                    className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
+                    style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}>
+                    <Megaphone className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            )}
             <div className="flex-1 flex items-end p-1.5 rounded-full" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
               <textarea ref={inputRef} value={input}
                 onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; handleTyping(); }}
                 onKeyDown={handleKeyDown}
-                placeholder="اكتب رسالتك..."
+                placeholder={isCurrentUserAdmin ? "اكتب رسالتك... (مشرف)" : "اكتب رسالتك..."}
                 rows={1} maxLength={500}
                 className="flex-1 resize-none bg-transparent outline-none text-[14px] leading-relaxed select-text px-3"
                 style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
