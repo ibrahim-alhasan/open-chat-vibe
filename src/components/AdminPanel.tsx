@@ -56,6 +56,8 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
   const [search, setSearch] = useState("");
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [bannedUsers, setBannedUsers] = useState<any[]>([]);
+  const [unbanLoading, setUnbanLoading] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const getProfile = (uid: string, fallbackUsername?: string) => profilesMap[uid] || { username: fallbackUsername || uid?.slice(0, 6) || "؟", avatar_url: null };
