@@ -392,6 +392,26 @@ const Index = () => {
     await supabase.from("messages").insert({ username, user_id: userId, content });
     setSending(false);
     inputRef.current?.focus();
+    setShowStickerPicker(false);
+  };
+
+  const handleSendSticker = async (sticker: string) => {
+    if (!username || sending || isUserBanned) return;
+    if (chatLocked && !isCurrentUserAdmin) return;
+    setSending(true);
+    await supabase.from("messages").insert({ username, user_id: userId, content: `sticker:${sticker}` });
+    setSending(false);
+    setShowStickerPicker(false);
+  };
+
+  const handleSendAnnouncement = async () => {
+    if (!input.trim() || !username || sending) return;
+    const content = `📢 إعلان المشرف: ${input.trim()}`;
+    setInput("");
+    setSending(true);
+    await supabase.from("messages").insert({ username, user_id: userId, content });
+    setSending(false);
+    inputRef.current?.focus();
   };
 
   const handleDeleteMessage = async (messageId: string) => {
