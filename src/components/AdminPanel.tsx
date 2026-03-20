@@ -447,7 +447,7 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
               ))}
             </div>
           )
-        ) : (
+        ) : tab === "images" ? (
           filteredImages.length === 0 ? (
             <p className="text-center text-[13px] py-8" style={{ color: "hsl(var(--muted-foreground))" }}>لا توجد صور</p>
           ) : (
@@ -473,6 +473,57 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
                   </div>
                 </div>
               ))}
+            </div>
+          )
+        ) : (
+          /* Banned users tab */
+          bannedUsers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center space-y-2">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--secondary))" }}>
+                <ShieldOff className="w-6 h-6" style={{ color: "hsl(var(--muted-foreground))" }} />
+              </div>
+              <p className="text-[13px] font-medium" style={{ color: "hsl(var(--foreground))" }}>لا يوجد مستخدمون محظورون</p>
+              <p className="text-[11px]" style={{ color: "hsl(var(--muted-foreground))" }}>جميع المستخدمين يمكنهم الوصول للدردشة العامة</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {bannedUsers.map((banned) => {
+                const profile = getProfile(banned.user_id);
+                const bannedByProfile = getProfile(banned.banned_by);
+                return (
+                  <div key={banned.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "hsl(var(--secondary))" }}>
+                    {profile.avatar_url ? (
+                      <img src={profile.avatar_url} className="w-10 h-10 rounded-full object-cover flex-shrink-0" style={{ border: "2px solid hsl(var(--destructive) / 0.4)" }} />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-bold flex-shrink-0" style={{ background: "hsl(var(--destructive) / 0.15)", color: "hsl(var(--destructive))", border: "2px solid hsl(var(--destructive) / 0.4)" }}>
+                        {profile.username.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0 text-right">
+                      <p className="text-[13px] font-semibold" style={{ color: "hsl(var(--foreground))" }}>{profile.username}</p>
+                      <p className="text-[11px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        حظر بواسطة: {bannedByProfile.username}
+                      </p>
+                      {banned.reason && (
+                        <p className="text-[11px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                          السبب: {banned.reason}
+                        </p>
+                      )}
+                      <p className="text-[10px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        {formatDistanceToNow(new Date(banned.created_at), { addSuffix: true, locale: ar })}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleUnban(banned.id, banned.user_id)}
+                      disabled={unbanLoading === banned.user_id}
+                      className="flex-shrink-0 px-3 py-2 rounded-lg text-[12px] font-medium transition-all active:scale-95 disabled:opacity-50"
+                      style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}
+                    >
+                      {unbanLoading === banned.user_id ? "جاري..." : "إلغاء الحظر"}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )
         )}
