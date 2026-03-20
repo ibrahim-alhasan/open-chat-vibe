@@ -58,6 +58,7 @@ const Index = () => {
   const [showChatInfo, setShowChatInfo] = useState(false);
   const [chatBg, setChatBg] = useState<string | null>(() => localStorage.getItem("chat_bg_image"));
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
   const threadEndRef = useRef<HTMLDivElement>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
