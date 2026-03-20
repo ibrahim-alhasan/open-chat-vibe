@@ -7,7 +7,10 @@ import UserProfileModal from "@/components/UserProfileModal";
 import DirectMessages from "@/pages/DirectMessages";
 import ChatInfo from "@/components/ChatInfo";
 import AdminPanel from "@/components/AdminPanel";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone } from "lucide-react";
+
+const ADMIN_STICKERS = ["🔥", "⭐", "🎉", "👏", "💪", "🏆", "✅", "❌", "⚠️", "📢", "🎯", "💎"];
+
 
 const MESSAGES_PER_PAGE = 50;
 
