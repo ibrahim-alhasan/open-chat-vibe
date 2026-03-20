@@ -228,6 +228,8 @@ const Index = () => {
     setLoadingMore(true);
     const nextPage = messagePage + 1;
     const oldestMessage = messages[0];
+    const container = messagesContainerRef.current;
+    const prevScrollHeight = container?.scrollHeight || 0;
     try {
       const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: false }).lt("created_at", oldestMessage.created_at).limit(MESSAGES_PER_PAGE);
       if (!error && data && data.length > 0) {
@@ -235,6 +237,13 @@ const Index = () => {
         setMessages(prev => [...olderMessages, ...prev]);
         setMessagePage(nextPage);
         setHasMoreMessages(data.length === MESSAGES_PER_PAGE);
+        // Preserve scroll position after prepending
+        requestAnimationFrame(() => {
+          if (container) {
+            const newScrollHeight = container.scrollHeight;
+            container.scrollTop = newScrollHeight - prevScrollHeight;
+          }
+        });
       } else {
         setHasMoreMessages(false);
       }

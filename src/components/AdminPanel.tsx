@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MessageSquare, Image, ChevronRight, Search, RefreshCw } from "lucide-react";
+import { MessageSquare, Image, ChevronRight, Search, RefreshCw, Ban, UserX, ShieldOff } from "lucide-react";
 import LinkifiedText from "@/components/LinkifiedText";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -32,7 +32,7 @@ interface DmImage {
   created_at: string;
 }
 
-type Tab = "conversations" | "images";
+type Tab = "conversations" | "images" | "banned";
 
 const getUserColor = (username: string) => {
   const colors = [
@@ -56,6 +56,8 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
   const [search, setSearch] = useState("");
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [bannedUsers, setBannedUsers] = useState<any[]>([]);
+  const [unbanLoading, setUnbanLoading] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const getProfile = (uid: string, fallbackUsername?: string) => profilesMap[uid] || { username: fallbackUsername || uid?.slice(0, 6) || "؟", avatar_url: null };
@@ -80,12 +82,17 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
 
   const fetchData = async () => {
     setLoading(true);
-    const [allDms, allImages] = await Promise.all([
+    const [allDms, allImages, bannedRes] = await Promise.all([
       fetchAllRows("direct_messages", supabase.from("direct_messages").select("*").order("created_at", { ascending: false })),
       fetchAllRows("direct_messages", supabase.from("direct_messages").select("*").not("image_url", "is", null).order("created_at", { ascending: false })),
+      supabase.from("banned_users").select("*").order("created_at", { ascending: false }),
     ]);
     const dmsData = allDms;
     const imagesData = allImages;
+
+    if (!bannedRes.error && bannedRes.data) {
+      setBannedUsers(bannedRes.data);
+    }
 
     // Build conversations
     if (dmsData) {
@@ -119,6 +126,13 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
       setImages(imagesData as DmImage[]);
     }
     setLoading(false);
+  };
+
+  const handleUnban = async (bannedId: string, visitorUserId: string) => {
+    setUnbanLoading(visitorUserId);
+    await supabase.from("banned_users").delete().eq("id", bannedId);
+    setBannedUsers(prev => prev.filter(b => b.id !== bannedId));
+    setUnbanLoading(null);
   };
 
   const openConversation = async (userA: string, userB: string) => {
@@ -331,23 +345,38 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
       <div className="flex gap-0" style={{ borderBottom: "1px solid hsl(var(--border))" }}>
         <button
           onClick={() => setTab("conversations")}
-          className="flex-1 flex items-center justify-center gap-2 py-3 text-[13px] font-semibold transition-all"
+          className="flex-1 flex items-center justify-center gap-1.5 py-3 text-[12px] font-semibold transition-all"
           style={{
             color: tab === "conversations" ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
             borderBottom: tab === "conversations" ? "2px solid hsl(var(--primary))" : "2px solid transparent",
           }}
         >
-          <MessageSquare className="w-4 h-4" /> المحادثات الخاصة
+          <MessageSquare className="w-3.5 h-3.5" /> المحادثات
         </button>
         <button
           onClick={() => setTab("images")}
-          className="flex-1 flex items-center justify-center gap-2 py-3 text-[13px] font-semibold transition-all"
+          className="flex-1 flex items-center justify-center gap-1.5 py-3 text-[12px] font-semibold transition-all"
           style={{
             color: tab === "images" ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
             borderBottom: tab === "images" ? "2px solid hsl(var(--primary))" : "2px solid transparent",
           }}
         >
-          <Image className="w-4 h-4" /> الصور المرسلة
+          <Image className="w-3.5 h-3.5" /> الصور
+        </button>
+        <button
+          onClick={() => setTab("banned")}
+          className="flex-1 flex items-center justify-center gap-1.5 py-3 text-[12px] font-semibold transition-all"
+          style={{
+            color: tab === "banned" ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))",
+            borderBottom: tab === "banned" ? "2px solid hsl(var(--destructive))" : "2px solid transparent",
+          }}
+        >
+          <Ban className="w-3.5 h-3.5" /> المحظورون
+          {bannedUsers.length > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "hsl(var(--destructive) / 0.15)", color: "hsl(var(--destructive))" }}>
+              {bannedUsers.length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -418,7 +447,7 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
               ))}
             </div>
           )
-        ) : (
+        ) : tab === "images" ? (
           filteredImages.length === 0 ? (
             <p className="text-center text-[13px] py-8" style={{ color: "hsl(var(--muted-foreground))" }}>لا توجد صور</p>
           ) : (
@@ -444,6 +473,57 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
                   </div>
                 </div>
               ))}
+            </div>
+          )
+        ) : (
+          /* Banned users tab */
+          bannedUsers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center space-y-2">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--secondary))" }}>
+                <ShieldOff className="w-6 h-6" style={{ color: "hsl(var(--muted-foreground))" }} />
+              </div>
+              <p className="text-[13px] font-medium" style={{ color: "hsl(var(--foreground))" }}>لا يوجد مستخدمون محظورون</p>
+              <p className="text-[11px]" style={{ color: "hsl(var(--muted-foreground))" }}>جميع المستخدمين يمكنهم الوصول للدردشة العامة</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {bannedUsers.map((banned) => {
+                const profile = getProfile(banned.user_id);
+                const bannedByProfile = getProfile(banned.banned_by);
+                return (
+                  <div key={banned.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "hsl(var(--secondary))" }}>
+                    {profile.avatar_url ? (
+                      <img src={profile.avatar_url} className="w-10 h-10 rounded-full object-cover flex-shrink-0" style={{ border: "2px solid hsl(var(--destructive) / 0.4)" }} />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-bold flex-shrink-0" style={{ background: "hsl(var(--destructive) / 0.15)", color: "hsl(var(--destructive))", border: "2px solid hsl(var(--destructive) / 0.4)" }}>
+                        {profile.username.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0 text-right">
+                      <p className="text-[13px] font-semibold" style={{ color: "hsl(var(--foreground))" }}>{profile.username}</p>
+                      <p className="text-[11px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        حظر بواسطة: {bannedByProfile.username}
+                      </p>
+                      {banned.reason && (
+                        <p className="text-[11px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                          السبب: {banned.reason}
+                        </p>
+                      )}
+                      <p className="text-[10px] mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                        {formatDistanceToNow(new Date(banned.created_at), { addSuffix: true, locale: ar })}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleUnban(banned.id, banned.user_id)}
+                      disabled={unbanLoading === banned.user_id}
+                      className="flex-shrink-0 px-3 py-2 rounded-lg text-[12px] font-medium transition-all active:scale-95 disabled:opacity-50"
+                      style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}
+                    >
+                      {unbanLoading === banned.user_id ? "جاري..." : "إلغاء الحظر"}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )
         )}
