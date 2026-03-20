@@ -82,12 +82,17 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
 
   const fetchData = async () => {
     setLoading(true);
-    const [allDms, allImages] = await Promise.all([
+    const [allDms, allImages, bannedRes] = await Promise.all([
       fetchAllRows("direct_messages", supabase.from("direct_messages").select("*").order("created_at", { ascending: false })),
       fetchAllRows("direct_messages", supabase.from("direct_messages").select("*").not("image_url", "is", null).order("created_at", { ascending: false })),
+      supabase.from("banned_users").select("*").order("created_at", { ascending: false }),
     ]);
     const dmsData = allDms;
     const imagesData = allImages;
+
+    if (!bannedRes.error && bannedRes.data) {
+      setBannedUsers(bannedRes.data);
+    }
 
     // Build conversations
     if (dmsData) {
@@ -121,6 +126,13 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
       setImages(imagesData as DmImage[]);
     }
     setLoading(false);
+  };
+
+  const handleUnban = async (bannedId: string, visitorUserId: string) => {
+    setUnbanLoading(visitorUserId);
+    await supabase.from("banned_users").delete().eq("id", bannedId);
+    setBannedUsers(prev => prev.filter(b => b.id !== bannedId));
+    setUnbanLoading(null);
   };
 
   const openConversation = async (userA: string, userB: string) => {
