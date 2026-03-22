@@ -1,16 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import ChatMessage, { Message, Reaction } from "@/components/ChatMessage";
+import ChatMessage, { Message, Reaction, ADMIN_ANIMATED_STICKERS } from "@/components/ChatMessage";
 import UsernameModal from "@/components/UsernameModal";
 import SettingsModal from "@/components/SettingsModal";
 import UserProfileModal from "@/components/UserProfileModal";
 import DirectMessages from "@/pages/DirectMessages";
 import ChatInfo from "@/components/ChatInfo";
 import AdminPanel from "@/components/AdminPanel";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone } from "lucide-react";
-
-const ADMIN_STICKERS = ["🔥", "⭐", "🎉", "👏", "💪", "🏆", "✅", "❌", "⚠️", "📢", "🎯", "💎"];
-
+import PollCreator from "@/components/PollCreator";
+import PollMessage from "@/components/PollMessage";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3 } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 50;
 
@@ -53,12 +52,16 @@ const Index = () => {
   const [threadMessage, setThreadMessage] = useState<Message | null>(null);
   const [threadInput, setThreadInput] = useState("");
   const [threadSending, setThreadSending] = useState(false);
-  const [chatLocked, setChatLocked] = useState(true); // default locked until confirmed open
+  const [chatLocked, setChatLocked] = useState(true);
   const [chatLockLoaded, setChatLockLoaded] = useState(false);
   const [showChatInfo, setShowChatInfo] = useState(false);
   const [chatBg, setChatBg] = useState<string | null>(() => localStorage.getItem("chat_bg_image"));
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [showPollCreator, setShowPollCreator] = useState(false);
+  const [polls, setPolls] = useState<Record<string, { question: string; options: string[]; is_active: boolean }>>({});
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionResults, setMentionResults] = useState<{ userId: string; username: string }[]>([]);
   const threadEndRef = useRef<HTMLDivElement>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -70,6 +73,15 @@ const Index = () => {
   const isLoadingMoreRef = useRef(false);
   const lastScrollTopRef = useRef(0);
   const isUserScrollingUpRef = useRef(false);
+
+  // Message counts per user for activity badges
+  const messageCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    messages.forEach(m => {
+      if (m.user_id) counts[m.user_id] = (counts[m.user_id] || 0) + 1;
+    });
+    return counts;
+  }, [messages]);
 
   const scrollToBottom = useCallback((smooth = true) => {
     if (messagesEndRef.current) {
@@ -92,7 +104,7 @@ const Index = () => {
   const isCurrentUserAdmin = adminIds.has(userId);
   const isUserBanned = bannedUserIds.has(userId);
 
-  // مراقبة التمرير
+  // Scroll handler with smooth loading
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -105,45 +117,50 @@ const Index = () => {
       const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
       setShowScrollButton(!isNearBottom);
       if (isNearBottom) setHasNewMessages(false);
-      if (scrollTop < 100 && hasMoreMessages && !isLoadingMoreRef.current && !loading) loadMoreMessages();
+      // Load more when near top (200px threshold for smoother feel)
+      if (scrollTop < 200 && hasMoreMessages && !isLoadingMoreRef.current && !loading) loadMoreMessages();
     };
-    container.addEventListener('scroll', handleScroll);
+    container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
   }, [hasMoreMessages, loading]);
 
-  // الاستماع لزر الرجوع في المتصفح
+  // Back button handler - unified
   useEffect(() => {
-    const handlePopState = () => {
+    const handlePopState = (e: PopStateEvent) => {
       if (showAdminPanel) {
+        e.preventDefault();
         setShowAdminPanel(false);
+        window.history.pushState({ page: 'public-chat' }, '', '/');
       } else if (showChatInfo) {
+        e.preventDefault();
         setShowChatInfo(false);
+        window.history.pushState({ page: 'public-chat' }, '', '/');
+      } else if (showDMs) {
+        // DMs handle their own popstate
+      } else if (threadMessage) {
+        e.preventDefault();
+        setThreadMessage(null);
+        setThreadInput("");
+        setTimeout(() => forceScrollToBottom(), 100);
+        window.history.pushState({ page: 'public-chat' }, '', '/');
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showAdminPanel, showChatInfo]);
+  }, [showAdminPanel, showChatInfo, showDMs, threadMessage, forceScrollToBottom]);
 
   // Push history state when opening sections
   useEffect(() => {
-    if (showChatInfo) {
-      window.history.pushState({ page: 'chat-info' }, '', '/');
-    }
+    if (showChatInfo) window.history.pushState({ page: 'chat-info' }, '', '/');
   }, [showChatInfo]);
 
   useEffect(() => {
-    if (showAdminPanel) {
-      window.history.pushState({ page: 'admin-panel' }, '', '/');
-    }
+    if (showAdminPanel) window.history.pushState({ page: 'admin-panel' }, '', '/');
   }, [showAdminPanel]);
 
   useEffect(() => {
-    if (showDMs) {
-      window.history.pushState({ page: 'dms' }, '', '/');
-    }
+    if (showDMs) window.history.pushState({ page: 'dms' }, '', '/');
   }, [showDMs]);
-
-
 
   useEffect(() => {
     if (!loading && messages.length > 0 && isFirstLoadRef.current) {
@@ -151,7 +168,7 @@ const Index = () => {
     }
   }, [loading, messages.length, forceScrollToBottom]);
 
-  // جلب الرسائل غير المقروءة
+  // Fetch unread DMs
   useEffect(() => {
     if (!userId) return;
     const fetchUnread = async () => {
@@ -161,7 +178,7 @@ const Index = () => {
     fetchUnread();
   }, [userId]);
 
-  // الاستماع للرسائل الخاصة الجديدة
+  // Listen for new DMs
   useEffect(() => {
     if (!userId) return;
     const channel = supabase.channel(`unread-dm-${userId}`)
@@ -178,7 +195,7 @@ const Index = () => {
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
-  // تحميل البيانات الأولية
+  // Fetch initial data
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
@@ -198,6 +215,17 @@ const Index = () => {
           setMessages(sortedMessages);
           const { count } = await supabase.from("messages").select("*", { count: 'exact', head: true });
           setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
+          
+          // Fetch polls for poll messages
+          const pollMsgIds = sortedMessages.filter(m => m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
+          if (pollMsgIds.length > 0) {
+            const { data: pollsData } = await supabase.from("polls").select("*").in("id", pollMsgIds);
+            if (pollsData) {
+              const pollMap: Record<string, { question: string; options: string[]; is_active: boolean }> = {};
+              pollsData.forEach((p: any) => { pollMap[p.id] = { question: p.question, options: p.options, is_active: p.is_active }; });
+              setPolls(pollMap);
+            }
+          }
         }
         if (!reactionsRes.error && reactionsRes.data) setReactions(reactionsRes.data as Reaction[]);
         if (!profilesRes.error && profilesRes.data) {
@@ -225,7 +253,7 @@ const Index = () => {
     fetchInitialData();
   }, []);
 
-  // تحميل المزيد من الرسائل
+  // Load more messages with smooth scroll preservation
   const loadMoreMessages = useCallback(async () => {
     if (loadingMore || !hasMoreMessages || isLoadingMoreRef.current) return;
     isLoadingMoreRef.current = true;
@@ -234,6 +262,7 @@ const Index = () => {
     const oldestMessage = messages[0];
     const container = messagesContainerRef.current;
     const prevScrollHeight = container?.scrollHeight || 0;
+    const prevScrollTop = container?.scrollTop || 0;
     try {
       const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: false }).lt("created_at", oldestMessage.created_at).limit(MESSAGES_PER_PAGE);
       if (!error && data && data.length > 0) {
@@ -241,12 +270,15 @@ const Index = () => {
         setMessages(prev => [...olderMessages, ...prev]);
         setMessagePage(nextPage);
         setHasMoreMessages(data.length === MESSAGES_PER_PAGE);
-        // Preserve scroll position after prepending
+        // Preserve scroll position seamlessly
         requestAnimationFrame(() => {
-          if (container) {
-            const newScrollHeight = container.scrollHeight;
-            container.scrollTop = newScrollHeight - prevScrollHeight;
-          }
+          requestAnimationFrame(() => {
+            if (container) {
+              const newScrollHeight = container.scrollHeight;
+              const diff = newScrollHeight - prevScrollHeight;
+              container.scrollTop = prevScrollTop + diff;
+            }
+          });
         });
       } else {
         setHasMoreMessages(false);
@@ -255,11 +287,11 @@ const Index = () => {
       console.error("Error loading more messages:", error);
     } finally {
       setLoadingMore(false);
-      isLoadingMoreRef.current = false;
+      setTimeout(() => { isLoadingMoreRef.current = false; }, 300);
     }
   }, [loadingMore, hasMoreMessages, messagePage, messages]);
 
-  // الاستماع للتغييرات في الوقت الفعلي
+  // Realtime listeners
   useEffect(() => {
     const channel = supabase.channel("public-chat-all")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
@@ -268,6 +300,13 @@ const Index = () => {
           if (prev.find((m) => m.id === newMessage.id)) return prev;
           return [...prev, newMessage];
         });
+        // If it's a poll message, fetch the poll
+        if (newMessage.content.startsWith("poll:")) {
+          const pollId = newMessage.content.replace("poll:", "");
+          supabase.from("polls").select("*").eq("id", pollId).single().then(({ data }) => {
+            if (data) setPolls(prev => ({ ...prev, [data.id]: { question: data.question, options: data.options as string[], is_active: data.is_active } }));
+          });
+        }
         if (messagesContainerRef.current) {
           const container = messagesContainerRef.current;
           const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
@@ -315,7 +354,7 @@ const Index = () => {
     return () => { supabase.removeChannel(channel); };
   }, [scrollToBottom, userId]);
 
-  // إدارة حالة التواجد
+  // Presence
   useEffect(() => {
     if (!username || !userId) return;
     const presenceChannel = supabase.channel("presence-chat", { config: { presence: { key: userId } } });
@@ -341,7 +380,7 @@ const Index = () => {
     return () => { supabase.removeChannel(presenceChannel); presenceChannelRef.current = null; };
   }, [username, userId]);
 
-  // التمرير عند العودة من الرسائل الخاصة
+  // Scroll when returning from DMs
   useEffect(() => {
     if (isReturningFromDMs) {
       forceScrollToBottom();
@@ -388,11 +427,14 @@ const Index = () => {
     const content = input.trim();
     setInput("");
     setSending(true);
+    setMentionQuery(null);
+    setMentionResults([]);
     presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
     await supabase.from("messages").insert({ username, user_id: userId, content });
     setSending(false);
     inputRef.current?.focus();
     setShowStickerPicker(false);
+    setShowPollCreator(false);
   };
 
   const handleSendSticker = async (sticker: string) => {
@@ -414,6 +456,20 @@ const Index = () => {
     inputRef.current?.focus();
   };
 
+  const handleCreatePoll = async (question: string, options: string[]) => {
+    if (!username || sending) return;
+    setSending(true);
+    // Create poll
+    const { data: poll } = await supabase.from("polls").insert({ question, options: JSON.stringify(options), created_by: userId }).select().single();
+    if (poll) {
+      // Send poll message
+      await supabase.from("messages").insert({ username, user_id: userId, content: `poll:${poll.id}` });
+      setPolls(prev => ({ ...prev, [poll.id]: { question, options, is_active: true } }));
+    }
+    setSending(false);
+    setShowPollCreator(false);
+  };
+
   const handleDeleteMessage = async (messageId: string) => {
     await supabase.from("messages").delete().eq("id", messageId);
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
@@ -421,6 +477,46 @@ const Index = () => {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  };
+
+  // Handle @mention in input
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setInput(value);
+    e.target.style.height = "auto";
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+    handleTyping();
+
+    // Check for @mention
+    const cursorPos = e.target.selectionStart || 0;
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const mentionMatch = textBeforeCursor.match(/@(\S*)$/);
+    if (mentionMatch) {
+      const query = mentionMatch[1].toLowerCase();
+      setMentionQuery(query);
+      const results = Object.entries(profilesMap)
+        .filter(([uid, p]) => uid !== userId && p.username.toLowerCase().includes(query))
+        .slice(0, 5)
+        .map(([uid, p]) => ({ userId: uid, username: p.username }));
+      setMentionResults(results);
+    } else {
+      setMentionQuery(null);
+      setMentionResults([]);
+    }
+  };
+
+  const handleMentionSelect = (mentionUsername: string) => {
+    const cursorPos = inputRef.current?.selectionStart || 0;
+    const textBeforeCursor = input.slice(0, cursorPos);
+    const mentionMatch = textBeforeCursor.match(/@(\S*)$/);
+    if (mentionMatch) {
+      const before = textBeforeCursor.slice(0, mentionMatch.index);
+      const after = input.slice(cursorPos);
+      setInput(`${before}@${mentionUsername} ${after}`);
+    }
+    setMentionQuery(null);
+    setMentionResults([]);
+    inputRef.current?.focus();
   };
 
   const handleSettingsSave = (newUsername: string, newAvatarUrl: string | null) => {
@@ -476,17 +572,7 @@ const Index = () => {
     setTimeout(() => threadEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   };
 
-  useEffect(() => {
-    const handlePopState = (e: PopStateEvent) => {
-      if (threadMessage) { e.preventDefault(); handleCloseThread(); }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [threadMessage]);
-
   const typingNames = Array.from(typingUsers).map(uid => getProfile(uid).username).filter(Boolean);
-
-  // Get admin profiles for locked chat display
   const adminProfiles = Array.from(adminIds).map(id => ({ id, ...getProfile(id) }));
 
   if (!username) return <UsernameModal onJoin={handleJoin} />;
@@ -538,7 +624,7 @@ const Index = () => {
 
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
           <div className="pb-3 mb-3" style={{ borderBottom: "1px solid hsl(var(--border))" }}>
-            <ChatMessage message={threadMessage} currentUserId={userId} currentUsername={username} currentAvatarUrl={avatarUrl} reactions={reactions.filter((r) => r.message_id === threadMessage.id)} profilesMap={profilesMap} isOnline={threadMessage.user_id ? onlineUsers.has(threadMessage.user_id) : false} isAdmin={threadMessage.user_id ? adminIds.has(threadMessage.user_id) : false} isCurrentUserAdmin={isCurrentUserAdmin} onReply={() => {}} onUsernameClick={(uid) => setProfileModal(uid)} onDelete={handleDeleteMessage} />
+            <ChatMessage message={threadMessage} currentUserId={userId} currentUsername={username} currentAvatarUrl={avatarUrl} reactions={reactions.filter((r) => r.message_id === threadMessage.id)} profilesMap={profilesMap} isOnline={threadMessage.user_id ? onlineUsers.has(threadMessage.user_id) : false} isAdmin={threadMessage.user_id ? adminIds.has(threadMessage.user_id) : false} isCurrentUserAdmin={isCurrentUserAdmin} messageCounts={messageCounts} onReply={() => {}} onUsernameClick={(uid) => setProfileModal(uid)} onDelete={handleDeleteMessage} />
           </div>
 
           {threadReplies.length === 0 ? (
@@ -548,7 +634,7 @@ const Index = () => {
             </div>
           ) : (
             threadReplies.map((reply) => (
-              <ChatMessage key={reply.id} message={reply} currentUserId={userId} currentUsername={username} currentAvatarUrl={avatarUrl} reactions={reactions.filter((r) => r.message_id === reply.id)} profilesMap={profilesMap} isOnline={reply.user_id ? onlineUsers.has(reply.user_id) : false} isAdmin={reply.user_id ? adminIds.has(reply.user_id) : false} isCurrentUserAdmin={isCurrentUserAdmin} onReply={() => {}} onUsernameClick={(uid) => setProfileModal(uid)} onDelete={handleDeleteMessage} />
+              <ChatMessage key={reply.id} message={reply} currentUserId={userId} currentUsername={username} currentAvatarUrl={avatarUrl} reactions={reactions.filter((r) => r.message_id === reply.id)} profilesMap={profilesMap} isOnline={reply.user_id ? onlineUsers.has(reply.user_id) : false} isAdmin={reply.user_id ? adminIds.has(reply.user_id) : false} isCurrentUserAdmin={isCurrentUserAdmin} messageCounts={messageCounts} onReply={() => {}} onUsernameClick={(uid) => setProfileModal(uid)} onDelete={handleDeleteMessage} />
             ))
           )}
           <div ref={threadEndRef} />
@@ -599,9 +685,22 @@ const Index = () => {
     );
   }
 
+  // Render a message or poll
+  const renderMessageContent = (msg: Message) => {
+    if (msg.content.startsWith("poll:")) {
+      const pId = msg.content.replace("poll:", "");
+      const pollData = polls[pId];
+      if (pollData) {
+        return <PollMessage pollId={pId} question={pollData.question} options={pollData.options} currentUserId={userId} isActive={pollData.is_active} />;
+      }
+      return null;
+    }
+    return null;
+  };
+
   return (
     <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
-      {/* Header - WhatsApp style */}
+      {/* Header */}
       <header className="flex-shrink-0 px-4 py-2.5 flex items-center justify-between" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
@@ -690,9 +789,27 @@ const Index = () => {
           </div>
         ) : (
           <>
-            {messages.filter(msg => !msg.reply_to).map((msg) => (
-              <ChatMessage key={msg.id} message={msg} currentUserId={userId} currentUsername={username} currentAvatarUrl={avatarUrl} reactions={reactions.filter((r) => r.message_id === msg.id)} profilesMap={profilesMap} isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false} isAdmin={msg.user_id ? adminIds.has(msg.user_id) : false} isCurrentUserAdmin={isCurrentUserAdmin} replyCount={getReplyCount(msg.id)} onReply={handleOpenThread} onUsernameClick={(uid) => setProfileModal(uid)} onDelete={handleDeleteMessage} onOpenThread={handleOpenThread} />
-            ))}
+            {messages.filter(msg => !msg.reply_to).map((msg) => {
+              const pollContent = renderMessageContent(msg);
+              if (msg.content.startsWith("poll:") && pollContent) {
+                return (
+                  <div key={msg.id} className="flex gap-2 animate-fade-in">
+                    <div className="max-w-[85%]">
+                      <div className="flex items-center gap-1 mb-1">
+                        <ShieldCheck className="w-3 h-3" style={{ color: "#1D9BF0" }} />
+                        <span className="text-[11px] font-semibold" style={{ color: "#1D9BF0" }}>
+                          {msg.user_id && profilesMap[msg.user_id] ? profilesMap[msg.user_id].username : msg.username}
+                        </span>
+                      </div>
+                      {pollContent}
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <ChatMessage key={msg.id} message={msg} currentUserId={userId} currentUsername={username} currentAvatarUrl={avatarUrl} reactions={reactions.filter((r) => r.message_id === msg.id)} profilesMap={profilesMap} isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false} isAdmin={msg.user_id ? adminIds.has(msg.user_id) : false} isCurrentUserAdmin={isCurrentUserAdmin} replyCount={getReplyCount(msg.id)} messageCounts={messageCounts} onReply={handleOpenThread} onUsernameClick={(uid) => setProfileModal(uid)} onDelete={handleDeleteMessage} onOpenThread={handleOpenThread} />
+              );
+            })}
             <div ref={messagesEndRef} />
           </>
         )}
@@ -769,7 +886,7 @@ const Index = () => {
           </div>
         </div>
       ) : (
-        /* Input area - WhatsApp style */
+        /* Input area */
         <div className="flex-shrink-0 px-3 pb-3 pt-1.5">
           {chatLocked && isCurrentUserAdmin && (
             <div className="flex items-center justify-center gap-2 mb-2 px-3 py-1.5 rounded-full" style={{ background: "hsl(var(--destructive) / 0.1)" }}>
@@ -778,16 +895,47 @@ const Index = () => {
             </div>
           )}
 
+          {/* Poll creator */}
+          {showPollCreator && isCurrentUserAdmin && (
+            <div className="mb-2">
+              <PollCreator onCreatePoll={handleCreatePoll} onClose={() => setShowPollCreator(false)} />
+            </div>
+          )}
+
+          {/* Mention autocomplete */}
+          {mentionQuery !== null && mentionResults.length > 0 && (
+            <div className="mb-2 rounded-xl overflow-hidden animate-fade-in" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
+              {mentionResults.map((r) => (
+                <button
+                  key={r.userId}
+                  onClick={() => handleMentionSelect(r.username)}
+                  className="w-full px-3 py-2 flex items-center gap-2 text-right hover:opacity-80 transition-opacity"
+                  style={{ borderBottom: "1px solid hsl(var(--border))" }}
+                >
+                  {profilesMap[r.userId]?.avatar_url ? (
+                    <img src={profilesMap[r.userId].avatar_url!} alt="" className="w-6 h-6 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold" style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
+                      {r.username.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-[12px] font-medium" style={{ color: "hsl(var(--foreground))" }}>@{r.username}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Admin sticker picker */}
           {showStickerPicker && isCurrentUserAdmin && (
-            <div className="mb-2 p-2 rounded-xl animate-fade-in" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
-              <p className="text-[11px] font-medium mb-1.5 px-1" style={{ color: "hsl(var(--muted-foreground))" }}>ملصقات المشرفين</p>
-              <div className="flex flex-wrap gap-1">
-                {ADMIN_STICKERS.map((sticker) => (
-                  <button key={sticker} onClick={() => handleSendSticker(sticker)}
-                    className="w-10 h-10 flex items-center justify-center rounded-lg text-xl transition-all hover:scale-125 active:scale-90"
-                    style={{ background: "hsl(var(--secondary))" }}>
-                    {sticker}
+            <div className="mb-2 p-3 rounded-xl animate-fade-in" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
+              <p className="text-[11px] font-medium mb-2 px-1" style={{ color: "hsl(var(--muted-foreground))" }}>ملصقات المشرفين المتحركة</p>
+              <div className="grid grid-cols-8 gap-1">
+                {ADMIN_ANIMATED_STICKERS.map((sticker) => (
+                  <button key={sticker.emoji} onClick={() => handleSendSticker(sticker.emoji)}
+                    className={`w-10 h-10 flex items-center justify-center rounded-lg text-xl transition-all hover:scale-125 active:scale-90 ${sticker.animation}`}
+                    style={{ background: "hsl(var(--secondary))" }}
+                    title={sticker.label}>
+                    {sticker.emoji}
                   </button>
                 ))}
               </div>
@@ -797,10 +945,15 @@ const Index = () => {
           <div className="flex items-end gap-2">
             {isCurrentUserAdmin && (
               <div className="flex gap-1 flex-shrink-0">
-                <button onClick={() => setShowStickerPicker(!showStickerPicker)} title="ملصقات"
+                <button onClick={() => { setShowStickerPicker(!showStickerPicker); setShowPollCreator(false); }} title="ملصقات"
                   className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
                   style={{ background: showStickerPicker ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", color: showStickerPicker ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
                   <Smile className="w-4 h-4" />
+                </button>
+                <button onClick={() => { setShowPollCreator(!showPollCreator); setShowStickerPicker(false); }} title="استطلاع رأي"
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
+                  style={{ background: showPollCreator ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", color: showPollCreator ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
+                  <BarChart3 className="w-4 h-4" />
                 </button>
                 {input.trim() && (
                   <button onClick={handleSendAnnouncement} title="إرسال كإعلان"
@@ -813,9 +966,9 @@ const Index = () => {
             )}
             <div className="flex-1 flex items-end p-1.5 rounded-full" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
               <textarea ref={inputRef} value={input}
-                onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; handleTyping(); }}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder={isCurrentUserAdmin ? "اكتب رسالتك... (مشرف)" : "اكتب رسالتك..."}
+                placeholder={isCurrentUserAdmin ? "اكتب رسالتك... (مشرف) — اكتب @ لذكر شخص" : "اكتب رسالتك... — اكتب @ لذكر شخص"}
                 rows={1} maxLength={500}
                 className="flex-1 resize-none bg-transparent outline-none text-[14px] leading-relaxed select-text px-3"
                 style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}

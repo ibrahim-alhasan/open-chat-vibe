@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { MessageCircle, User, Camera } from "lucide-react";
+import { MessageCircle, User, Camera, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UsernameModalProps {
   onJoin: (username: string, avatarFile?: File | null) => void;
@@ -8,6 +9,7 @@ interface UsernameModalProps {
 const UsernameModal = ({ onJoin }: UsernameModalProps) => {
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -21,12 +23,24 @@ const UsernameModal = ({ onJoin }: UsernameModalProps) => {
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = username.trim();
     if (!trimmed) { setError("الرجاء إدخال اسمك"); return; }
     if (trimmed.length < 2) { setError("الاسم يجب أن يكون حرفين على الأقل"); return; }
     if (trimmed.length > 20) { setError("الاسم يجب أن لا يتجاوز 20 حرفاً"); return; }
+
+    // Check if username already exists
+    setChecking(true);
+    const { data } = await supabase.from("profiles").select("username, user_id").eq("username", trimmed).maybeSingle();
+    setChecking(false);
+
+    const existingUserId = localStorage.getItem("chat_user_id");
+    if (data && data.user_id !== existingUserId) {
+      setError("هذا الاسم مستخدم بالفعل، اختر اسماً آخر");
+      return;
+    }
+
     onJoin(trimmed, avatarFile);
   };
 
@@ -124,13 +138,19 @@ const UsernameModal = ({ onJoin }: UsernameModalProps) => {
 
             <button
               type="submit"
-              className="w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 glow-primary active:scale-95"
+              disabled={checking}
+              className="w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 glow-primary active:scale-95 disabled:opacity-60"
               style={{
                 background: "var(--gradient-primary)",
                 color: "hsl(var(--primary-foreground))",
               }}
             >
-              انضم للدردشة 🚀
+              {checking ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  جاري التحقق...
+                </span>
+              ) : "انضم للدردشة 🚀"}
             </button>
           </form>
 

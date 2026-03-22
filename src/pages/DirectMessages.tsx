@@ -133,24 +133,32 @@ const DirectMessages = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Use refs to avoid stale closures in popstate
+  const activeConversationRef = useRef(activeConversation);
+  const viewingImageRef = useRef(viewingImage);
+  activeConversationRef.current = activeConversation;
+  viewingImageRef.current = viewingImage;
+
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
-      if (viewingImage) {
+      if (viewingImageRef.current) {
         setViewingImage(null);
-      } else if (activeConversation) {
+        window.history.pushState({ page: 'dm-conversation' }, '', '/');
+      } else if (activeConversationRef.current) {
         setActiveConversation(null);
         setReplyTo(null);
         setImagePreview(null);
         setSelectedImage(null);
+        window.history.pushState({ page: 'dms-list' }, '', '/');
       } else {
         onBack();
       }
     };
     
-    window.history.pushState({ page: 'dms' }, '', '/');
+    window.history.pushState({ page: 'dms-list' }, '', '/');
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [onBack, activeConversation, viewingImage]);
+  }, [onBack]);
 
   useEffect(() => {
     if (activeConversation && !viewingImage) {

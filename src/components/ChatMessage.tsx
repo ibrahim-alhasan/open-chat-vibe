@@ -1,5 +1,6 @@
-import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Trophy, Medal, Award } from "lucide-react";
 import LinkifiedText from "@/components/LinkifiedText";
+import PollMessage from "@/components/PollMessage";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useState, useEffect, useRef } from "react";
@@ -35,6 +36,7 @@ interface ChatMessageProps {
   isAdmin?: boolean;
   isCurrentUserAdmin?: boolean;
   replyCount?: number;
+  messageCounts?: Record<string, number>;
   onReply: (message: Message) => void;
   onUsernameClick?: (userId: string) => void;
   onDelete?: (messageId: string) => void;
@@ -42,6 +44,28 @@ interface ChatMessageProps {
 }
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
+
+// Animated admin stickers with CSS animations
+const ADMIN_ANIMATED_STICKERS: { emoji: string; label: string; animation: string }[] = [
+  { emoji: "🔥", label: "نار", animation: "animate-bounce" },
+  { emoji: "⭐", label: "نجمة", animation: "animate-spin-slow" },
+  { emoji: "🎉", label: "احتفال", animation: "animate-wiggle" },
+  { emoji: "👏", label: "تصفيق", animation: "animate-pulse" },
+  { emoji: "💪", label: "قوة", animation: "animate-bounce" },
+  { emoji: "🏆", label: "كأس", animation: "animate-wiggle" },
+  { emoji: "✅", label: "تم", animation: "animate-scale-pop" },
+  { emoji: "❌", label: "لا", animation: "animate-shake" },
+  { emoji: "⚠️", label: "تنبيه", animation: "animate-pulse" },
+  { emoji: "📢", label: "إعلان", animation: "animate-wiggle" },
+  { emoji: "🎯", label: "هدف", animation: "animate-scale-pop" },
+  { emoji: "💎", label: "ماس", animation: "animate-spin-slow" },
+  { emoji: "🚀", label: "صاروخ", animation: "animate-bounce" },
+  { emoji: "💥", label: "انفجار", animation: "animate-shake" },
+  { emoji: "🌟", label: "لمعان", animation: "animate-pulse" },
+  { emoji: "❤️‍🔥", label: "حب ناري", animation: "animate-wiggle" },
+];
+
+export { ADMIN_ANIMATED_STICKERS };
 
 const getUserColor = (username: string) => {
   const colors = [
@@ -63,9 +87,66 @@ const VerifiedBadge = () => (
   </svg>
 );
 
+// Activity badge component
+const ActivityBadge = ({ rank }: { rank: number }) => {
+  if (rank === 1) return <span title="الأكثر نشاطاً #1" className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px] font-bold" style={{ background: "hsl(45, 93%, 47%, 0.2)", color: "hsl(45, 93%, 47%)" }}>🥇</span>;
+  if (rank === 2) return <span title="الأكثر نشاطاً #2" className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px] font-bold" style={{ background: "hsl(0, 0%, 70%, 0.2)", color: "hsl(0, 0%, 70%)" }}>🥈</span>;
+  if (rank === 3) return <span title="الأكثر نشاطاً #3" className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px] font-bold" style={{ background: "hsl(30, 67%, 50%, 0.2)", color: "hsl(30, 67%, 50%)" }}>🥉</span>;
+  if (rank <= 5) return <span title={`الأكثر نشاطاً #${rank}`} className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px] font-bold" style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}>⭐</span>;
+  if (rank <= 10) return <span title={`الأكثر نشاطاً #${rank}`} className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px]" style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>🌟</span>;
+  return null;
+};
+
+// Render text with @mentions highlighted
+const MentionText = ({ text, profilesMap, onUsernameClick }: { text: string; profilesMap: Record<string, { username: string; avatar_url: string | null }>; onUsernameClick?: (userId: string) => void }) => {
+  const mentionRegex = /@(\S+)/g;
+  const parts: (string | { mention: string; userId: string | null })[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = mentionRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    const mentionName = match[1];
+    // Find user by username
+    const userId = Object.entries(profilesMap).find(([_, p]) => p.username === mentionName)?.[0] || null;
+    parts.push({ mention: mentionName, userId });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  if (parts.length === 0 || (parts.length === 1 && typeof parts[0] === "string")) {
+    return <LinkifiedText text={text} />;
+  }
+
+  return (
+    <span>
+      {parts.map((part, i) => {
+        if (typeof part === "string") return <LinkifiedText key={i} text={part} />;
+        return (
+          <span
+            key={i}
+            className="font-semibold cursor-pointer hover:underline px-0.5 rounded"
+            style={{ color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.1)" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (part.userId && onUsernameClick) onUsernameClick(part.userId);
+            }}
+          >
+            @{part.mention}
+          </span>
+        );
+      })}
+    </span>
+  );
+};
+
 const ChatMessage = ({
   message, currentUserId, currentUsername, currentAvatarUrl, reactions, profilesMap,
-  isOnline, isAdmin, isCurrentUserAdmin, replyCount = 0, onReply, onUsernameClick, onDelete, onOpenThread,
+  isOnline, isAdmin, isCurrentUserAdmin, replyCount = 0, messageCounts, onReply, onUsernameClick, onDelete, onOpenThread,
 }: ChatMessageProps) => {
   const isOwn = message.user_id === currentUserId;
   const profile = message.user_id && profilesMap[message.user_id];
@@ -76,6 +157,21 @@ const ChatMessage = ({
   // Check if message content is a sticker
   const isSticker = message.content.startsWith("sticker:");
   const stickerEmoji = isSticker ? message.content.replace("sticker:", "") : null;
+  
+  // Check if message is a poll
+  const isPoll = message.content.startsWith("poll:");
+  const pollId = isPoll ? message.content.replace("poll:", "") : null;
+
+  // Get sticker animation
+  const stickerAnimation = isSticker ? ADMIN_ANIMATED_STICKERS.find(s => s.emoji === stickerEmoji)?.animation || "" : "";
+
+  // Get activity rank for this user
+  const userRank = (() => {
+    if (!messageCounts || !message.user_id) return 0;
+    const sorted = Object.entries(messageCounts).sort(([, a], [, b]) => b - a);
+    const idx = sorted.findIndex(([uid]) => uid === message.user_id);
+    return idx >= 0 ? idx + 1 : 0;
+  })();
   
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -91,6 +187,7 @@ const ChatMessage = ({
   const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true, locale: ar });
   const canDelete = isOwn || isCurrentUserAdmin;
 
+  // Use user_id for reactions (stored in username field for backward compat)
   const reactionGroups = reactions.reduce<Record<string, Reaction[]>>((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = [];
     acc[r.emoji].push(r);
@@ -100,9 +197,10 @@ const ChatMessage = ({
   const handleReaction = async (emoji: string) => {
     setShowEmojiPicker(false);
     setShowActionsMenu(false);
-    const existing = reactions.find((r) => r.emoji === emoji && r.username === currentUsername);
+    // Use userId for reactions
+    const existing = reactions.find((r) => r.emoji === emoji && r.username === currentUserId);
     if (existing) await supabase.from("reactions").delete().eq("id", existing.id);
-    else await supabase.from("reactions").insert({ message_id: message.id, username: currentUsername, emoji });
+    else await supabase.from("reactions").insert({ message_id: message.id, username: currentUserId, emoji });
   };
 
   const handleDelete = async () => {
@@ -224,7 +322,7 @@ const ChatMessage = ({
         )}
 
         {/* Username and time */}
-        <div className={`flex items-center gap-1.5 w-full ${isOwn ? "justify-end" : "justify-start"}`}>
+        <div className={`flex items-center gap-1.5 w-full flex-wrap ${isOwn ? "justify-end" : "justify-start"}`}>
           <div className="flex items-center gap-0.5">
             {isAdmin && !isOwn && <ShieldCheck className="w-3 h-3" style={{ color: "#1D9BF0" }} />}
             <span className={`text-[11px] font-semibold ${!isOwn && !isAdmin ? "cursor-pointer hover:underline" : ""}`} style={{ color: userColor }} onClick={() => !isOwn && onUsernameClick && message.user_id && onUsernameClick(message.user_id)}>
@@ -234,6 +332,7 @@ const ChatMessage = ({
             {isAdmin && !isOwn && (
               <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: "#1D9BF015", color: "#1D9BF0" }}>مشرف</span>
             )}
+            {!isAdmin && userRank > 0 && userRank <= 10 && <ActivityBadge rank={userRank} />}
           </div>
           <span className="text-[10px]" style={{ color: "hsl(var(--chat-timestamp))" }}>{timeAgo}</span>
         </div>
@@ -251,9 +350,11 @@ const ChatMessage = ({
 
         {/* Message bubble */}
         <div className="relative w-full">
-          {isSticker ? (
-            /* Sticker display - large emoji without bubble */
-            <div className={`text-[56px] leading-none py-1 ${isOwn ? "text-right" : "text-left"} cursor-pointer active:scale-95 transition-transform`} onClick={handleBubbleClick}>
+          {isPoll && pollId ? (
+            <PollMessage pollId={pollId} question="" options={[]} currentUserId={currentUserId} isActive={true} />
+          ) : isSticker ? (
+            /* Sticker display - large animated emoji */
+            <div className={`text-[56px] leading-none py-1 ${isOwn ? "text-right" : "text-left"} cursor-pointer active:scale-95 transition-transform ${stickerAnimation}`} onClick={handleBubbleClick}>
               {stickerEmoji}
             </div>
           ) : (
@@ -265,7 +366,7 @@ const ChatMessage = ({
                   border: "1px solid hsl(207, 90%, 54%, 0.2)",
                 } : {})
               }} onClick={handleBubbleClick}>
-              <LinkifiedText text={message.content} />
+              <MentionText text={message.content} profilesMap={profilesMap} onUsernameClick={onUsernameClick} />
             </div>
           )}
 
@@ -275,7 +376,7 @@ const ChatMessage = ({
               <div className="flex justify-center">
                 <div className="flex items-center gap-1 px-1.5 py-1 rounded-xl pointer-events-auto" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 20px rgba(0,0,0,0.4)" }}>
                   {EMOJIS.slice(0, 4).map((emoji) => {
-                    const myReaction = reactions.find((r) => r.emoji === emoji && r.username === currentUsername);
+                    const myReaction = reactions.find((r) => r.emoji === emoji && r.username === currentUserId);
                     return (
                       <button key={emoji} onClick={(e) => { e.stopPropagation(); handleReaction(emoji); }}
                         className="w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-all hover:scale-125 active:scale-90"
@@ -313,7 +414,7 @@ const ChatMessage = ({
               <div className="flex justify-center">
                 <div className="flex flex-wrap gap-1 p-2 rounded-xl pointer-events-auto" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 20px rgba(0,0,0,0.4)", maxWidth: "200px" }}>
                   {EMOJIS.map((emoji) => {
-                    const myReaction = reactions.find((r) => r.emoji === emoji && r.username === currentUsername);
+                    const myReaction = reactions.find((r) => r.emoji === emoji && r.username === currentUserId);
                     return (
                       <button key={emoji} onClick={(e) => { e.stopPropagation(); handleReaction(emoji); }}
                         className="w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-all hover:scale-125 active:scale-90"
@@ -330,7 +431,7 @@ const ChatMessage = ({
         {Object.keys(reactionGroups).length > 0 && (
           <div className={`flex flex-wrap gap-1 ${isOwn ? "justify-end" : "justify-start"}`}>
             {Object.entries(reactionGroups).map(([emoji, group]) => {
-              const myReaction = group.find((r) => r.username === currentUsername);
+              const myReaction = group.find((r) => r.username === currentUserId);
               return (
                 <button key={emoji} onClick={(e) => { e.stopPropagation(); handleReaction(emoji); }}
                   className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] hover:scale-105 active:scale-95"
