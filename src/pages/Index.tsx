@@ -687,16 +687,24 @@ const Index = () => {
 
   // Render a message or poll
   const renderMessageContent = (msg: Message) => {
-    if (msg.content.startsWith("poll:")) {
-      const pId = msg.content.replace("poll:", "");
-      const pollData = polls[pId];
-      if (pollData) {
-        return <PollMessage pollId={pId} question={pollData.question} options={pollData.options} currentUserId={userId} isActive={pollData.is_active} />;
-      }
-      return null;
+  if (msg.content && msg.content.startsWith("poll:")) {
+    const pId = msg.content.replace("poll:", "");
+    const pollData = polls[pId];
+    if (pollData && pollData.options && Array.isArray(pollData.options)) {
+      return (
+        <PollMessage 
+          pollId={pId} 
+          question={pollData.question} 
+          options={pollData.options} 
+          currentUserId={userId} 
+          isActive={pollData.is_active} 
+        />
+      );
     }
     return null;
-  };
+  }
+  return null;
+};
 
   return (
     <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
@@ -790,26 +798,47 @@ const Index = () => {
         ) : (
           <>
             {messages.filter(msg => !msg.reply_to).map((msg) => {
-              const pollContent = renderMessageContent(msg);
-              if (msg.content.startsWith("poll:") && pollContent) {
-                return (
-                  <div key={msg.id} className="flex gap-2 animate-fade-in">
-                    <div className="max-w-[85%]">
-                      <div className="flex items-center gap-1 mb-1">
-                        <ShieldCheck className="w-3 h-3" style={{ color: "#1D9BF0" }} />
-                        <span className="text-[11px] font-semibold" style={{ color: "#1D9BF0" }}>
-                          {msg.user_id && profilesMap[msg.user_id] ? profilesMap[msg.user_id].username : msg.username}
-                        </span>
-                      </div>
-                      {pollContent}
-                    </div>
-                  </div>
-                );
-              }
-              return (
-                <ChatMessage key={msg.id} message={msg} currentUserId={userId} currentUsername={username} currentAvatarUrl={avatarUrl} reactions={reactions.filter((r) => r.message_id === msg.id)} profilesMap={profilesMap} isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false} isAdmin={msg.user_id ? adminIds.has(msg.user_id) : false} isCurrentUserAdmin={isCurrentUserAdmin} replyCount={getReplyCount(msg.id)} messageCounts={messageCounts} onReply={handleOpenThread} onUsernameClick={(uid) => setProfileModal(uid)} onDelete={handleDeleteMessage} onOpenThread={handleOpenThread} />
-              );
-            })}
+  // تأكد من أن msg.content موجود قبل محاولة التحقق
+  const isPoll = msg.content && msg.content.startsWith("poll:");
+  const pollContent = isPoll ? renderMessageContent(msg) : null;
+  
+  if (isPoll && pollContent) {
+    return (
+      <div key={msg.id} className="flex gap-2 animate-fade-in">
+        <div className="max-w-[85%]">
+          <div className="flex items-center gap-1 mb-1">
+            <ShieldCheck className="w-3 h-3" style={{ color: "#1D9BF0" }} />
+            <span className="text-[11px] font-semibold" style={{ color: "#1D9BF0" }}>
+              {msg.user_id && profilesMap[msg.user_id] ? profilesMap[msg.user_id].username : msg.username}
+            </span>
+          </div>
+          {pollContent}
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <ChatMessage 
+      key={msg.id} 
+      message={msg} 
+      currentUserId={userId} 
+      currentUsername={username} 
+      currentAvatarUrl={avatarUrl} 
+      reactions={reactions.filter((r) => r.message_id === msg.id)} 
+      profilesMap={profilesMap} 
+      isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false} 
+      isAdmin={msg.user_id ? adminIds.has(msg.user_id) : false} 
+      isCurrentUserAdmin={isCurrentUserAdmin} 
+      replyCount={getReplyCount(msg.id)} 
+      messageCounts={messageCounts} 
+      onReply={handleOpenThread} 
+      onUsernameClick={(uid) => setProfileModal(uid)} 
+      onDelete={handleDeleteMessage} 
+      onOpenThread={handleOpenThread} 
+    />
+  );
+})}
             <div ref={messagesEndRef} />
           </>
         )}
