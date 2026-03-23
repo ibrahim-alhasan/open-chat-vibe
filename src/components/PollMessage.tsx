@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart3, Check } from "lucide-react";
 
@@ -15,8 +15,9 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
   const [myVote, setMyVote] = useState<number | null>(null);
   const [voting, setVoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const fetchVotes = async () => {
+  const fetchVotes = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("poll_votes")
@@ -33,8 +34,10 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
     } catch (err) {
       console.error("Error fetching votes:", err);
       setError("حدث خطأ في تحميل الأصوات");
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [pollId, currentUserId]);
 
   useEffect(() => {
     fetchVotes();
@@ -49,7 +52,7 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
           filter: `poll_id=eq.${pollId}` 
         },
         () => {
-          fetchVotes(); // إعادة جلب الأصوات عند أي تغيير
+          fetchVotes();
         }
       )
       .subscribe();
@@ -57,7 +60,7 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [pollId, currentUserId]);
+  }, [fetchVotes, pollId]);
 
   const handleVote = async (index: number) => {
     if (!isActive || voting) return;
@@ -67,7 +70,7 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
     
     try {
       if (myVote !== null && myVote === index) {
-        // إزالة التصويت الحالي
+        // إزالة التصويت
         const { error: deleteError } = await supabase
           .from("poll_votes")
           .delete()
@@ -76,24 +79,19 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
         
         if (deleteError) throw deleteError;
         
-        // تحديث الـ state محلياً
+        // تحديث محلي
         setMyVote(null);
         setVotes(prev => prev.filter(v => v.user_id !== currentUserId));
-        
       } else {
-        // تغيير التصويت أو إضافة تصويت جديد
+        // تغيير أو إضافة تصويت
         if (myVote !== null) {
-          // حذف التصويت القديم أولاً
-          const { error: deleteError } = await supabase
+          await supabase
             .from("poll_votes")
             .delete()
             .eq("poll_id", pollId)
             .eq("user_id", currentUserId);
-          
-          if (deleteError) throw deleteError;
         }
         
-        // إضافة التصويت الجديد
         const { error: insertError } = await supabase
           .from("poll_votes")
           .insert({ 
@@ -104,29 +102,32 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
         
         if (insertError) throw insertError;
         
-        // تحديث الـ state محلياً
+        // تحديث محلي
         setMyVote(index);
         setVotes(prev => {
-          // إزالة التصويت القديم إذا موجود
           const filtered = prev.filter(v => v.user_id !== currentUserId);
-          // إضافة التصويت الجديد
           return [...filtered, { user_id: currentUserId, option_index: index }];
         });
       }
     } catch (err) {
       console.error("Error voting:", err);
-      setError("حدث خطأ في تسجيل صوتك، حاول مرة أخرى");
-      // إعادة جلب البيانات للتأكد من صحة الـ state
+      setError("حدث خطأ في تسجيل صوتك");
       await fetchVotes();
     } finally {
       setVoting(false);
     }
   };
 
-  const totalVotes = votes.length;
-  const hasVoted = myVote !== null;
+  if (isLoading) {
+    return (
+      <div className="w-full max-w-[300px] rounded-xl overflow-hidden" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
+        <div className="px-3 py-8 text-center">
+          <div className="inline-block w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
+        </div>
+      </div>
+    );
+  }
 
-  // إذا كان هناك خطأ، نظهر رسالة خطأ بسيطة
   if (error) {
     return (
       <div className="w-full max-w-[300px] rounded-xl overflow-hidden" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--destructive))" }}>
@@ -134,7 +135,7 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
           <span className="text-[12px]" style={{ color: "hsl(var(--destructive))" }}>{error}</span>
           <button 
             onClick={() => fetchVotes()}
-            className="block mx-auto mt-1 text-[11px] underline"
+            className="block mx-auto mt-1 text-[11px] underline hover:opacity-70"
             style={{ color: "hsl(var(--primary))" }}
           >
             إعادة المحاولة
@@ -143,6 +144,8 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
       </div>
     );
   }
+
+  const totalVotes = votes.length;
 
   return (
     <div className="w-full max-w-[300px] rounded-xl overflow-hidden" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
@@ -167,8 +170,7 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
                 border: isMyVote ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid hsl(var(--border))",
               }}
             >
-              {/* Progress bar */}
-              {hasVoted && totalVotes > 0 && (
+              {totalVotes > 0 && (
                 <div 
                   className="absolute top-0 left-0 h-full transition-all duration-300 rounded-lg pointer-events-none"
                   style={{ 
@@ -179,7 +181,7 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
               )}
               <div className="relative flex items-center justify-between gap-2 z-10">
                 <div className="flex items-center gap-1.5">
-                  {hasVoted && totalVotes > 0 && (
+                  {totalVotes > 0 && (
                     <span className="text-[11px] font-medium" style={{ color: "hsl(var(--muted-foreground))" }}>{pct}%</span>
                   )}
                   {isMyVote && <Check className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} />}
