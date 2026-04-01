@@ -35,12 +35,10 @@ interface ChatMessageProps {
   isOnline?: boolean;
   isAdmin?: boolean;
   isCurrentUserAdmin?: boolean;
-  replyCount?: number;
   messageCounts?: Record<string, number>;
   onReply: (message: Message) => void;
   onUsernameClick?: (userId: string) => void;
   onDelete?: (messageId: string) => void;
-  onOpenThread?: (message: Message) => void;
 }
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
@@ -105,18 +103,13 @@ const MentionText = ({ text, profilesMap, onUsernameClick }: { text: string; pro
   let match;
 
   while ((match = mentionRegex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
     const mentionName = match[1];
-    // Find user by username
     const userId = Object.entries(profilesMap).find(([_, p]) => p.username === mentionName)?.[0] || null;
     parts.push({ mention: mentionName, userId });
     lastIndex = match.index + match[0].length;
   }
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
 
   if (parts.length === 0 || (parts.length === 1 && typeof parts[0] === "string")) {
     return <LinkifiedText text={text} />;
@@ -127,15 +120,9 @@ const MentionText = ({ text, profilesMap, onUsernameClick }: { text: string; pro
       {parts.map((part, i) => {
         if (typeof part === "string") return <LinkifiedText key={i} text={part} />;
         return (
-          <span
-            key={i}
-            className="font-semibold cursor-pointer hover:underline px-0.5 rounded"
+          <span key={i} className="font-semibold cursor-pointer hover:underline px-0.5 rounded"
             style={{ color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.1)" }}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (part.userId && onUsernameClick) onUsernameClick(part.userId);
-            }}
-          >
+            onClick={(e) => { e.stopPropagation(); if (part.userId && onUsernameClick) onUsernameClick(part.userId); }}>
             @{part.mention}
           </span>
         );
@@ -146,7 +133,7 @@ const MentionText = ({ text, profilesMap, onUsernameClick }: { text: string; pro
 
 const ChatMessage = ({
   message, currentUserId, currentUsername, currentAvatarUrl, reactions, profilesMap,
-  isOnline, isAdmin, isCurrentUserAdmin, replyCount = 0, messageCounts, onReply, onUsernameClick, onDelete, onOpenThread,
+  isOnline, isAdmin, isCurrentUserAdmin, messageCounts, onReply, onUsernameClick, onDelete,
 }: ChatMessageProps) => {
   const isOwn = message.user_id === currentUserId;
   const profile = message.user_id && profilesMap[message.user_id];
@@ -154,15 +141,9 @@ const ChatMessage = ({
   const avatarUrl = isOwn ? currentAvatarUrl : (profile ? profile.avatar_url : null);
   const userColor = isAdmin ? "#1D9BF0" : getUserColor(displayName);
   
-  // Check if message content is a sticker
   const isSticker = message.content.startsWith("sticker:");
   const stickerEmoji = isSticker ? message.content.replace("sticker:", "") : null;
-  
-  // Check if message is a poll
   const isPoll = message.content.startsWith("poll:");
-  const pollId = isPoll ? message.content.replace("poll:", "") : null;
-
-  // Get sticker animation
   const stickerAnimation = isSticker ? ADMIN_ANIMATED_STICKERS.find(s => s.emoji === stickerEmoji)?.animation || "" : "";
 
   // Get activity rank for this user
@@ -187,7 +168,6 @@ const ChatMessage = ({
   const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true, locale: ar });
   const canDelete = isOwn || isCurrentUserAdmin;
 
-  // Use user_id for reactions (stored in username field for backward compat)
   const reactionGroups = reactions.reduce<Record<string, Reaction[]>>((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = [];
     acc[r.emoji].push(r);
@@ -197,7 +177,6 @@ const ChatMessage = ({
   const handleReaction = async (emoji: string) => {
     setShowEmojiPicker(false);
     setShowActionsMenu(false);
-    // Use userId for reactions
     const existing = reactions.find((r) => r.emoji === emoji && r.username === currentUserId);
     if (existing) await supabase.from("reactions").delete().eq("id", existing.id);
     else await supabase.from("reactions").insert({ message_id: message.id, username: currentUserId, emoji });
@@ -337,7 +316,7 @@ const ChatMessage = ({
           <span className="text-[10px]" style={{ color: "hsl(var(--chat-timestamp))" }}>{timeAgo}</span>
         </div>
 
-        {/* Reply preview */}
+        {/* Reply preview - WhatsApp style inline */}
         {message.reply_to && message.reply_to_username && (
           <div className={`px-2.5 py-1.5 rounded-lg text-[11px] flex items-start gap-1.5 ${isOwn ? "flex-row-reverse" : "flex-row"} w-full`}
             style={{ background: "hsl(var(--chat-reply-bg))", borderLeft: !isOwn ? `2px solid ${getUserColor(message.reply_to_username)}` : undefined, borderRight: isOwn ? `2px solid ${getUserColor(message.reply_to_username)}` : undefined }}>
@@ -350,10 +329,7 @@ const ChatMessage = ({
 
         {/* Message bubble */}
         <div className="relative w-full">
-          {isPoll && pollId ? (
-            <PollMessage pollId={pollId} question="" options={[]} currentUserId={currentUserId} isActive={true} />
-          ) : isSticker ? (
-            /* Sticker display - large animated emoji */
+          {isSticker ? (
             <div className={`text-[56px] leading-none py-1 ${isOwn ? "text-right" : "text-left"} cursor-pointer active:scale-95 transition-transform ${stickerAnimation}`} onClick={handleBubbleClick}>
               {stickerEmoji}
             </div>
@@ -441,16 +417,6 @@ const ChatMessage = ({
               );
             })}
           </div>
-        )}
-
-        {/* Thread reply count */}
-        {replyCount > 0 && onOpenThread && (
-          <button onClick={(e) => { e.stopPropagation(); onOpenThread(message); }}
-            className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full transition-all hover:scale-105 active:scale-95"
-            style={{ color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.1)" }}>
-            <Reply className="w-3 h-3" />
-            <span>{replyCount} رد</span>
-          </button>
         )}
       </div>
     </div>
