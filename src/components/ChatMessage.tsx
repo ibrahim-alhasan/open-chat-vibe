@@ -3,7 +3,7 @@ import LinkifiedText from "@/components/LinkifiedText";
 import PollMessage from "@/components/PollMessage";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface Message {
