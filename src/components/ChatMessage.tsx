@@ -448,6 +448,6 @@ const ChatMessage = memo(({
       </div>
     </div>
   );
-};
+});
 
 export default ChatMessage;
