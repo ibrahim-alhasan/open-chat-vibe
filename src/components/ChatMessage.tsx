@@ -158,7 +158,7 @@ const MentionText = ({ text, profilesMap, onUsernameClick }: { text: string; pro
   );
 };
 
-const ChatMessage = ({
+const ChatMessage = memo(({
   message, currentUserId, currentUsername, currentAvatarUrl, reactions, profilesMap,
   isOnline, isAdmin, isCurrentUserAdmin, messageCounts, onReply, onUsernameClick, onDelete,
 }: ChatMessageProps) => {
