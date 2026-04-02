@@ -79,6 +79,16 @@ const Index = () => {
     return counts;
   }, [messages]);
 
+  // Memoize reactions grouped by message_id for performance
+  const reactionsByMessageId = useMemo(() => {
+    const map: Record<string, Reaction[]> = {};
+    reactions.forEach(r => {
+      if (!map[r.message_id]) map[r.message_id] = [];
+      map[r.message_id].push(r);
+    });
+    return map;
+  }, [reactions]);
+
   const scrollToBottom = useCallback((smooth = true) => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
