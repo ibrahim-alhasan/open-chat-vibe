@@ -545,7 +545,7 @@ const Index = () => {
   const handleMentionSelect = (mentionUsername: string) => {
     const cursorPos = inputRef.current?.selectionStart || 0;
     const textBeforeCursor = input.slice(0, cursorPos);
-    const mentionMatch = textBeforeCursor.match(/@(\S*)$/);
+    const mentionMatch = textBeforeCursor.match(/@([^@]*)$/);
     if (mentionMatch) {
       const before = textBeforeCursor.slice(0, mentionMatch.index);
       const after = input.slice(cursorPos);

@@ -95,21 +95,48 @@ const ActivityBadge = ({ rank }: { rank: number }) => {
   return null;
 };
 
-// Render text with @mentions highlighted
+// Render text with @mentions highlighted - supports names with spaces
 const MentionText = ({ text, profilesMap, onUsernameClick }: { text: string; profilesMap: Record<string, { username: string; avatar_url: string | null }>; onUsernameClick?: (userId: string) => void }) => {
-  const mentionRegex = /@(\S+)/g;
-  const parts: (string | { mention: string; userId: string | null })[] = [];
-  let lastIndex = 0;
-  let match;
+  // Build a list of known usernames sorted by length (longest first to match greedily)
+  const knownUsers = Object.entries(profilesMap)
+    .map(([uid, p]) => ({ uid, username: p.username }))
+    .sort((a, b) => b.username.length - a.username.length);
 
-  while ((match = mentionRegex.exec(text)) !== null) {
-    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
-    const mentionName = match[1];
-    const userId = Object.entries(profilesMap).find(([_, p]) => p.username === mentionName)?.[0] || null;
-    parts.push({ mention: mentionName, userId });
-    lastIndex = match.index + match[0].length;
+  const parts: (string | { mention: string; userId: string | null })[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    const atIndex = remaining.indexOf('@');
+    if (atIndex === -1) {
+      parts.push(remaining);
+      break;
+    }
+    if (atIndex > 0) parts.push(remaining.slice(0, atIndex));
+    
+    const afterAt = remaining.slice(atIndex + 1);
+    // Try matching against known usernames (longest first)
+    let matched = false;
+    for (const user of knownUsers) {
+      if (afterAt.toLowerCase().startsWith(user.username.toLowerCase())) {
+        const nextCharIndex = user.username.length;
+        const nextChar = afterAt[nextCharIndex];
+        // Ensure mention ends at word boundary or end of string
+        if (!nextChar || /[\s,،.!?؟]/.test(nextChar)) {
+          parts.push({ mention: user.username, userId: user.uid });
+          remaining = afterAt.slice(user.username.length);
+          matched = true;
+          break;
+        }
+      }
+    }
+    if (!matched) {
+      // No known user matched, treat as plain @ and text
+      const spaceIndex = afterAt.search(/\s/);
+      const word = spaceIndex === -1 ? afterAt : afterAt.slice(0, spaceIndex);
+      parts.push(`@${word}`);
+      remaining = spaceIndex === -1 ? '' : afterAt.slice(spaceIndex);
+    }
   }
-  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
 
   if (parts.length === 0 || (parts.length === 1 && typeof parts[0] === "string")) {
     return <LinkifiedText text={text} />;
