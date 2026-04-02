@@ -519,13 +519,21 @@ const Index = () => {
 
     const cursorPos = e.target.selectionStart || 0;
     const textBeforeCursor = value.slice(0, cursorPos);
-    const mentionMatch = textBeforeCursor.match(/@(\S*)$/);
+    // Support names with spaces: capture everything after last @
+    const mentionMatch = textBeforeCursor.match(/@([^@]*)$/);
     if (mentionMatch) {
-      const query = mentionMatch[1].toLowerCase();
+      const query = mentionMatch[1].toLowerCase().trim();
       setMentionQuery(query);
+      // Fuzzy search: split query into parts, all parts must appear in username
+      const queryParts = query.split(/\s+/).filter(Boolean);
       const results = Object.entries(profilesMap)
-        .filter(([uid, p]) => uid !== userId && p.username.toLowerCase().includes(query))
-        .slice(0, 5)
+        .filter(([uid, p]) => {
+          if (uid === userId) return false;
+          const name = p.username.toLowerCase();
+          if (queryParts.length === 0) return true; // show all when just "@"
+          return queryParts.every(part => name.includes(part));
+        })
+        .slice(0, 8)
         .map(([uid, p]) => ({ userId: uid, username: p.username }));
       setMentionResults(results);
     } else {
