@@ -754,7 +754,7 @@ const Index = () => {
                   currentUserId={userId} 
                   currentUsername={username} 
                   currentAvatarUrl={avatarUrl} 
-                  reactions={reactions.filter((r) => r.message_id === msg.id)} 
+                  reactions={reactionsByMessageId[msg.id] || []} 
                   profilesMap={profilesMap} 
                   isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false} 
                   isAdmin={msg.user_id ? adminIds.has(msg.user_id) : false} 
