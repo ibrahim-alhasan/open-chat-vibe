@@ -642,7 +642,7 @@ const Index = () => {
         </div>
         <div className="flex items-center gap-1">
           {isCurrentUserAdmin && (
-            <button onClick={() => setShowAdminPanel(true)} title="لوحة المشرفين"
+            <button onClick={() => navigate('/admin')} title="لوحة المشرفين"
               className="p-2 rounded-full transition-colors hover:opacity-70"
               style={{ color: "hsl(var(--primary))" }}>
               <ShieldCheck className="w-4.5 h-4.5" />
