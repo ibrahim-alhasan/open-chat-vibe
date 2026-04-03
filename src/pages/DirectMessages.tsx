@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile, Gamepad2 } from "lucide-react";
 import LinkifiedText from "@/components/LinkifiedText";
@@ -75,6 +76,7 @@ const DirectMessages = ({
   onBack,
   isAdmin = false
 }: DirectMessagesProps) => {
+  const navigate = useNavigate();
   const [conversationMessages, setConversationMessages] = useState<DirectMessage[]>([]);
   const [dmReactions, setDmReactions] = useState<DmReaction[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -139,35 +141,14 @@ const DirectMessages = ({
   activeConversationRef.current = activeConversation;
   viewingImageRef.current = viewingImage;
 
-  // Navigation with proper history management
-  useEffect(() => {
-    const handlePopState = (e: PopStateEvent) => {
-      const state = e.state;
-      if (viewingImageRef.current) {
-        setViewingImage(null);
-        window.history.pushState({ page: 'dm-conversation' }, '', '/');
-      } else if (activeConversationRef.current) {
-        setActiveConversation(null);
-        setReplyTo(null);
-        setImagePreview(null);
-        setSelectedImage(null);
-        setConversationMessages([]);
-        window.history.pushState({ page: 'dms-list' }, '', '/');
-      } else {
-        onBack();
-      }
-    };
-    
-    window.history.pushState({ page: 'dms-list' }, '', '/');
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [onBack]);
-
+  // Navigation with proper route management
   useEffect(() => {
     if (activeConversation && !viewingImage) {
-      window.history.pushState({ page: 'dm-conversation' }, '', '/');
+      navigate(`/dm/${activeConversation}`, { replace: true });
+    } else if (!activeConversation) {
+      navigate('/dms', { replace: true });
     }
-  }, [activeConversation, viewingImage]);
+  }, [activeConversation, viewingImage, navigate]);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

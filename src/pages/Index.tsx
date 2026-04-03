@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import ChatMessage, { Message, Reaction, ADMIN_ANIMATED_STICKERS } from "@/components/ChatMessage";
 import UsernameModal from "@/components/UsernameModal";
@@ -14,6 +15,15 @@ import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, C
 const MESSAGES_PER_PAGE = 100;
 
 const Index = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const params = useParams();
+  
+  // Derive view state from URL
+  const showDMs = location.pathname === '/dms' || location.pathname.startsWith('/dm/');
+  const showAdminPanel = location.pathname === '/admin';
+  const showChatInfo = location.pathname === '/chat-info';
+  const dmInitialUserId = params.userId || null;
   const [userId] = useState<string>(() => {
     let id = localStorage.getItem("chat_user_id");
     if (!id) {
@@ -42,8 +52,6 @@ const Index = () => {
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [totalUsers, setTotalUsers] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
-  const [showDMs, setShowDMs] = useState(false);
-  const [dmInitialUserId, setDmInitialUserId] = useState<string | null>(null);
   const [profileModal, setProfileModal] = useState<string | null>(null);
   const [unreadDMs, setUnreadDMs] = useState(0);
   const [isReturningFromDMs, setIsReturningFromDMs] = useState(false);
@@ -51,9 +59,7 @@ const Index = () => {
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const [chatLocked, setChatLocked] = useState(true);
   const [chatLockLoaded, setChatLockLoaded] = useState(false);
-  const [showChatInfo, setShowChatInfo] = useState(false);
   const [chatBg, setChatBg] = useState<string | null>(() => localStorage.getItem("chat_bg_image"));
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [polls, setPolls] = useState<Record<string, { question: string; options: string[]; is_active: boolean }>>({});
@@ -129,37 +135,7 @@ const Index = () => {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [hasMoreMessages, loading]);
 
-  // Back button handler - unified
-  useEffect(() => {
-    const handlePopState = (e: PopStateEvent) => {
-      if (showAdminPanel) {
-        e.preventDefault();
-        setShowAdminPanel(false);
-        window.history.pushState({ page: 'public-chat' }, '', '/');
-      } else if (showChatInfo) {
-        e.preventDefault();
-        setShowChatInfo(false);
-        window.history.pushState({ page: 'public-chat' }, '', '/');
-      } else if (showDMs) {
-        // DMs handle their own popstate
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [showAdminPanel, showChatInfo, showDMs, forceScrollToBottom]);
-
-  // Push history state when opening sections
-  useEffect(() => {
-    if (showChatInfo) window.history.pushState({ page: 'chat-info' }, '', '/');
-  }, [showChatInfo]);
-
-  useEffect(() => {
-    if (showAdminPanel) window.history.pushState({ page: 'admin-panel' }, '', '/');
-  }, [showAdminPanel]);
-
-  useEffect(() => {
-    if (showDMs) window.history.pushState({ page: 'dms' }, '', '/');
-  }, [showDMs]);
+  // No more manual popstate/history handling - React Router handles it
 
   useEffect(() => {
     if (!loading && messages.length > 0 && isFirstLoadRef.current) {
@@ -564,10 +540,8 @@ const Index = () => {
 
   const handleBackFromDMs = () => {
     setIsReturningFromDMs(true);
-    setShowDMs(false);
-    setDmInitialUserId(null);
     setUnreadDMs(0);
-    window.history.replaceState({ page: 'public-chat' }, '', '/');
+    navigate('/');
   };
 
   const handleToggleChatLock = async () => {
@@ -589,7 +563,7 @@ const Index = () => {
 
   if (showChatInfo) {
     return (
-      <ChatInfo totalUsers={totalUsers} onlineCount={onlineCount} profilesMap={profilesMap} adminIds={adminIds} onlineUsers={onlineUsers} onUsernameClick={(uid) => { setShowChatInfo(false); setProfileModal(uid); }} />
+      <ChatInfo totalUsers={totalUsers} onlineCount={onlineCount} profilesMap={profilesMap} adminIds={adminIds} onlineUsers={onlineUsers} onUsernameClick={(uid) => { navigate('/'); setProfileModal(uid); }} />
     );
   }
 
@@ -597,7 +571,7 @@ const Index = () => {
     return (
       <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
         <header className="flex-shrink-0 px-4 py-2.5 flex items-center gap-3" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
-          <button onClick={() => setShowAdminPanel(false)} className="p-1.5 rounded-full hover:opacity-70" style={{ color: "hsl(var(--primary))" }}>
+          <button onClick={() => navigate('/')} className="p-1.5 rounded-full hover:opacity-70" style={{ color: "hsl(var(--primary))" }}>
             <ChevronDown className="w-5 h-5 rotate-90" />
           </button>
           <div className="flex items-center gap-2">
@@ -652,7 +626,7 @@ const Index = () => {
           <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
             <MessageCircle className="w-4.5 h-4.5" style={{ color: "hsl(var(--primary-foreground))" }} />
           </div>
-          <button onClick={() => setShowChatInfo(true)} className="text-right hover:opacity-80 transition-opacity">
+          <button onClick={() => navigate('/chat-info')} className="text-right hover:opacity-80 transition-opacity">
             <h1 className="font-semibold text-[15px]" style={{ color: "hsl(var(--foreground))" }}>الدردشة العامة</h1>
             <div className="flex items-center gap-2.5">
               <div className="flex items-center gap-1">
@@ -668,7 +642,7 @@ const Index = () => {
         </div>
         <div className="flex items-center gap-1">
           {isCurrentUserAdmin && (
-            <button onClick={() => setShowAdminPanel(true)} title="لوحة المشرفين"
+            <button onClick={() => navigate('/admin')} title="لوحة المشرفين"
               className="p-2 rounded-full transition-colors hover:opacity-70"
               style={{ color: "hsl(var(--primary))" }}>
               <ShieldCheck className="w-4.5 h-4.5" />
@@ -681,7 +655,7 @@ const Index = () => {
               {chatLocked ? <Lock className="w-4.5 h-4.5" /> : <Unlock className="w-4.5 h-4.5" />}
             </button>
           )}
-          <button onClick={() => { setDmInitialUserId(null); setShowDMs(true); }} title="الرسائل الخاصة"
+          <button onClick={() => navigate('/dms')} title="الرسائل الخاصة"
             className="relative p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
             <MessageSquare className="w-4.5 h-4.5" />
             {unreadDMs > 0 && (
@@ -832,7 +806,7 @@ const Index = () => {
             <p className="text-[12px]" style={{ color: "hsl(var(--muted-foreground))" }}>قم بالتواصل مع المشرفين للمزيد من المعلومات</p>
             <div className="flex flex-wrap justify-center gap-2 mt-2">
               {adminProfiles.map((admin) => (
-                <button key={admin.id} onClick={() => { setDmInitialUserId(admin.id); setShowDMs(true); }}
+                <button key={admin.id} onClick={() => navigate(`/dm/${admin.id}`)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95"
                   style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
                   {admin.avatar_url ? (
@@ -973,7 +947,7 @@ const Index = () => {
       )}
 
       {profileModal && (
-        <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} isCurrentUserAdmin={isCurrentUserAdmin} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={() => setProfileModal(null)} onStartDM={(uid) => { setDmInitialUserId(uid); setShowDMs(true); setProfileModal(null); }} />
+        <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} isCurrentUserAdmin={isCurrentUserAdmin} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={() => setProfileModal(null)} onStartDM={(uid) => { navigate(`/dm/${uid}`); setProfileModal(null); }} />
       )}
     </div>
   );
