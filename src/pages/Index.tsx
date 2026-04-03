@@ -655,7 +655,7 @@ const Index = () => {
               {chatLocked ? <Lock className="w-4.5 h-4.5" /> : <Unlock className="w-4.5 h-4.5" />}
             </button>
           )}
-          <button onClick={() => { setDmInitialUserId(null); setShowDMs(true); }} title="الرسائل الخاصة"
+          <button onClick={() => navigate('/dms')} title="الرسائل الخاصة"
             className="relative p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
             <MessageSquare className="w-4.5 h-4.5" />
             {unreadDMs > 0 && (
