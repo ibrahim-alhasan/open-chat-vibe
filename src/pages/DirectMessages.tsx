@@ -76,6 +76,7 @@ const DirectMessages = ({
   onBack,
   isAdmin = false
 }: DirectMessagesProps) => {
+  const navigate = useNavigate();
   const [conversationMessages, setConversationMessages] = useState<DirectMessage[]>([]);
   const [dmReactions, setDmReactions] = useState<DmReaction[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
