@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import ChatMessage, { Message, Reaction, ADMIN_ANIMATED_STICKERS } from "@/components/ChatMessage";
 import UsernameModal from "@/components/UsernameModal";
