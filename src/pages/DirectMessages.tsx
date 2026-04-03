@@ -141,35 +141,14 @@ const DirectMessages = ({
   activeConversationRef.current = activeConversation;
   viewingImageRef.current = viewingImage;
 
-  // Navigation with proper history management
-  useEffect(() => {
-    const handlePopState = (e: PopStateEvent) => {
-      const state = e.state;
-      if (viewingImageRef.current) {
-        setViewingImage(null);
-        window.history.pushState({ page: 'dm-conversation' }, '', '/');
-      } else if (activeConversationRef.current) {
-        setActiveConversation(null);
-        setReplyTo(null);
-        setImagePreview(null);
-        setSelectedImage(null);
-        setConversationMessages([]);
-        window.history.pushState({ page: 'dms-list' }, '', '/');
-      } else {
-        onBack();
-      }
-    };
-    
-    window.history.pushState({ page: 'dms-list' }, '', '/');
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [onBack]);
-
+  // Navigation with proper route management
   useEffect(() => {
     if (activeConversation && !viewingImage) {
-      window.history.pushState({ page: 'dm-conversation' }, '', '/');
+      navigate(`/dm/${activeConversation}`, { replace: true });
+    } else if (!activeConversation) {
+      navigate('/dms', { replace: true });
     }
-  }, [activeConversation, viewingImage]);
+  }, [activeConversation, viewingImage, navigate]);
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
