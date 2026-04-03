@@ -135,37 +135,7 @@ const Index = () => {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [hasMoreMessages, loading]);
 
-  // Back button handler - unified
-  useEffect(() => {
-    const handlePopState = (e: PopStateEvent) => {
-      if (showAdminPanel) {
-        e.preventDefault();
-        setShowAdminPanel(false);
-        window.history.pushState({ page: 'public-chat' }, '', '/');
-      } else if (showChatInfo) {
-        e.preventDefault();
-        setShowChatInfo(false);
-        window.history.pushState({ page: 'public-chat' }, '', '/');
-      } else if (showDMs) {
-        // DMs handle their own popstate
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [showAdminPanel, showChatInfo, showDMs, forceScrollToBottom]);
-
-  // Push history state when opening sections
-  useEffect(() => {
-    if (showChatInfo) window.history.pushState({ page: 'chat-info' }, '', '/');
-  }, [showChatInfo]);
-
-  useEffect(() => {
-    if (showAdminPanel) window.history.pushState({ page: 'admin-panel' }, '', '/');
-  }, [showAdminPanel]);
-
-  useEffect(() => {
-    if (showDMs) window.history.pushState({ page: 'dms' }, '', '/');
-  }, [showDMs]);
+  // No more manual popstate/history handling - React Router handles it
 
   useEffect(() => {
     if (!loading && messages.length > 0 && isFirstLoadRef.current) {
