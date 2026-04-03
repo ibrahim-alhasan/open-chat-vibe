@@ -52,8 +52,6 @@ const Index = () => {
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [totalUsers, setTotalUsers] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
-  const [showDMs, setShowDMs] = useState(false);
-  const [dmInitialUserId, setDmInitialUserId] = useState<string | null>(null);
   const [profileModal, setProfileModal] = useState<string | null>(null);
   const [unreadDMs, setUnreadDMs] = useState(0);
   const [isReturningFromDMs, setIsReturningFromDMs] = useState(false);
@@ -61,9 +59,7 @@ const Index = () => {
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const [chatLocked, setChatLocked] = useState(true);
   const [chatLockLoaded, setChatLockLoaded] = useState(false);
-  const [showChatInfo, setShowChatInfo] = useState(false);
   const [chatBg, setChatBg] = useState<string | null>(() => localStorage.getItem("chat_bg_image"));
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
   const [polls, setPolls] = useState<Record<string, { question: string; options: string[]; is_active: boolean }>>({});
