@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile, Gamepad2 } from "lucide-react";
 import LinkifiedText from "@/components/LinkifiedText";
