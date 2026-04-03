@@ -806,7 +806,7 @@ const Index = () => {
             <p className="text-[12px]" style={{ color: "hsl(var(--muted-foreground))" }}>قم بالتواصل مع المشرفين للمزيد من المعلومات</p>
             <div className="flex flex-wrap justify-center gap-2 mt-2">
               {adminProfiles.map((admin) => (
-                <button key={admin.id} onClick={() => { setDmInitialUserId(admin.id); setShowDMs(true); }}
+                <button key={admin.id} onClick={() => navigate(`/dm/${admin.id}`)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95"
                   style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
                   {admin.avatar_url ? (
