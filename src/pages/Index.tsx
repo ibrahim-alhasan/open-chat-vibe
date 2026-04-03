@@ -15,6 +15,15 @@ import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, C
 const MESSAGES_PER_PAGE = 100;
 
 const Index = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const params = useParams();
+  
+  // Derive view state from URL
+  const showDMs = location.pathname === '/dms' || location.pathname.startsWith('/dm/');
+  const showAdminPanel = location.pathname === '/admin';
+  const showChatInfo = location.pathname === '/chat-info';
+  const dmInitialUserId = params.userId || null;
   const [userId] = useState<string>(() => {
     let id = localStorage.getItem("chat_user_id");
     if (!id) {
