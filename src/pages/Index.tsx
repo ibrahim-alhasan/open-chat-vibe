@@ -540,10 +540,8 @@ const Index = () => {
 
   const handleBackFromDMs = () => {
     setIsReturningFromDMs(true);
-    setShowDMs(false);
-    setDmInitialUserId(null);
     setUnreadDMs(0);
-    window.history.replaceState({ page: 'public-chat' }, '', '/');
+    navigate('/');
   };
 
   const handleToggleChatLock = async () => {
