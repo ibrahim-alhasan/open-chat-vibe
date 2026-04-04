@@ -422,7 +422,11 @@ const DirectMessages = ({
     setSending(true);
     setUploadingImage(true);
     
-    const receiverProfile = getProfile(activeConversation);
+    // Use profile username if available, otherwise fall back to conversation username
+    const receiverProfile = profilesMap[activeConversation];
+    const receiverUsername = receiverProfile?.username || 
+      conversations.find(c => c.userId === activeConversation)?.username || 
+      activeConversation.slice(0, 6);
     
     let imageUrl = null;
     let imageName = null;
@@ -439,7 +443,7 @@ const DirectMessages = ({
 
     await supabase.from("direct_messages").insert({
       sender_username: currentUsername,
-      receiver_username: receiverProfile.username,
+      receiver_username: receiverUsername,
       sender_user_id: currentUserId,
       receiver_user_id: activeConversation,
       content: content || (imageUrl ? "📷 صورة" : ""),
