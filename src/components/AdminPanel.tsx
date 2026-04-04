@@ -379,8 +379,8 @@ const AdminPanel = ({ profilesMap }: AdminPanelProps) => {
             borderBottom: activeTab === "dms" ? "2px solid hsl(var(--primary))" : "2px solid transparent"
           }}
         >
-          <Eye className="w-4 h-4" />
-          المحادثات
+          
+          عدد المستخدمين 
         </button>
       </div>
 
