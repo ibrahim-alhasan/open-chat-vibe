@@ -628,6 +628,11 @@ const DirectMessages = ({
               <Ban className="w-3 sm:w-4 h-3 sm:h-4" />
               <span className="hidden sm:inline">{blockedByMe.has(activeConversation) ? "إلغاء الحظر" : "حظر"}</span>
             </button>
+            <button onClick={() => setShowConvoSettings(!showConvoSettings)}
+              className="p-2 rounded-lg transition-all active:scale-90"
+              style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
+              <Settings className="w-3 sm:w-4 h-3 sm:h-4" />
+            </button>
           </div>
         ) : (
           <h2 className="font-bold text-sm" style={{ color: "hsl(var(--foreground))" }}>الرسائل الخاصة</h2>
