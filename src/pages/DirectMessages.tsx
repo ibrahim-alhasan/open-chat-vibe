@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile, Gamepad2 } from "lucide-react";
+import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile, Gamepad2, Trash2, Settings } from "lucide-react";
+import { playSound } from "@/lib/sounds";
 import LinkifiedText from "@/components/LinkifiedText";
 import TicTacToe from "@/components/TicTacToe";
 import RockPaperScissors from "@/components/RockPaperScissors";
@@ -99,6 +100,8 @@ const DirectMessages = ({
   const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [typingUser, setTypingUser] = useState(false);
+  const [showConvoSettings, setShowConvoSettings] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
   
   // Swipe state
   const [swipeState, setSwipeState] = useState<{ 
