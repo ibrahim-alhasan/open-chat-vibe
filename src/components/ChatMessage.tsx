@@ -1,4 +1,4 @@
-import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Trophy, Medal, Award } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Trophy, Medal, Award, Paperclip, Download } from "lucide-react";
 import LinkifiedText from "@/components/LinkifiedText";
 import PollMessage from "@/components/PollMessage";
 import { formatDistanceToNow } from "date-fns";
@@ -16,6 +16,9 @@ export interface Message {
   reply_to_content: string | null;
   created_at: string;
   avatar_url?: string | null;
+  file_url?: string | null;
+  file_name?: string | null;
+  file_type?: string | null;
 }
 
 export interface Reaction {
