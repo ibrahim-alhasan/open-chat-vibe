@@ -1,4 +1,4 @@
-import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Trophy, Medal, Award } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Trophy, Medal, Award, Paperclip, Download } from "lucide-react";
 import LinkifiedText from "@/components/LinkifiedText";
 import PollMessage from "@/components/PollMessage";
 import { formatDistanceToNow } from "date-fns";
@@ -16,6 +16,9 @@ export interface Message {
   reply_to_content: string | null;
   created_at: string;
   avatar_url?: string | null;
+  file_url?: string | null;
+  file_name?: string | null;
+  file_type?: string | null;
 }
 
 export interface Reaction {
@@ -354,13 +357,33 @@ const ChatMessage = memo(({
           </div>
         )}
 
+        {/* File attachment */}
+        {message.file_url && (
+          <div className={`w-full ${isOwn ? "flex justify-end" : "flex justify-start"}`}>
+            {message.file_type?.startsWith('image/') ? (
+              <div className="rounded-xl overflow-hidden cursor-pointer max-w-[250px] transition-transform hover:scale-[1.02]"
+                onClick={() => window.open(message.file_url!, '_blank')}>
+                <img src={message.file_url} alt={message.file_name || 'صورة'} className="w-full h-auto max-h-[300px] object-cover" loading="lazy" />
+              </div>
+            ) : (
+              <a href={message.file_url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl max-w-[250px] transition-all hover:opacity-80"
+                style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
+                <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
+                <span className="text-xs truncate" style={{ color: "hsl(var(--foreground))" }}>{message.file_name || 'ملف'}</span>
+                <Download className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
+              </a>
+            )}
+          </div>
+        )}
+
         {/* Message bubble */}
         <div className="relative w-full">
           {isSticker ? (
             <div className={`text-[56px] leading-none py-1 ${isOwn ? "text-right" : "text-left"} cursor-pointer active:scale-95 transition-transform ${stickerAnimation}`} onClick={handleBubbleClick}>
               {stickerEmoji}
             </div>
-          ) : (
+          ) : message.content && !message.content.startsWith('📎 ') ? (
             <div className={`px-3 py-2 rounded-lg text-[14px] leading-[1.4] break-words select-none ${isOwn ? "rounded-tr-none chat-bubble-own" : "rounded-tl-none chat-bubble-other"} ${isSwiping ? 'opacity-80' : ''} cursor-pointer active:brightness-90 transition-all`}
               style={{ 
                 direction: "rtl", textAlign: "right",
@@ -371,7 +394,7 @@ const ChatMessage = memo(({
               }} onClick={handleBubbleClick}>
               <MentionText text={message.content} profilesMap={profilesMap} onUsernameClick={onUsernameClick} />
             </div>
-          )}
+          ) : null}
 
           {/* Actions popup */}
           {showActionsMenu && (

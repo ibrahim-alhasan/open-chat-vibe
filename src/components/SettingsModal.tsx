@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Camera, User, Save, MessageSquareOff, MessageSquare, Image, Trash2 } from "lucide-react";
+import { X, Camera, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getIsSoundEnabled, setSoundEnabled } from "@/lib/sounds";
 
 interface SettingsModalProps {
   currentUsername: string;
@@ -19,6 +20,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
   const [allowDms, setAllowDms] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [soundEnabled, setSoundEnabledState] = useState(getIsSoundEnabled());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
 
@@ -129,6 +131,20 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
                 style={{ background: allowDms ? "hsl(var(--chat-online))" : "hsl(var(--muted))" }}>
                 <span className="absolute top-0.5 w-5 h-5 rounded-full shadow transition-transform duration-200"
                   style={{ background: "hsl(var(--foreground))", left: allowDms ? "calc(100% - 22px)" : "2px" }} />
+              </button>
+            </div>
+
+            {/* Sound Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
+              <div className="flex items-center gap-2">
+                {soundEnabled ? <Volume2 className="w-4 h-4" style={{ color: "hsl(var(--chat-online))" }} /> : <VolumeX className="w-4 h-4" style={{ color: "hsl(var(--destructive))" }} />}
+                <span className="text-sm" style={{ color: "hsl(var(--foreground))" }}>أصوات الإرسال</span>
+              </div>
+              <button type="button" onClick={() => { const v = !soundEnabled; setSoundEnabledState(v); setSoundEnabled(v); }}
+                className="w-11 h-6 rounded-full relative transition-colors duration-200"
+                style={{ background: soundEnabled ? "hsl(var(--chat-online))" : "hsl(var(--muted))" }}>
+                <span className="absolute top-0.5 w-5 h-5 rounded-full shadow transition-transform duration-200"
+                  style={{ background: "hsl(var(--foreground))", left: soundEnabled ? "calc(100% - 22px)" : "2px" }} />
               </button>
             </div>
 

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile, Gamepad2 } from "lucide-react";
+import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile, Gamepad2, Trash2, Settings } from "lucide-react";
+import { playSound } from "@/lib/sounds";
 import LinkifiedText from "@/components/LinkifiedText";
 import TicTacToe from "@/components/TicTacToe";
 import RockPaperScissors from "@/components/RockPaperScissors";
@@ -99,6 +100,8 @@ const DirectMessages = ({
   const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [typingUser, setTypingUser] = useState(false);
+  const [showConvoSettings, setShowConvoSettings] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
   
   // Swipe state
   const [swipeState, setSwipeState] = useState<{ 
@@ -453,9 +456,29 @@ const DirectMessages = ({
       image_name: imageName
     });
     
+    playSound();
     setSending(false);
     setUploadingImage(false);
     inputRef.current?.focus();
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    await supabase.from("direct_messages").delete().eq("id", msgId);
+    setConversationMessages(prev => prev.filter(m => m.id !== msgId));
+    setShowActionsForMsg(null);
+  };
+
+  const handleDeleteAllConversation = async () => {
+    if (!activeConversation || deletingAll) return;
+    if (!confirm("هل أنت متأكد من حذف جميع الرسائل في هذه المحادثة؟")) return;
+    setDeletingAll(true);
+    await supabase.from("direct_messages").delete()
+      .or(`and(sender_user_id.eq.${currentUserId},receiver_user_id.eq.${activeConversation}),and(sender_user_id.eq.${activeConversation},receiver_user_id.eq.${currentUserId})`);
+    setConversationMessages([]);
+    setConversations(prev => prev.filter(c => c.userId !== activeConversation));
+    setActiveConversation(null);
+    setShowConvoSettings(false);
+    setDeletingAll(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -605,11 +628,28 @@ const DirectMessages = ({
               <Ban className="w-3 sm:w-4 h-3 sm:h-4" />
               <span className="hidden sm:inline">{blockedByMe.has(activeConversation) ? "إلغاء الحظر" : "حظر"}</span>
             </button>
+            <button onClick={() => setShowConvoSettings(!showConvoSettings)}
+              className="p-2 rounded-lg transition-all active:scale-90"
+              style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
+              <Settings className="w-3 sm:w-4 h-3 sm:h-4" />
+            </button>
           </div>
         ) : (
           <h2 className="font-bold text-sm" style={{ color: "hsl(var(--foreground))" }}>الرسائل الخاصة</h2>
         )}
       </header>
+
+      {/* Conversation settings dropdown */}
+      {showConvoSettings && activeConversation && (
+        <div className="flex-shrink-0 px-3 py-2 animate-fade-in" style={{ background: "hsl(var(--card))", borderBottom: "1px solid hsl(var(--border))" }}>
+          <button onClick={handleDeleteAllConversation} disabled={deletingAll}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-50"
+            style={{ background: "hsl(var(--destructive) / 0.1)", color: "hsl(var(--destructive))" }}>
+            <Trash2 className="w-4 h-4" />
+            <span className="text-sm font-medium">{deletingAll ? "جارٍ الحذف..." : "حذف جميع الرسائل"}</span>
+          </button>
+        </div>
+      )}
 
       {!activeConversation ? (
         /* Conversation list */
@@ -798,6 +838,13 @@ const DirectMessages = ({
                             style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
                             <Reply className="w-4 h-4" /><span className="text-xs">رد</span>
                           </button>
+                          {isOwn && (
+                            <button onClick={() => handleDeleteMessage(msg.id)}
+                              className="p-2 rounded-lg flex items-center justify-center gap-1"
+                              style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}>
+                              <Trash2 className="w-4 h-4" /><span className="text-xs">حذف</span>
+                            </button>
+                          )}
                         </div>
                       )}
 
