@@ -456,9 +456,29 @@ const DirectMessages = ({
       image_name: imageName
     });
     
+    playSound();
     setSending(false);
     setUploadingImage(false);
     inputRef.current?.focus();
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    await supabase.from("direct_messages").delete().eq("id", msgId);
+    setConversationMessages(prev => prev.filter(m => m.id !== msgId));
+    setShowActionsForMsg(null);
+  };
+
+  const handleDeleteAllConversation = async () => {
+    if (!activeConversation || deletingAll) return;
+    if (!confirm("هل أنت متأكد من حذف جميع الرسائل في هذه المحادثة؟")) return;
+    setDeletingAll(true);
+    await supabase.from("direct_messages").delete()
+      .or(`and(sender_user_id.eq.${currentUserId},receiver_user_id.eq.${activeConversation}),and(sender_user_id.eq.${activeConversation},receiver_user_id.eq.${currentUserId})`);
+    setConversationMessages([]);
+    setConversations(prev => prev.filter(c => c.userId !== activeConversation));
+    setActiveConversation(null);
+    setShowConvoSettings(false);
+    setDeletingAll(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
