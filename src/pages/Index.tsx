@@ -66,6 +66,11 @@ const Index = () => {
   const [polls, setPolls] = useState<Record<string, { question: string; options: string[]; is_active: boolean }>>({});
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionResults, setMentionResults] = useState<{ userId: string; username: string }[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  
+  const fileInputRef2 = useRef<HTMLInputElement>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -416,8 +421,33 @@ const Index = () => {
     setProfilesMap((prev) => ({ ...prev, [userId]: { username: name, avatar_url: url } }));
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { alert("حجم الملف يجب أن يكون أقل من 10 ميجابايت"); return; }
+    setSelectedFile(file);
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onloadend = () => setFilePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setFilePreview(null);
+    }
+  };
+
+  const uploadPublicFile = async (file: File): Promise<{ url: string; name: string; type: string } | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('public_chat_files').upload(fileName, file);
+      if (uploadError) return null;
+      const { data: { publicUrl } } = supabase.storage.from('public_chat_files').getPublicUrl(fileName);
+      return { url: publicUrl, name: file.name, type: file.type };
+    } catch { return null; }
+  };
+
   const handleSend = async () => {
-    if (!input.trim() || !username || sending || isUserBanned) return;
+    if ((!input.trim() && !selectedFile) || !username || sending || isUserBanned) return;
     if (chatLocked && !isCurrentUserAdmin) return;
     const content = input.trim();
     setInput("");
@@ -426,7 +456,29 @@ const Index = () => {
     setMentionResults([]);
     presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
     
-    const insertData: any = { username, user_id: userId, content };
+    let fileUrl: string | null = null;
+    let fileName: string | null = null;
+    let fileType: string | null = null;
+    
+    if (selectedFile) {
+      setUploadingFile(true);
+      const result = await uploadPublicFile(selectedFile);
+      if (result) {
+        fileUrl = result.url;
+        fileName = result.name;
+        fileType = result.type;
+      }
+      setSelectedFile(null);
+      setFilePreview(null);
+      setUploadingFile(false);
+    }
+    
+    const insertData: any = { username, user_id: userId, content: content || (fileUrl ? `📎 ${fileName}` : "") };
+    if (fileUrl) {
+      insertData.file_url = fileUrl;
+      insertData.file_name = fileName;
+      insertData.file_type = fileType;
+    }
     if (replyTo) {
       insertData.reply_to = replyTo.id;
       insertData.reply_to_username = replyTo.user_id ? getProfile(replyTo.user_id).username : replyTo.username;
@@ -435,6 +487,7 @@ const Index = () => {
     setReplyTo(null);
     
     await supabase.from("messages").insert(insertData);
+    playSound();
     setSending(false);
     inputRef.current?.focus();
     setShowStickerPicker(false);
