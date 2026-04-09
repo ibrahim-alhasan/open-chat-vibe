@@ -955,6 +955,29 @@ const Index = () => {
             </div>
           )}
 
+          {/* File preview */}
+          {selectedFile && (
+            <div className="mb-2 p-2 rounded-xl flex items-center gap-3 animate-fade-in"
+              style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))" }}>
+              {filePreview ? (
+                <img src={filePreview} alt="Preview" className="w-12 h-12 object-cover rounded-lg" />
+              ) : (
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{ background: "hsl(var(--secondary))" }}>
+                  <Paperclip className="w-5 h-5" style={{ color: "hsl(var(--muted-foreground))" }} />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs truncate" style={{ color: "hsl(var(--foreground))" }}>{selectedFile.name}</p>
+                <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{(selectedFile.size / 1024).toFixed(1)} KB</p>
+              </div>
+              <button onClick={() => { setSelectedFile(null); setFilePreview(null); }} className="p-2 rounded-lg" style={{ color: "hsl(var(--muted-foreground))" }}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <input type="file" ref={fileInputRef2} onChange={handleFileSelect} className="hidden" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" />
+
           <div className="flex items-end gap-2">
             {isCurrentUserAdmin && (
               <div className="flex gap-1 flex-shrink-0">
@@ -977,6 +1000,11 @@ const Index = () => {
                 )}
               </div>
             )}
+            <button onClick={() => fileInputRef2.current?.click()} disabled={uploadingFile} title="إرفاق ملف"
+              className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 disabled:opacity-40"
+              style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
+              <Paperclip className="w-4 h-4" />
+            </button>
             <div className="flex-1 flex items-end p-1.5 rounded-full" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
               <textarea ref={inputRef} value={input}
                 onChange={handleInputChange}
@@ -987,10 +1015,10 @@ const Index = () => {
                 style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
               />
             </div>
-            <button onClick={handleSend} disabled={!input.trim() || sending}
+            <button onClick={handleSend} disabled={(!input.trim() && !selectedFile) || sending}
               className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-40"
-              style={{ background: input.trim() && !sending ? "hsl(var(--primary))" : "hsl(var(--secondary))" }}>
-              <Send className="w-4 h-4" style={{ color: input.trim() && !sending ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))" }} />
+              style={{ background: (input.trim() || selectedFile) && !sending ? "hsl(var(--primary))" : "hsl(var(--secondary))" }}>
+              <Send className="w-4 h-4" style={{ color: (input.trim() || selectedFile) && !sending ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))" }} />
             </button>
           </div>
         </div>
