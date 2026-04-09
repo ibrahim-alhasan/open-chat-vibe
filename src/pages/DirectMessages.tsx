@@ -838,6 +838,13 @@ const DirectMessages = ({
                             style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
                             <Reply className="w-4 h-4" /><span className="text-xs">رد</span>
                           </button>
+                          {isOwn && (
+                            <button onClick={() => handleDeleteMessage(msg.id)}
+                              className="p-2 rounded-lg flex items-center justify-center gap-1"
+                              style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}>
+                              <Trash2 className="w-4 h-4" /><span className="text-xs">حذف</span>
+                            </button>
+                          )}
                         </div>
                       )}
 
