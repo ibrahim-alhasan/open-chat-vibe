@@ -639,6 +639,18 @@ const DirectMessages = ({
         )}
       </header>
 
+      {/* Conversation settings dropdown */}
+      {showConvoSettings && activeConversation && (
+        <div className="flex-shrink-0 px-3 py-2 animate-fade-in" style={{ background: "hsl(var(--card))", borderBottom: "1px solid hsl(var(--border))" }}>
+          <button onClick={handleDeleteAllConversation} disabled={deletingAll}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-50"
+            style={{ background: "hsl(var(--destructive) / 0.1)", color: "hsl(var(--destructive))" }}>
+            <Trash2 className="w-4 h-4" />
+            <span className="text-sm font-medium">{deletingAll ? "جارٍ الحذف..." : "حذف جميع الرسائل"}</span>
+          </button>
+        </div>
+      )}
+
       {!activeConversation ? (
         /* Conversation list */
         <div className="flex-1 overflow-y-auto">
