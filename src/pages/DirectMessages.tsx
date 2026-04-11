@@ -985,6 +985,35 @@ const DirectMessages = ({
           </div>
         </>
       )}
+
+      {/* Custom delete confirmation dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="mx-4 w-full max-w-sm rounded-2xl p-6 space-y-4 animate-fade-in"
+            style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+            onClick={(e) => e.stopPropagation()}>
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto" style={{ background: "hsl(var(--destructive) / 0.1)" }}>
+                <Trash2 className="w-6 h-6" style={{ color: "hsl(var(--destructive))" }} />
+              </div>
+              <h3 className="font-bold text-base" style={{ color: "hsl(var(--foreground))" }}>حذف جميع الرسائل</h3>
+              <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>هل أنت متأكد من حذف جميع الرسائل في هذه المحادثة؟ لا يمكن التراجع عن هذا الإجراء.</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteConfirm(false)} disabled={deletingAll}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95"
+                style={{ background: "hsl(var(--secondary))", color: "hsl(var(--foreground))", border: "1px solid hsl(var(--border))" }}>
+                إلغاء
+              </button>
+              <button onClick={handleDeleteAllConversation} disabled={deletingAll}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95 disabled:opacity-50"
+                style={{ background: "hsl(var(--destructive))", color: "hsl(var(--destructive-foreground))" }}>
+                {deletingAll ? "جارٍ الحذف..." : "حذف"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
