@@ -468,9 +468,10 @@ const DirectMessages = ({
     setShowActionsForMsg(null);
   };
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const handleDeleteAllConversation = async () => {
     if (!activeConversation || deletingAll) return;
-    if (!confirm("هل أنت متأكد من حذف جميع الرسائل في هذه المحادثة؟")) return;
     setDeletingAll(true);
     await supabase.from("direct_messages").delete()
       .or(`and(sender_user_id.eq.${currentUserId},receiver_user_id.eq.${activeConversation}),and(sender_user_id.eq.${activeConversation},receiver_user_id.eq.${currentUserId})`);
@@ -478,12 +479,11 @@ const DirectMessages = ({
     setConversations(prev => prev.filter(c => c.userId !== activeConversation));
     setActiveConversation(null);
     setShowConvoSettings(false);
+    setShowDeleteConfirm(false);
     setDeletingAll(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
-  };
+  // Enter adds new line; send via button only
 
   const handleDmReaction = async (dmId: string, emoji: string) => {
     setEmojiPickerMsg(null);
@@ -642,11 +642,11 @@ const DirectMessages = ({
       {/* Conversation settings dropdown */}
       {showConvoSettings && activeConversation && (
         <div className="flex-shrink-0 px-3 py-2 animate-fade-in" style={{ background: "hsl(var(--card))", borderBottom: "1px solid hsl(var(--border))" }}>
-          <button onClick={handleDeleteAllConversation} disabled={deletingAll}
+          <button onClick={() => setShowDeleteConfirm(true)} disabled={deletingAll}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-50"
             style={{ background: "hsl(var(--destructive) / 0.1)", color: "hsl(var(--destructive))" }}>
             <Trash2 className="w-4 h-4" />
-            <span className="text-sm font-medium">{deletingAll ? "جارٍ الحذف..." : "حذف جميع الرسائل"}</span>
+            <span className="text-sm font-medium">حذف جميع الرسائل</span>
           </button>
         </div>
       )}
@@ -971,7 +971,6 @@ const DirectMessages = ({
 
                 <textarea ref={inputRef} value={input}
                   onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; handleDmTyping(); }}
-                  onKeyDown={handleKeyDown}
                   placeholder="اكتب رسالتك..."
                   rows={1} maxLength={1000}
                   className="flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed select-text px-3"
