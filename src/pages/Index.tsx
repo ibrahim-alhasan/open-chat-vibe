@@ -536,7 +536,7 @@ const Index = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    // Enter adds new line; send via button only
   };
 
   // Handle @mention in input
@@ -675,10 +675,10 @@ const Index = () => {
   return (
     <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
       {/* Header */}
-      <header className="flex-shrink-0 px-4 py-2.5 flex items-center justify-between" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
-        <div className="flex items-center gap-3">
+      <header className="flex-shrink-0 px-3 py-2.5 flex items-center justify-between overflow-hidden" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
+        <div className="flex items-center gap-2 min-w-0">
           <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
-            <MessageCircle className="w-4.5 h-4.5" style={{ color: "hsl(var(--primary-foreground))" }} />
+            <MessageCircle className="w-5 h-5" style={{ color: "hsl(var(--primary-foreground))" }} />
           </div>
           <button onClick={() => navigate('/chat-info')} className="text-right hover:opacity-80 transition-opacity">
             <h1 className="font-semibold text-[15px]" style={{ color: "hsl(var(--foreground))" }}>الدردشة العامة</h1>
@@ -699,19 +699,19 @@ const Index = () => {
             <button onClick={() => navigate('/admin')} title="لوحة المشرفين"
               className="p-2 rounded-full transition-colors hover:opacity-70"
               style={{ color: "hsl(var(--primary))" }}>
-              <ShieldCheck className="w-4.5 h-4.5" />
+              <ShieldCheck className="w-5 h-5" />
             </button>
           )}
           {isCurrentUserAdmin && (
             <button onClick={handleToggleChatLock} title={chatLocked ? "فتح الدردشة" : "إغلاق الدردشة"}
               className="p-2 rounded-full transition-colors hover:opacity-70"
               style={{ color: chatLocked ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))" }}>
-              {chatLocked ? <Lock className="w-4.5 h-4.5" /> : <Unlock className="w-4.5 h-4.5" />}
+              {chatLocked ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
             </button>
           )}
           <button onClick={() => navigate('/dms')} title="الرسائل الخاصة"
             className="relative p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
-            <MessageSquare className="w-4.5 h-4.5" />
+            <MessageSquare className="w-5 h-5" />
             {unreadDMs > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full text-[10px] font-bold flex items-center justify-center px-1"
                 style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))" }}>{unreadDMs}</span>
@@ -722,7 +722,7 @@ const Index = () => {
               style={{ border: "2px solid hsl(var(--primary) / 0.4)" }} onClick={() => setShowSettings(true)} />
           )}
           <button onClick={() => setShowSettings(true)} title="الإعدادات" className="p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
-            <Settings className="w-4.5 h-4.5" />
+            <Settings className="w-5 h-5" />
           </button>
         </div>
       </header>
@@ -1008,8 +1008,7 @@ const Index = () => {
             <div className="flex-1 flex items-end p-1.5 rounded-full" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
               <textarea ref={inputRef} value={input}
                 onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder={isCurrentUserAdmin ? "اكتب رسالتك... (مشرف) — اكتب @ لذكر شخص" : "اكتب رسالتك... — اكتب @ لذكر شخص"}
+                placeholder={isCurrentUserAdmin ? "اكتب رسالتك... — اكتب @ لذكر شخص" : "اكتب رسالتك... — اكتب @ لذكر شخص"}
                 rows={1} maxLength={500}
                 className="flex-1 resize-none bg-transparent outline-none text-[14px] leading-relaxed select-text px-3"
                 style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
