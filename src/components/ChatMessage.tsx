@@ -1,4 +1,4 @@
-import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Trophy, Medal, Award, Paperclip, Download } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Trophy, Medal, Award, Paperclip, Download, Pin } from "lucide-react";
 import LinkifiedText from "@/components/LinkifiedText";
 import PollMessage from "@/components/PollMessage";
 import { formatDistanceToNow } from "date-fns";
