@@ -69,6 +69,8 @@ const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [pinnedMessage, setPinnedMessage] = useState<{ id: string; message_id: string; content: string; username: string; user_id: string | null } | null>(null);
+  const [showPinnedExpanded, setShowPinnedExpanded] = useState(false);
   
   const fileInputRef2 = useRef<HTMLInputElement>(null);
   
