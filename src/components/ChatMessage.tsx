@@ -42,6 +42,7 @@ interface ChatMessageProps {
   onReply: (message: Message) => void;
   onUsernameClick?: (userId: string) => void;
   onDelete?: (messageId: string) => void;
+  onPin?: (message: Message) => void;
 }
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
