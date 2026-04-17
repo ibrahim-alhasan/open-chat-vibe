@@ -374,6 +374,13 @@ const Index = () => {
         const unbanned = payload.old as any;
         setBannedUserIds(prev => { const s = new Set(prev); s.delete(unbanned.user_id); return s; });
       })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "pinned_messages" }, (payload) => {
+        setPinnedMessage(payload.new as any);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "pinned_messages" }, (payload) => {
+        const old = payload.old as any;
+        setPinnedMessage(prev => (prev && prev.id === old.id ? null : prev));
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [scrollToBottom, userId]);
