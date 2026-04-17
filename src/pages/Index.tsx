@@ -778,6 +778,23 @@ const Index = () => {
         </div>
       </header>
 
+      {/* Pinned message banner */}
+      {pinnedMessage && (
+        <div className="flex-shrink-0 px-3 py-2 flex items-start gap-2 animate-fade-in"
+          style={{ background: "hsl(var(--primary) / 0.08)", borderBottom: "1px solid hsl(var(--primary) / 0.2)" }}>
+          <Pin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
+          <button onClick={() => setShowPinnedExpanded(v => !v)} className="flex-1 min-w-0 text-right">
+            <div className="text-[10px] font-semibold mb-0.5" style={{ color: "hsl(var(--primary))" }}>رسالة مثبّتة · {pinnedMessage.username}</div>
+            <div className={`text-[12px] ${showPinnedExpanded ? '' : 'truncate'}`} style={{ color: "hsl(var(--foreground))" }}>{pinnedMessage.content}</div>
+          </button>
+          {isCurrentUserAdmin && (
+            <button onClick={handleUnpinMessage} title="إلغاء التثبيت" className="flex-shrink-0 p-1 rounded-full hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
+              <PinOff className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Messages area */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2 relative" style={chatBg ? { backgroundImage: `url(${chatBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' } : undefined}>
         {loadingMore && (
