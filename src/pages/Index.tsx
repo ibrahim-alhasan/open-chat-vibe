@@ -559,6 +559,26 @@ const Index = () => {
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
   };
 
+  const handlePinMessage = async (msg: Message) => {
+    if (!isCurrentUserAdmin) return;
+    // Remove existing pin first (only one pinned at a time)
+    await supabase.from("pinned_messages").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    const { data } = await supabase.from("pinned_messages").insert({
+      message_id: msg.id,
+      pinned_by: userId,
+      content: msg.content?.slice(0, 300) ?? "",
+      username: msg.user_id ? getProfile(msg.user_id).username : msg.username,
+      user_id: msg.user_id ?? null,
+    }).select().single();
+    if (data) setPinnedMessage(data as any);
+  };
+
+  const handleUnpinMessage = async () => {
+    if (!isCurrentUserAdmin || !pinnedMessage) return;
+    await supabase.from("pinned_messages").delete().eq("id", pinnedMessage.id);
+    setPinnedMessage(null);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Enter adds new line; send via button only
   };
