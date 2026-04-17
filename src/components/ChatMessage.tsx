@@ -417,10 +417,12 @@ const ChatMessage = memo(({
                     className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-110" style={{ background: "hsl(var(--secondary))" }} title="نسخ">
                     {copied ? <Check className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} /> : <Copy className="w-3.5 h-3.5" style={{ color: "hsl(var(--muted-foreground))" }} />}
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); onReply(message); setShowActionsMenu(false); }}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-110" style={{ background: "hsl(var(--secondary))" }} title="رد">
-                    <Reply className="w-3.5 h-3.5" style={{ color: "hsl(var(--muted-foreground))" }} />
-                  </button>
+                  {isCurrentUserAdmin && onPin && !isSticker && !isPoll && (
+                    <button onClick={(e) => { e.stopPropagation(); onPin(message); setShowActionsMenu(false); }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-110" style={{ background: "hsl(var(--primary) / 0.15)" }} title="تثبيت">
+                      <Pin className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} />
+                    </button>
+                  )}
                   {canDelete && (
                     <button onClick={(e) => { e.stopPropagation(); handleDelete(); }}
                       className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-110" style={{ background: "hsl(var(--destructive) / 0.15)" }} title="حذف">
