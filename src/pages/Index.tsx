@@ -183,14 +183,14 @@ const Index = () => {
     const fetchInitialData = async () => {
       setLoading(true);
       try {
-        const [messagesRes, reactionsRes, profilesRes, totalCountRes, adminsRes, chatSettingsRes, bannedRes] = await Promise.all([
+        const [messagesRes, profilesRes, totalCountRes, adminsRes, chatSettingsRes, bannedRes, pinnedRes] = await Promise.all([
           supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(MESSAGES_PER_PAGE),
-          supabase.from("reactions").select("*"),
           supabase.from("profiles").select("*"),
           supabase.from("profiles").select("*", { count: 'exact', head: true }),
           supabase.from("admins").select("user_id"),
           supabase.from("chat_settings").select("*").limit(1).single(),
           supabase.from("banned_users").select("user_id"),
+          supabase.from("pinned_messages").select("*").order("pinned_at", { ascending: false }).limit(1),
         ]);
 
         if (!messagesRes.error && messagesRes.data) {
@@ -198,7 +198,14 @@ const Index = () => {
           setMessages(sortedMessages);
           const { count } = await supabase.from("messages").select("*", { count: 'exact', head: true });
           setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
-          
+
+          // Fetch reactions ONLY for the loaded messages (avoids 1000-row default limit)
+          const msgIds = sortedMessages.map(m => m.id);
+          if (msgIds.length > 0) {
+            const { data: reactionsData } = await supabase.from("reactions").select("*").in("message_id", msgIds);
+            if (reactionsData) setReactions(reactionsData as Reaction[]);
+          }
+
           // Fetch polls for poll messages
           const pollMsgIds = sortedMessages.filter(m => m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
           if (pollMsgIds.length > 0) {
@@ -213,7 +220,6 @@ const Index = () => {
             }
           }
         }
-        if (!reactionsRes.error && reactionsRes.data) setReactions(reactionsRes.data as Reaction[]);
         if (!profilesRes.error && profilesRes.data) {
           const map: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }> = {};
           profilesRes.data.forEach((p: any) => {
@@ -224,6 +230,9 @@ const Index = () => {
         if (!totalCountRes.error) setTotalUsers(totalCountRes.count || 0);
         if (!adminsRes.error && adminsRes.data) setAdminIds(new Set(adminsRes.data.map((a: any) => a.user_id)));
         if (!bannedRes.error && bannedRes.data) setBannedUserIds(new Set(bannedRes.data.map((b: any) => b.user_id)));
+        if (!pinnedRes.error && pinnedRes.data && pinnedRes.data.length > 0) {
+          setPinnedMessage(pinnedRes.data[0] as any);
+        }
         if (!chatSettingsRes.error && chatSettingsRes.data) {
           setChatLocked(chatSettingsRes.data.is_locked);
         } else {
