@@ -850,6 +850,7 @@ const Index = () => {
                   onReply={handleReply} 
                   onUsernameClick={(uid) => setProfileModal(uid)} 
                   onDelete={handleDeleteMessage} 
+                  onPin={handlePinMessage}
                 />
               );
             })}
