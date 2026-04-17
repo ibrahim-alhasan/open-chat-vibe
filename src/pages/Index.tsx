@@ -262,7 +262,20 @@ const Index = () => {
       const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: false }).lt("created_at", oldestMessage.created_at).limit(MESSAGES_PER_PAGE);
       if (!error && data && data.length > 0) {
         const olderMessages = (data as Message[]).reverse();
-        
+
+        // Fetch reactions for older messages
+        const olderIds = olderMessages.map(m => m.id);
+        if (olderIds.length > 0) {
+          const { data: reactionsData } = await supabase.from("reactions").select("*").in("message_id", olderIds);
+          if (reactionsData && reactionsData.length > 0) {
+            setReactions(prev => {
+              const existing = new Set(prev.map(r => r.id));
+              const fresh = (reactionsData as Reaction[]).filter(r => !existing.has(r.id));
+              return [...prev, ...fresh];
+            });
+          }
+        }
+
         // Fetch polls for older messages
         const pollMsgIds = olderMessages.filter(m => m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
         if (pollMsgIds.length > 0) {
