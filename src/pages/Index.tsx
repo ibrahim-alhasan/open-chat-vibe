@@ -1033,23 +1033,11 @@ const Index = () => {
           <div className="flex items-end gap-2">
             {isCurrentUserAdmin && (
               <div className="flex gap-1 flex-shrink-0">
-                <button onClick={() => { setShowStickerPicker(!showStickerPicker); setShowPollCreator(false); }} title="ملصقات"
-                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
-                  style={{ background: showStickerPicker ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", color: showStickerPicker ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
-                  <Smile className="w-4 h-4" />
-                </button>
                 <button onClick={() => { setShowPollCreator(!showPollCreator); setShowStickerPicker(false); }} title="استطلاع رأي"
                   className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
                   style={{ background: showPollCreator ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", color: showPollCreator ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
                   <BarChart3 className="w-4 h-4" />
                 </button>
-                {input.trim() && (
-                  <button onClick={handleSendAnnouncement} title="إرسال كإعلان"
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
-                    style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}>
-                    <Megaphone className="w-4 h-4" />
-                  </button>
-                )}
               </div>
             )}
             <button onClick={() => fileInputRef2.current?.click()} disabled={uploadingFile} title="إرفاق ملف"
