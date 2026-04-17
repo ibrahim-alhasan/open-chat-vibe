@@ -11,7 +11,7 @@ import AdminPanel from "@/components/AdminPanel";
 import PollCreator from "@/components/PollCreator";
 import PollMessage from "@/components/PollMessage";
 import { playSound } from "@/lib/sounds";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 100;
 
