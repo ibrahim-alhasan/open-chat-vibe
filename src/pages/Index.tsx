@@ -48,7 +48,7 @@ const Index = () => {
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [messagePage, setMessagePage] = useState(0);
   const [sending, setSending] = useState(false);
-  const [onlineCount, setOnlineCount] = useState(1);
+  const [onlineCount, setOnlineCount] = useState(0);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [totalUsers, setTotalUsers] = useState(0);
