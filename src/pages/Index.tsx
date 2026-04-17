@@ -11,7 +11,7 @@ import AdminPanel from "@/components/AdminPanel";
 import PollCreator from "@/components/PollCreator";
 import PollMessage from "@/components/PollMessage";
 import { playSound } from "@/lib/sounds";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 100;
 
@@ -48,7 +48,7 @@ const Index = () => {
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [messagePage, setMessagePage] = useState(0);
   const [sending, setSending] = useState(false);
-  const [onlineCount, setOnlineCount] = useState(1);
+  const [onlineCount, setOnlineCount] = useState(0);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [totalUsers, setTotalUsers] = useState(0);
@@ -69,6 +69,8 @@ const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [pinnedMessage, setPinnedMessage] = useState<{ id: string; message_id: string; content: string; username: string; user_id: string | null } | null>(null);
+  const [showPinnedExpanded, setShowPinnedExpanded] = useState(false);
   
   const fileInputRef2 = useRef<HTMLInputElement>(null);
   
@@ -181,14 +183,14 @@ const Index = () => {
     const fetchInitialData = async () => {
       setLoading(true);
       try {
-        const [messagesRes, reactionsRes, profilesRes, totalCountRes, adminsRes, chatSettingsRes, bannedRes] = await Promise.all([
+        const [messagesRes, profilesRes, totalCountRes, adminsRes, chatSettingsRes, bannedRes, pinnedRes] = await Promise.all([
           supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(MESSAGES_PER_PAGE),
-          supabase.from("reactions").select("*"),
           supabase.from("profiles").select("*"),
           supabase.from("profiles").select("*", { count: 'exact', head: true }),
           supabase.from("admins").select("user_id"),
           supabase.from("chat_settings").select("*").limit(1).single(),
           supabase.from("banned_users").select("user_id"),
+          supabase.from("pinned_messages").select("*").order("pinned_at", { ascending: false }).limit(1),
         ]);
 
         if (!messagesRes.error && messagesRes.data) {
@@ -196,7 +198,14 @@ const Index = () => {
           setMessages(sortedMessages);
           const { count } = await supabase.from("messages").select("*", { count: 'exact', head: true });
           setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
-          
+
+          // Fetch reactions ONLY for the loaded messages (avoids 1000-row default limit)
+          const msgIds = sortedMessages.map(m => m.id);
+          if (msgIds.length > 0) {
+            const { data: reactionsData } = await supabase.from("reactions").select("*").in("message_id", msgIds);
+            if (reactionsData) setReactions(reactionsData as Reaction[]);
+          }
+
           // Fetch polls for poll messages
           const pollMsgIds = sortedMessages.filter(m => m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
           if (pollMsgIds.length > 0) {
@@ -211,7 +220,6 @@ const Index = () => {
             }
           }
         }
-        if (!reactionsRes.error && reactionsRes.data) setReactions(reactionsRes.data as Reaction[]);
         if (!profilesRes.error && profilesRes.data) {
           const map: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }> = {};
           profilesRes.data.forEach((p: any) => {
@@ -222,6 +230,9 @@ const Index = () => {
         if (!totalCountRes.error) setTotalUsers(totalCountRes.count || 0);
         if (!adminsRes.error && adminsRes.data) setAdminIds(new Set(adminsRes.data.map((a: any) => a.user_id)));
         if (!bannedRes.error && bannedRes.data) setBannedUserIds(new Set(bannedRes.data.map((b: any) => b.user_id)));
+        if (!pinnedRes.error && pinnedRes.data && pinnedRes.data.length > 0) {
+          setPinnedMessage(pinnedRes.data[0] as any);
+        }
         if (!chatSettingsRes.error && chatSettingsRes.data) {
           setChatLocked(chatSettingsRes.data.is_locked);
         } else {
@@ -251,7 +262,20 @@ const Index = () => {
       const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: false }).lt("created_at", oldestMessage.created_at).limit(MESSAGES_PER_PAGE);
       if (!error && data && data.length > 0) {
         const olderMessages = (data as Message[]).reverse();
-        
+
+        // Fetch reactions for older messages
+        const olderIds = olderMessages.map(m => m.id);
+        if (olderIds.length > 0) {
+          const { data: reactionsData } = await supabase.from("reactions").select("*").in("message_id", olderIds);
+          if (reactionsData && reactionsData.length > 0) {
+            setReactions(prev => {
+              const existing = new Set(prev.map(r => r.id));
+              const fresh = (reactionsData as Reaction[]).filter(r => !existing.has(r.id));
+              return [...prev, ...fresh];
+            });
+          }
+        }
+
         // Fetch polls for older messages
         const pollMsgIds = olderMessages.filter(m => m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
         if (pollMsgIds.length > 0) {
@@ -349,6 +373,13 @@ const Index = () => {
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "banned_users" }, (payload) => {
         const unbanned = payload.old as any;
         setBannedUserIds(prev => { const s = new Set(prev); s.delete(unbanned.user_id); return s; });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "pinned_messages" }, (payload) => {
+        setPinnedMessage(payload.new as any);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "pinned_messages" }, (payload) => {
+        const old = payload.old as any;
+        setPinnedMessage(prev => (prev && prev.id === old.id ? null : prev));
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -533,6 +564,26 @@ const Index = () => {
   const handleDeleteMessage = async (messageId: string) => {
     await supabase.from("messages").delete().eq("id", messageId);
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
+  };
+
+  const handlePinMessage = async (msg: Message) => {
+    if (!isCurrentUserAdmin) return;
+    // Remove existing pin first (only one pinned at a time)
+    await supabase.from("pinned_messages").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    const { data } = await supabase.from("pinned_messages").insert({
+      message_id: msg.id,
+      pinned_by: userId,
+      content: msg.content?.slice(0, 300) ?? "",
+      username: msg.user_id ? getProfile(msg.user_id).username : msg.username,
+      user_id: msg.user_id ?? null,
+    }).select().single();
+    if (data) setPinnedMessage(data as any);
+  };
+
+  const handleUnpinMessage = async () => {
+    if (!isCurrentUserAdmin || !pinnedMessage) return;
+    await supabase.from("pinned_messages").delete().eq("id", pinnedMessage.id);
+    setPinnedMessage(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -727,6 +778,23 @@ const Index = () => {
         </div>
       </header>
 
+      {/* Pinned message banner */}
+      {pinnedMessage && (
+        <div className="flex-shrink-0 px-3 py-2 flex items-start gap-2 animate-fade-in"
+          style={{ background: "hsl(var(--primary) / 0.08)", borderBottom: "1px solid hsl(var(--primary) / 0.2)" }}>
+          <Pin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
+          <button onClick={() => setShowPinnedExpanded(v => !v)} className="flex-1 min-w-0 text-right">
+            <div className="text-[10px] font-semibold mb-0.5" style={{ color: "hsl(var(--primary))" }}>رسالة مثبّتة · {pinnedMessage.username}</div>
+            <div className={`text-[12px] ${showPinnedExpanded ? '' : 'truncate'}`} style={{ color: "hsl(var(--foreground))" }}>{pinnedMessage.content}</div>
+          </button>
+          {isCurrentUserAdmin && (
+            <button onClick={handleUnpinMessage} title="إلغاء التثبيت" className="flex-shrink-0 p-1 rounded-full hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
+              <PinOff className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Messages area */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2 relative" style={chatBg ? { backgroundImage: `url(${chatBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' } : undefined}>
         {loadingMore && (
@@ -799,6 +867,7 @@ const Index = () => {
                   onReply={handleReply} 
                   onUsernameClick={(uid) => setProfileModal(uid)} 
                   onDelete={handleDeleteMessage} 
+                  onPin={handlePinMessage}
                 />
               );
             })}
@@ -981,23 +1050,11 @@ const Index = () => {
           <div className="flex items-end gap-2">
             {isCurrentUserAdmin && (
               <div className="flex gap-1 flex-shrink-0">
-                <button onClick={() => { setShowStickerPicker(!showStickerPicker); setShowPollCreator(false); }} title="ملصقات"
-                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
-                  style={{ background: showStickerPicker ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", color: showStickerPicker ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
-                  <Smile className="w-4 h-4" />
-                </button>
                 <button onClick={() => { setShowPollCreator(!showPollCreator); setShowStickerPicker(false); }} title="استطلاع رأي"
                   className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
                   style={{ background: showPollCreator ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", color: showPollCreator ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
                   <BarChart3 className="w-4 h-4" />
                 </button>
-                {input.trim() && (
-                  <button onClick={handleSendAnnouncement} title="إرسال كإعلان"
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90"
-                    style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}>
-                    <Megaphone className="w-4 h-4" />
-                  </button>
-                )}
               </div>
             )}
             <button onClick={() => fileInputRef2.current?.click()} disabled={uploadingFile} title="إرفاق ملف"

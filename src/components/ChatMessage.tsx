@@ -1,4 +1,4 @@
-import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Trophy, Medal, Award, Paperclip, Download } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Trophy, Medal, Award, Paperclip, Download, Pin } from "lucide-react";
 import LinkifiedText from "@/components/LinkifiedText";
 import PollMessage from "@/components/PollMessage";
 import { formatDistanceToNow } from "date-fns";
@@ -42,6 +42,7 @@ interface ChatMessageProps {
   onReply: (message: Message) => void;
   onUsernameClick?: (userId: string) => void;
   onDelete?: (messageId: string) => void;
+  onPin?: (message: Message) => void;
 }
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
@@ -163,7 +164,7 @@ const MentionText = ({ text, profilesMap, onUsernameClick }: { text: string; pro
 
 const ChatMessage = memo(({
   message, currentUserId, currentUsername, currentAvatarUrl, reactions, profilesMap,
-  isOnline, isAdmin, isCurrentUserAdmin, messageCounts, onReply, onUsernameClick, onDelete,
+  isOnline, isAdmin, isCurrentUserAdmin, messageCounts, onReply, onUsernameClick, onDelete, onPin,
 }: ChatMessageProps) => {
   const isOwn = message.user_id === currentUserId;
   const profile = message.user_id && profilesMap[message.user_id];
@@ -416,10 +417,12 @@ const ChatMessage = memo(({
                     className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-110" style={{ background: "hsl(var(--secondary))" }} title="نسخ">
                     {copied ? <Check className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} /> : <Copy className="w-3.5 h-3.5" style={{ color: "hsl(var(--muted-foreground))" }} />}
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); onReply(message); setShowActionsMenu(false); }}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-110" style={{ background: "hsl(var(--secondary))" }} title="رد">
-                    <Reply className="w-3.5 h-3.5" style={{ color: "hsl(var(--muted-foreground))" }} />
-                  </button>
+                  {isCurrentUserAdmin && onPin && !isSticker && !isPoll && (
+                    <button onClick={(e) => { e.stopPropagation(); onPin(message); setShowActionsMenu(false); }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-110" style={{ background: "hsl(var(--primary) / 0.15)" }} title="تثبيت">
+                      <Pin className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} />
+                    </button>
+                  )}
                   {canDelete && (
                     <button onClick={(e) => { e.stopPropagation(); handleDelete(); }}
                       className="w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-110" style={{ background: "hsl(var(--destructive) / 0.15)" }} title="حذف">
