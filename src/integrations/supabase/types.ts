@@ -259,6 +259,36 @@ export type Database = {
           },
         ]
       }
+      pinned_messages: {
+        Row: {
+          content: string
+          id: string
+          message_id: string
+          pinned_at: string
+          pinned_by: string
+          user_id: string | null
+          username: string
+        }
+        Insert: {
+          content: string
+          id?: string
+          message_id: string
+          pinned_at?: string
+          pinned_by: string
+          user_id?: string | null
+          username: string
+        }
+        Update: {
+          content?: string
+          id?: string
+          message_id?: string
+          pinned_at?: string
+          pinned_by?: string
+          user_id?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
       poll_votes: {
         Row: {
           created_at: string
