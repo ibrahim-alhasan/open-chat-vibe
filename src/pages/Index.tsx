@@ -11,7 +11,7 @@ import AdminPanel from "@/components/AdminPanel";
 import PollCreator from "@/components/PollCreator";
 import PollMessage from "@/components/PollMessage";
 import { playSound } from "@/lib/sounds";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff , Bot} from "lucide-react";
 
 const MESSAGES_PER_PAGE = 100;
 
@@ -25,7 +25,6 @@ const Index = () => {
   const showAdminPanel = location.pathname === '/admin';
   const showChatInfo = location.pathname === '/chat-info';
   const dmInitialUserId = params.userId || null;
-  
   const [userId] = useState<string>(() => {
     let id = localStorage.getItem("chat_user_id");
     if (!id) {
@@ -74,6 +73,7 @@ const Index = () => {
   const [showPinnedExpanded, setShowPinnedExpanded] = useState(false);
   
   const fileInputRef2 = useRef<HTMLInputElement>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -83,7 +83,6 @@ const Index = () => {
   const isLoadingMoreRef = useRef(false);
   const lastScrollTopRef = useRef(0);
   const isUserScrollingUpRef = useRef(false);
-  const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Message counts per user for activity badges
   const messageCounts = useMemo(() => {
@@ -111,12 +110,6 @@ const Index = () => {
     setHasNewMessages(false);
   }, []);
 
-  // Reference للـ scrollToBottom لتجنب مشاكل التبعيات
-  const scrollToBottomRef = useRef(scrollToBottom);
-  useEffect(() => {
-    scrollToBottomRef.current = scrollToBottom;
-  }, [scrollToBottom]);
-
   const forceScrollToBottom = useCallback(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
@@ -135,85 +128,54 @@ const Index = () => {
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
-    
     const handleScroll = () => {
       const scrollTop = container.scrollTop;
       const scrollHeight = container.scrollHeight;
       const clientHeight = container.clientHeight;
-      
       isUserScrollingUpRef.current = scrollTop < lastScrollTopRef.current;
       lastScrollTopRef.current = scrollTop;
-      
       const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
       setShowScrollButton(!isNearBottom);
       if (isNearBottom) setHasNewMessages(false);
-      
-      if (scrollTop < 200 && hasMoreMessages && !isLoadingMoreRef.current && !loading) {
-        loadMoreMessages();
-      }
+      if (scrollTop < 200 && hasMoreMessages && !isLoadingMoreRef.current && !loading) loadMoreMessages();
     };
-    
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
   }, [hasMoreMessages, loading]);
 
+  // No more manual popstate/history handling - React Router handles it
+
   useEffect(() => {
     if (!loading && messages.length > 0 && isFirstLoadRef.current) {
-      setTimeout(() => { 
-        forceScrollToBottom(); 
-        isFirstLoadRef.current = false; 
-      }, 100);
+      setTimeout(() => { forceScrollToBottom(); isFirstLoadRef.current = false; }, 100);
     }
   }, [loading, messages.length, forceScrollToBottom]);
 
   // Fetch unread DMs
   useEffect(() => {
     if (!userId) return;
-    
     const fetchUnread = async () => {
-      const { count } = await supabase
-        .from("direct_messages")
-        .select("*", { count: "exact", head: true })
-        .eq("receiver_user_id", userId)
-        .eq("is_read", false);
+      const { count } = await supabase.from("direct_messages").select("*", { count: "exact", head: true }).eq("receiver_user_id", userId).eq("is_read", false);
       setUnreadDMs(count || 0);
     };
-    
     fetchUnread();
   }, [userId]);
 
   // Listen for new DMs
   useEffect(() => {
     if (!userId) return;
-    
-    const channel = supabase
-      .channel(`unread-dm-${userId}`)
-      .on("postgres_changes", { 
-        event: "INSERT", 
-        schema: "public", 
-        table: "direct_messages" 
-      }, (payload) => {
+    const channel = supabase.channel(`unread-dm-${userId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, (payload) => {
         const msg = payload.new as { receiver_user_id: string | null; is_read: boolean };
-        if (msg.receiver_user_id === userId && !msg.is_read) {
-          setUnreadDMs((prev) => prev + 1);
-        }
+        if (msg.receiver_user_id === userId && !msg.is_read) setUnreadDMs((prev) => prev + 1);
       })
-      .on("postgres_changes", { 
-        event: "UPDATE", 
-        schema: "public", 
-        table: "direct_messages" 
-      }, (payload) => {
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "direct_messages" }, (payload) => {
         const msg = payload.new as { receiver_user_id: string | null; is_read: boolean };
         const old = payload.old as { is_read: boolean };
-        if (msg.receiver_user_id === userId && !old.is_read && msg.is_read) {
-          setUnreadDMs((prev) => Math.max(0, prev - 1));
-        }
+        if (msg.receiver_user_id === userId && !old.is_read && msg.is_read) setUnreadDMs((prev) => Math.max(0, prev - 1));
       })
       .subscribe();
-      
-    return () => { 
-      supabase.removeChannel(channel); 
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
   // Fetch initial data
@@ -221,15 +183,7 @@ const Index = () => {
     const fetchInitialData = async () => {
       setLoading(true);
       try {
-        const [
-          messagesRes, 
-          profilesRes, 
-          totalCountRes, 
-          adminsRes, 
-          chatSettingsRes, 
-          bannedRes, 
-          pinnedRes
-        ] = await Promise.all([
+        const [messagesRes, profilesRes, totalCountRes, adminsRes, chatSettingsRes, bannedRes, pinnedRes] = await Promise.all([
           supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(MESSAGES_PER_PAGE),
           supabase.from("profiles").select("*"),
           supabase.from("profiles").select("*", { count: 'exact', head: true }),
@@ -242,11 +196,10 @@ const Index = () => {
         if (!messagesRes.error && messagesRes.data) {
           const sortedMessages = (messagesRes.data as Message[]).reverse();
           setMessages(sortedMessages);
-          
           const { count } = await supabase.from("messages").select("*", { count: 'exact', head: true });
           setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
 
-          // Fetch reactions for loaded messages
+          // Fetch reactions ONLY for the loaded messages (avoids 1000-row default limit)
           const msgIds = sortedMessages.map(m => m.id);
           if (msgIds.length > 0) {
             const { data: reactionsData } = await supabase.from("reactions").select("*").in("message_id", msgIds);
@@ -254,10 +207,7 @@ const Index = () => {
           }
 
           // Fetch polls for poll messages
-          const pollMsgIds = sortedMessages
-            .filter(m => m.content.startsWith("poll:"))
-            .map(m => m.content.replace("poll:", ""));
-            
+          const pollMsgIds = sortedMessages.filter(m => m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
           if (pollMsgIds.length > 0) {
             const { data: pollsData } = await supabase.from("polls").select("*").in("id", pollMsgIds);
             if (pollsData) {
@@ -270,28 +220,16 @@ const Index = () => {
             }
           }
         }
-        
         if (!profilesRes.error && profilesRes.data) {
           const map: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }> = {};
           profilesRes.data.forEach((p: any) => {
-            if (p.user_id) {
-              map[p.user_id] = { 
-                username: p.username, 
-                avatar_url: p.avatar_url, 
-                allow_dms: p.allow_dms ?? true 
-              };
-            }
+            if (p.user_id) map[p.user_id] = { username: p.username, avatar_url: p.avatar_url, allow_dms: p.allow_dms ?? true };
           });
           setProfilesMap(map);
         }
-        
         if (!totalCountRes.error) setTotalUsers(totalCountRes.count || 0);
-        if (!adminsRes.error && adminsRes.data) {
-          setAdminIds(new Set(adminsRes.data.map((a: any) => a.user_id)));
-        }
-        if (!bannedRes.error && bannedRes.data) {
-          setBannedUserIds(new Set(bannedRes.data.map((b: any) => b.user_id)));
-        }
+        if (!adminsRes.error && adminsRes.data) setAdminIds(new Set(adminsRes.data.map((a: any) => a.user_id)));
+        if (!bannedRes.error && bannedRes.data) setBannedUserIds(new Set(bannedRes.data.map((b: any) => b.user_id)));
         if (!pinnedRes.error && pinnedRes.data && pinnedRes.data.length > 0) {
           setPinnedMessage(pinnedRes.data[0] as any);
         }
@@ -307,42 +245,28 @@ const Index = () => {
         setLoading(false);
       }
     };
-    
     fetchInitialData();
   }, []);
 
   // Load more messages with smooth scroll preservation
   const loadMoreMessages = useCallback(async () => {
     if (loadingMore || !hasMoreMessages || isLoadingMoreRef.current) return;
-    
     isLoadingMoreRef.current = true;
     setLoadingMore(true);
-    
     const nextPage = messagePage + 1;
     const oldestMessage = messages[0];
     const container = messagesContainerRef.current;
     const prevScrollHeight = container?.scrollHeight || 0;
     const prevScrollTop = container?.scrollTop || 0;
-    
     try {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .lt("created_at", oldestMessage.created_at)
-        .limit(MESSAGES_PER_PAGE);
-        
+      const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: false }).lt("created_at", oldestMessage.created_at).limit(MESSAGES_PER_PAGE);
       if (!error && data && data.length > 0) {
         const olderMessages = (data as Message[]).reverse();
 
         // Fetch reactions for older messages
         const olderIds = olderMessages.map(m => m.id);
         if (olderIds.length > 0) {
-          const { data: reactionsData } = await supabase
-            .from("reactions")
-            .select("*")
-            .in("message_id", olderIds);
-            
+          const { data: reactionsData } = await supabase.from("reactions").select("*").in("message_id", olderIds);
           if (reactionsData && reactionsData.length > 0) {
             setReactions(prev => {
               const existing = new Set(prev.map(r => r.id));
@@ -353,10 +277,7 @@ const Index = () => {
         }
 
         // Fetch polls for older messages
-        const pollMsgIds = olderMessages
-          .filter(m => m.content.startsWith("poll:"))
-          .map(m => m.content.replace("poll:", ""));
-          
+        const pollMsgIds = olderMessages.filter(m => m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
         if (pollMsgIds.length > 0) {
           const { data: pollsData } = await supabase.from("polls").select("*").in("id", pollMsgIds);
           if (pollsData) {
@@ -372,7 +293,6 @@ const Index = () => {
         setMessages(prev => [...olderMessages, ...prev]);
         setMessagePage(nextPage);
         setHasMoreMessages(data.length === MESSAGES_PER_PAGE);
-        
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             if (container) {
@@ -389,300 +309,106 @@ const Index = () => {
       console.error("Error loading more messages:", error);
     } finally {
       setLoadingMore(false);
-      setTimeout(() => { 
-        isLoadingMoreRef.current = false; 
-      }, 300);
+      setTimeout(() => { isLoadingMoreRef.current = false; }, 300);
     }
   }, [loadingMore, hasMoreMessages, messagePage, messages]);
 
-  // ✅ REALTIME SUBSCRIPTION - إصلاح المشكلة الأساسية
+  // Realtime listeners
   useEffect(() => {
-    console.log("🔌 Setting up realtime subscription...");
-    
-    // تنظيف القناة القديمة إذا وجدت
-    if (realtimeChannelRef.current) {
-      supabase.removeChannel(realtimeChannelRef.current);
-      realtimeChannelRef.current = null;
-    }
-    
-    // إنشاء قناة جديدة
-    const channel = supabase
-      .channel("public-chat-all", {
-        config: {
-          broadcast: { self: true },
-        },
+    const channel = supabase.channel("public-chat-all")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        const newMessage = payload.new as Message;
+        setMessages((prev) => {
+          if (prev.find((m) => m.id === newMessage.id)) return prev;
+          return [...prev, newMessage];
+        });
+        if (newMessage.content.startsWith("poll:")) {
+          const pollId = newMessage.content.replace("poll:", "");
+          supabase.from("polls").select("*").eq("id", pollId).single().then(({ data }) => {
+            if (data) {
+              const opts = typeof data.options === 'string' ? JSON.parse(data.options as string) : data.options;
+              setPolls(prev => ({ ...prev, [data.id]: { question: data.question, options: opts as string[], is_active: data.is_active } }));
+            }
+          });
+        }
+        if (messagesContainerRef.current) {
+          const container = messagesContainerRef.current;
+          const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+          if (isNearBottom) setTimeout(() => scrollToBottom(true), 100);
+          else if (newMessage.user_id !== userId) setHasNewMessages(true);
+        }
       })
-      .on(
-        "postgres_changes",
-        { 
-          event: "INSERT", 
-          schema: "public", 
-          table: "messages" 
-        },
-        (payload) => {
-          console.log("📨 New message received via realtime:", payload.new);
-          const newMessage = payload.new as Message;
-          
-          setMessages((prev) => {
-            // تجاهل إذا كانت الرسالة موجودة مسبقاً
-            if (prev.some((m) => m.id === newMessage.id)) {
-              console.log("⚠️ Message already exists, skipping");
-              return prev;
-            }
-            
-            const updated = [...prev, newMessage];
-            
-            // تحقق من التمرير
-            setTimeout(() => {
-              const container = messagesContainerRef.current;
-              if (container) {
-                const isNearBottom = 
-                  container.scrollHeight - container.scrollTop - container.clientHeight < 200;
-                
-                if (isNearBottom) {
-                  scrollToBottomRef.current?.(true);
-                } else if (newMessage.user_id !== userId) {
-                  setHasNewMessages(true);
-                }
-              }
-            }, 100);
-            
-            return updated;
-          });
-          
-          // جلب بيانات الـ poll إذا وجدت
-          if (newMessage.content?.startsWith("poll:")) {
-            const pollId = newMessage.content.replace("poll:", "");
-            supabase
-              .from("polls")
-              .select("*")
-              .eq("id", pollId)
-              .single()
-              .then(({ data }) => {
-                if (data) {
-                  const opts = typeof data.options === 'string' 
-                    ? JSON.parse(data.options) 
-                    : data.options;
-                  setPolls(prev => ({ 
-                    ...prev, 
-                    [data.id]: { 
-                      question: data.question, 
-                      options: opts as string[], 
-                      is_active: data.is_active 
-                    } 
-                  }));
-                }
-              });
-          }
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "messages" }, (payload) => {
+        const deleted = payload.old as { id: string };
+        setMessages((prev) => prev.filter((m) => m.id !== deleted.id));
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reactions" }, (payload) => {
+        const r = payload.new as Reaction;
+        setReactions((prev) => prev.find((x) => x.id === r.id) ? prev : [...prev, r]);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "reactions" }, (payload) => {
+        const deleted = payload.old as { id: string };
+        setReactions((prev) => prev.filter((r) => r.id !== deleted.id));
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, (payload) => {
+        if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
+          const p = payload.new as any;
+          if (p.user_id) setProfilesMap((prev) => ({ ...prev, [p.user_id]: { username: p.username, avatar_url: p.avatar_url, allow_dms: p.allow_dms ?? true } }));
+          if (payload.eventType === "INSERT") setTotalUsers(prev => prev + 1);
         }
-      )
-      .on(
-        "postgres_changes",
-        { 
-          event: "DELETE", 
-          schema: "public", 
-          table: "messages" 
-        },
-        (payload) => {
-          console.log("🗑️ Message deleted:", payload.old);
-          const deleted = payload.old as { id: string };
-          setMessages((prev) => prev.filter((m) => m.id !== deleted.id));
+        if (payload.eventType === "DELETE") {
+          const p = payload.old as any;
+          if (p.user_id) setProfilesMap((prev) => { const m = { ...prev }; delete m[p.user_id]; return m; });
+          setTotalUsers(prev => Math.max(0, prev - 1));
         }
-      )
-      .on(
-        "postgres_changes",
-        { 
-          event: "INSERT", 
-          schema: "public", 
-          table: "reactions" 
-        },
-        (payload) => {
-          const r = payload.new as Reaction;
-          setReactions((prev) => 
-            prev.find((x) => x.id === r.id) ? prev : [...prev, r]
-          );
-        }
-      )
-      .on(
-        "postgres_changes",
-        { 
-          event: "DELETE", 
-          schema: "public", 
-          table: "reactions" 
-        },
-        (payload) => {
-          const deleted = payload.old as { id: string };
-          setReactions((prev) => prev.filter((r) => r.id !== deleted.id));
-        }
-      )
-      .on(
-        "postgres_changes",
-        { 
-          event: "*", 
-          schema: "public", 
-          table: "profiles" 
-        },
-        (payload) => {
-          if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-            const p = payload.new as any;
-            if (p.user_id) {
-              setProfilesMap((prev) => ({ 
-                ...prev, 
-                [p.user_id]: { 
-                  username: p.username, 
-                  avatar_url: p.avatar_url, 
-                  allow_dms: p.allow_dms ?? true 
-                } 
-              }));
-            }
-            if (payload.eventType === "INSERT") setTotalUsers(prev => prev + 1);
-          }
-          if (payload.eventType === "DELETE") {
-            const p = payload.old as any;
-            if (p.user_id) {
-              setProfilesMap((prev) => { 
-                const m = { ...prev }; 
-                delete m[p.user_id]; 
-                return m; 
-              });
-            }
-            setTotalUsers(prev => Math.max(0, prev - 1));
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { 
-          event: "UPDATE", 
-          schema: "public", 
-          table: "chat_settings" 
-        },
-        (payload) => {
-          const settings = payload.new as any;
-          setChatLocked(settings.is_locked);
-        }
-      )
-      .on(
-        "postgres_changes",
-        { 
-          event: "INSERT", 
-          schema: "public", 
-          table: "banned_users" 
-        },
-        (payload) => {
-          const banned = payload.new as any;
-          setBannedUserIds(prev => new Set([...prev, banned.user_id]));
-        }
-      )
-      .on(
-        "postgres_changes",
-        { 
-          event: "DELETE", 
-          schema: "public", 
-          table: "banned_users" 
-        },
-        (payload) => {
-          const unbanned = payload.old as any;
-          setBannedUserIds(prev => { 
-            const s = new Set(prev); 
-            s.delete(unbanned.user_id); 
-            return s; 
-          });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { 
-          event: "INSERT", 
-          schema: "public", 
-          table: "pinned_messages" 
-        },
-        (payload) => {
-          setPinnedMessage(payload.new as any);
-        }
-      )
-      .on(
-        "postgres_changes",
-        { 
-          event: "DELETE", 
-          schema: "public", 
-          table: "pinned_messages" 
-        },
-        (payload) => {
-          const old = payload.old as any;
-          setPinnedMessage(prev => (prev && prev.id === old.id ? null : prev));
-        }
-      )
-      .subscribe((status) => {
-        console.log("📡 Realtime subscription status:", status);
-        if (status === "SUBSCRIBED") {
-          console.log("✅ Successfully subscribed to all changes");
-        }
-        if (status === "CHANNEL_ERROR") {
-          console.error("❌ Channel error - attempting to reconnect in 3s");
-          setTimeout(() => {
-            channel.subscribe();
-          }, 3000);
-        }
-      });
-    
-    realtimeChannelRef.current = channel;
-    
-    // تنظيف عند unmount
-    return () => {
-      console.log("🧹 Cleaning up realtime subscription");
-      if (realtimeChannelRef.current) {
-        supabase.removeChannel(realtimeChannelRef.current);
-        realtimeChannelRef.current = null;
-      }
-    };
-  }, []); // ✅ مصفوفة تبعيات فارغة - تنشأ مرة واحدة فقط
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_settings" }, (payload) => {
+        const settings = payload.new as any;
+        setChatLocked(settings.is_locked);
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "banned_users" }, (payload) => {
+        const banned = payload.new as any;
+        setBannedUserIds(prev => new Set([...prev, banned.user_id]));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "banned_users" }, (payload) => {
+        const unbanned = payload.old as any;
+        setBannedUserIds(prev => { const s = new Set(prev); s.delete(unbanned.user_id); return s; });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "pinned_messages" }, (payload) => {
+        setPinnedMessage(payload.new as any);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "pinned_messages" }, (payload) => {
+        const old = payload.old as any;
+        setPinnedMessage(prev => (prev && prev.id === old.id ? null : prev));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [scrollToBottom, userId]);
 
   // Presence
   useEffect(() => {
     if (!username || !userId) return;
-    
-    const presenceChannel = supabase.channel("presence-chat", { 
-      config: { 
-        presence: { 
-          key: userId 
-        } 
-      } 
-    });
-    
+    const presenceChannel = supabase.channel("presence-chat", { config: { presence: { key: userId } } });
     presenceChannel
       .on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();
         const keys = Object.keys(state);
         setOnlineCount(keys.length);
         setOnlineUsers(new Set(keys));
-        
         const typing = new Set<string>();
         keys.forEach(key => {
           const presences = state[key] as any[];
-          if (presences?.[0]?.is_typing && key !== userId) {
-            typing.add(key);
-          }
+          if (presences?.[0]?.is_typing && key !== userId) typing.add(key);
         });
         setTypingUsers(typing);
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          await presenceChannel.track({ 
-            user_id: userId, 
-            username, 
-            is_typing: false, 
-            online_at: new Date().toISOString() 
-          });
+          await presenceChannel.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
         }
       });
-      
     presenceChannelRef.current = presenceChannel;
-    
-    return () => { 
-      supabase.removeChannel(presenceChannel); 
-      presenceChannelRef.current = null; 
-    };
+    return () => { supabase.removeChannel(presenceChannel); presenceChannelRef.current = null; };
   }, [username, userId]);
 
   // Scroll when returning from DMs
@@ -693,65 +419,34 @@ const Index = () => {
       const timeout2 = setTimeout(forceScrollToBottom, 150);
       const timeout3 = setTimeout(forceScrollToBottom, 300);
       const resetTimeout = setTimeout(() => setIsReturningFromDMs(false), 400);
-      
-      return () => { 
-        clearTimeout(timeout1); 
-        clearTimeout(timeout2); 
-        clearTimeout(timeout3); 
-        clearTimeout(resetTimeout); 
-      };
+      return () => { clearTimeout(timeout1); clearTimeout(timeout2); clearTimeout(timeout3); clearTimeout(resetTimeout); };
     }
   }, [isReturningFromDMs, forceScrollToBottom]);
 
   const handleTyping = () => {
     if (!presenceChannelRef.current) return;
-    
-    presenceChannelRef.current.track({ 
-      user_id: userId, 
-      username, 
-      is_typing: true, 
-      online_at: new Date().toISOString() 
-    });
-    
+    presenceChannelRef.current.track({ user_id: userId, username, is_typing: true, online_at: new Date().toISOString() });
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    
     typingTimeoutRef.current = setTimeout(() => {
-      presenceChannelRef.current?.track({ 
-        user_id: userId, 
-        username, 
-        is_typing: false, 
-        online_at: new Date().toISOString() 
-      });
+      presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
     }, 2000);
   };
 
   const handleJoin = async (name: string, avatarFile?: File | null) => {
     localStorage.setItem("chat_username", name);
-    
     let url: string | null = null;
     if (avatarFile) {
       const ext = avatarFile.name.split(".").pop();
       const fileName = `${userId}_${Date.now()}.${ext}`;
-      const { data, error } = await supabase.storage
-        .from("avatars")
-        .upload(fileName, avatarFile, { upsert: true });
-        
+      const { data, error } = await supabase.storage.from("avatars").upload(fileName, avatarFile, { upsert: true });
       if (!error && data) {
         const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(data.path);
         url = urlData.publicUrl;
       }
     }
-    
     if (url) localStorage.setItem("chat_avatar_url", url);
     else localStorage.removeItem("chat_avatar_url");
-    
-    await supabase.from("profiles").upsert({ 
-      user_id: userId, 
-      username: name, 
-      avatar_url: url, 
-      updated_at: new Date().toISOString() 
-    }, { onConflict: "user_id" });
-    
+    await supabase.from("profiles").upsert({ user_id: userId, username: name, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
     setUsername(name);
     setAvatarUrl(url);
     setProfilesMap((prev) => ({ ...prev, [userId]: { username: name, avatar_url: url } }));
@@ -760,14 +455,8 @@ const Index = () => {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    if (file.size > 10 * 1024 * 1024) { 
-      alert("حجم الملف يجب أن يكون أقل من 10 ميجابايت"); 
-      return; 
-    }
-    
+    if (file.size > 10 * 1024 * 1024) { alert("حجم الملف يجب أن يكون أقل من 10 ميجابايت"); return; }
     setSelectedFile(file);
-    
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onloadend = () => setFilePreview(reader.result as string);
@@ -781,38 +470,22 @@ const Index = () => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${userId}_${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from('public_chat_files')
-        .upload(fileName, file);
-        
+      const { error: uploadError } = await supabase.storage.from('public_chat_files').upload(fileName, file);
       if (uploadError) return null;
-      
-      const { data: { publicUrl } } = supabase.storage
-        .from('public_chat_files')
-        .getPublicUrl(fileName);
-        
+      const { data: { publicUrl } } = supabase.storage.from('public_chat_files').getPublicUrl(fileName);
       return { url: publicUrl, name: file.name, type: file.type };
-    } catch { 
-      return null; 
-    }
+    } catch { return null; }
   };
 
   const handleSend = async () => {
     if ((!input.trim() && !selectedFile) || !username || sending || isUserBanned) return;
     if (chatLocked && !isCurrentUserAdmin) return;
-    
     const content = input.trim();
     setInput("");
     setSending(true);
     setMentionQuery(null);
     setMentionResults([]);
-    
-    presenceChannelRef.current?.track({ 
-      user_id: userId, 
-      username, 
-      is_typing: false, 
-      online_at: new Date().toISOString() 
-    });
+    presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
     
     let fileUrl: string | null = null;
     let fileName: string | null = null;
@@ -831,37 +504,21 @@ const Index = () => {
       setUploadingFile(false);
     }
     
-    const insertData: any = { 
-      username, 
-      user_id: userId, 
-      content: content || (fileUrl ? `📎 ${fileName}` : "") 
-    };
-    
+    const insertData: any = { username, user_id: userId, content: content || (fileUrl ? `📎 ${fileName}` : "") };
     if (fileUrl) {
       insertData.file_url = fileUrl;
       insertData.file_name = fileName;
       insertData.file_type = fileType;
     }
-    
     if (replyTo) {
       insertData.reply_to = replyTo.id;
-      insertData.reply_to_username = replyTo.user_id 
-        ? getProfile(replyTo.user_id).username 
-        : replyTo.username;
+      insertData.reply_to_username = replyTo.user_id ? getProfile(replyTo.user_id).username : replyTo.username;
       insertData.reply_to_content = replyTo.content?.slice(0, 80) ?? null;
     }
-    
     setReplyTo(null);
     
-    const { error } = await supabase.from("messages").insert(insertData);
-    
-    if (error) {
-      console.error("Error sending message:", error);
-      alert("فشل إرسال الرسالة، حاول مرة أخرى");
-    } else {
-      playSound();
-    }
-    
+    await supabase.from("messages").insert(insertData);
+    playSound();
     setSending(false);
     inputRef.current?.focus();
     setShowStickerPicker(false);
@@ -871,41 +528,31 @@ const Index = () => {
   const handleSendSticker = async (sticker: string) => {
     if (!username || sending || isUserBanned) return;
     if (chatLocked && !isCurrentUserAdmin) return;
-    
     setSending(true);
-    const { error } = await supabase.from("messages").insert({ 
-      username, 
-      user_id: userId, 
-      content: `sticker:${sticker}` 
-    });
-    
-    if (!error) {
-      playSound();
-    }
-    
+    await supabase.from("messages").insert({ username, user_id: userId, content: `sticker:${sticker}` });
     setSending(false);
     setShowStickerPicker(false);
   };
 
+  const handleSendAnnouncement = async () => {
+    if (!input.trim() || !username || sending) return;
+    const content = `📢 إعلان المشرف: ${input.trim()}`;
+    setInput("");
+    setSending(true);
+    await supabase.from("messages").insert({ username, user_id: userId, content });
+    setSending(false);
+    inputRef.current?.focus();
+  };
+
   const handleCreatePoll = async (question: string, options: string[]) => {
     if (!username || sending) return;
-    
     setSending(true);
     try {
-      const { data: poll, error } = await supabase
-        .from("polls")
-        .insert({ question, options, created_by: userId })
-        .select()
-        .single();
-        
+      // Store options as a proper JSON array (not double-stringified)
+      const { data: poll, error } = await supabase.from("polls").insert({ question, options, created_by: userId }).select().single();
       if (poll && !error) {
-        await supabase.from("messages").insert({ 
-          username, 
-          user_id: userId, 
-          content: `poll:${poll.id}` 
-        });
+        await supabase.from("messages").insert({ username, user_id: userId, content: `poll:${poll.id}` });
         setPolls(prev => ({ ...prev, [poll.id]: { question, options, is_active: true } }));
-        playSound();
       }
     } catch (e) {
       console.error("Error creating poll:", e);
@@ -921,21 +568,15 @@ const Index = () => {
 
   const handlePinMessage = async (msg: Message) => {
     if (!isCurrentUserAdmin) return;
-    
+    // Remove existing pin first (only one pinned at a time)
     await supabase.from("pinned_messages").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-    
-    const { data } = await supabase
-      .from("pinned_messages")
-      .insert({
-        message_id: msg.id,
-        pinned_by: userId,
-        content: msg.content?.slice(0, 300) ?? "",
-        username: msg.user_id ? getProfile(msg.user_id).username : msg.username,
-        user_id: msg.user_id ?? null,
-      })
-      .select()
-      .single();
-      
+    const { data } = await supabase.from("pinned_messages").insert({
+      message_id: msg.id,
+      pinned_by: userId,
+      content: msg.content?.slice(0, 300) ?? "",
+      username: msg.user_id ? getProfile(msg.user_id).username : msg.username,
+      user_id: msg.user_id ?? null,
+    }).select().single();
     if (data) setPinnedMessage(data as any);
   };
 
@@ -945,6 +586,11 @@ const Index = () => {
     setPinnedMessage(null);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter adds new line; send via button only
+  };
+
+  // Handle @mention in input
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setInput(value);
@@ -954,23 +600,22 @@ const Index = () => {
 
     const cursorPos = e.target.selectionStart || 0;
     const textBeforeCursor = value.slice(0, cursorPos);
+    // Support names with spaces: capture everything after last @
     const mentionMatch = textBeforeCursor.match(/@([^@]*)$/);
-    
     if (mentionMatch) {
       const query = mentionMatch[1].toLowerCase().trim();
       setMentionQuery(query);
-      
+      // Fuzzy search: split query into parts, all parts must appear in username
       const queryParts = query.split(/\s+/).filter(Boolean);
       const results = Object.entries(profilesMap)
         .filter(([uid, p]) => {
           if (uid === userId) return false;
           const name = p.username.toLowerCase();
-          if (queryParts.length === 0) return true;
+          if (queryParts.length === 0) return true; // show all when just "@"
           return queryParts.every(part => name.includes(part));
         })
         .slice(0, 8)
         .map(([uid, p]) => ({ userId: uid, username: p.username }));
-        
       setMentionResults(results);
     } else {
       setMentionQuery(null);
@@ -982,13 +627,11 @@ const Index = () => {
     const cursorPos = inputRef.current?.selectionStart || 0;
     const textBeforeCursor = input.slice(0, cursorPos);
     const mentionMatch = textBeforeCursor.match(/@([^@]*)$/);
-    
     if (mentionMatch) {
       const before = textBeforeCursor.slice(0, mentionMatch.index);
       const after = input.slice(cursorPos);
       setInput(`${before}@${mentionUsername} ${after}`);
     }
-    
     setMentionQuery(null);
     setMentionResults([]);
     inputRef.current?.focus();
@@ -997,14 +640,7 @@ const Index = () => {
   const handleSettingsSave = (newUsername: string, newAvatarUrl: string | null) => {
     setUsername(newUsername);
     setAvatarUrl(newAvatarUrl);
-    setProfilesMap((prev) => ({ 
-      ...prev, 
-      [userId]: { 
-        username: newUsername, 
-        avatar_url: newAvatarUrl, 
-        allow_dms: prev[userId]?.allow_dms 
-      } 
-    }));
+    setProfilesMap((prev) => ({ ...prev, [userId]: { username: newUsername, avatar_url: newAvatarUrl, allow_dms: prev[userId]?.allow_dms } }));
   };
 
   const handleBackFromDMs = () => {
@@ -1015,17 +651,11 @@ const Index = () => {
 
   const handleToggleChatLock = async () => {
     const newLocked = !chatLocked;
-    await supabase
-      .from("chat_settings")
-      .update({ 
-        is_locked: newLocked, 
-        locked_by: userId, 
-        locked_at: newLocked ? new Date().toISOString() : null 
-      })
-      .neq("id", "00000000-0000-0000-0000-000000000000");
+    await supabase.from("chat_settings").update({ is_locked: newLocked, locked_by: userId, locked_at: newLocked ? new Date().toISOString() : null }).neq("id", "00000000-0000-0000-0000-000000000000");
     setChatLocked(newLocked);
   };
 
+  // Reply handler - WhatsApp style (inline reply, no thread)
   const handleReply = (message: Message) => {
     setReplyTo(message);
     inputRef.current?.focus();
@@ -1038,17 +668,7 @@ const Index = () => {
 
   if (showChatInfo) {
     return (
-      <ChatInfo 
-        totalUsers={totalUsers} 
-        onlineCount={onlineCount} 
-        profilesMap={profilesMap} 
-        adminIds={adminIds} 
-        onlineUsers={onlineUsers} 
-        onUsernameClick={(uid) => { 
-          navigate('/'); 
-          setProfileModal(uid); 
-        }} 
-      />
+      <ChatInfo totalUsers={totalUsers} onlineCount={onlineCount} profilesMap={profilesMap} adminIds={adminIds} onlineUsers={onlineUsers} onUsernameClick={(uid) => { navigate('/'); setProfileModal(uid); }} />
     );
   }
 
@@ -1071,18 +691,11 @@ const Index = () => {
 
   if (showDMs) {
     return (
-      <DirectMessages 
-        currentUserId={userId} 
-        currentUsername={username} 
-        profilesMap={profilesMap} 
-        onlineUsers={onlineUsers} 
-        initialConversationUserId={dmInitialUserId} 
-        onBack={handleBackFromDMs} 
-        isAdmin={isCurrentUserAdmin} 
-      />
+      <DirectMessages currentUserId={userId} currentUsername={username} profilesMap={profilesMap} onlineUsers={onlineUsers} initialConversationUserId={dmInitialUserId} onBack={handleBackFromDMs} isAdmin={isCurrentUserAdmin} />
     );
   }
 
+  // Render a message or poll
   const renderMessageContent = (msg: Message) => {
     if (msg.content && msg.content.startsWith("poll:")) {
       const pId = msg.content.replace("poll:", "");
@@ -1098,6 +711,7 @@ const Index = () => {
           />
         );
       }
+      // Poll data not loaded yet - show loading
       return (
         <div className="w-full max-w-[300px] rounded-xl overflow-hidden" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
           <div className="px-3 py-8 text-center">
@@ -1147,9 +761,9 @@ const Index = () => {
             </button>
           )}
           <button onClick={() => window.open('go:aimain')} title="الذكاء الاصطناعي"
-            className="relative p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
-            <Bot className="w-5 h-5" />
-          </button>
+  className="relative p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
+  <Bot className="w-5 h-5" />
+</button>
           <button onClick={() => navigate('/dms')} title="الرسائل الخاصة"
             className="relative p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
             <MessageSquare className="w-5 h-5" />
@@ -1346,7 +960,7 @@ const Index = () => {
             </div>
           )}
 
-          {/* Reply preview */}
+          {/* Reply preview - WhatsApp style */}
           {replyTo && (
             <div className="mb-2 px-3 py-2 rounded-xl flex items-center justify-between gap-2 animate-fade-in"
               style={{ background: "hsl(var(--chat-reply-bg, var(--secondary)))", border: "1px solid hsl(var(--border))", borderRight: "3px solid hsl(var(--primary))" }}>
@@ -1471,37 +1085,11 @@ const Index = () => {
       )}
 
       {showSettings && (
-        <SettingsModal 
-          currentUsername={username} 
-          currentAvatarUrl={avatarUrl} 
-          userId={userId} 
-          onClose={() => setShowSettings(false)} 
-          onSave={handleSettingsSave} 
-          chatBg={chatBg} 
-          onChatBgChange={(bg) => { 
-            setChatBg(bg); 
-            if (bg) localStorage.setItem("chat_bg_image", bg); 
-            else localStorage.removeItem("chat_bg_image"); 
-          }} 
-        />
+        <SettingsModal currentUsername={username} currentAvatarUrl={avatarUrl} userId={userId} onClose={() => setShowSettings(false)} onSave={handleSettingsSave} chatBg={chatBg} onChatBgChange={(bg) => { setChatBg(bg); if (bg) localStorage.setItem("chat_bg_image", bg); else localStorage.removeItem("chat_bg_image"); }} />
       )}
 
       {profileModal && (
-        <UserProfileModal 
-          userId={profileModal} 
-          username={getProfile(profileModal).username} 
-          avatarUrl={getProfile(profileModal).avatar_url} 
-          currentUserId={userId} 
-          isOnline={onlineUsers.has(profileModal)} 
-          isAdmin={adminIds.has(profileModal)} 
-          isCurrentUserAdmin={isCurrentUserAdmin} 
-          allowDms={profilesMap[profileModal]?.allow_dms ?? true} 
-          onClose={() => setProfileModal(null)} 
-          onStartDM={(uid) => { 
-            navigate(`/dm/${uid}`); 
-            setProfileModal(null); 
-          }} 
-        />
+        <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} isCurrentUserAdmin={isCurrentUserAdmin} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={() => setProfileModal(null)} onStartDM={(uid) => { navigate(`/dm/${uid}`); setProfileModal(null); }} />
       )}
     </div>
   );
