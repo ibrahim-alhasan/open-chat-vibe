@@ -11,7 +11,7 @@ import AdminPanel from "@/components/AdminPanel";
 import PollCreator from "@/components/PollCreator";
 import PollMessage from "@/components/PollMessage";
 import { playSound } from "@/lib/sounds";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff , Bot, RefreshCw } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot, RefreshCw } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 100;
 
@@ -20,11 +20,11 @@ const Index = () => {
   const location = useLocation();
   const params = useParams();
   
-  // Derive view state from URL
   const showDMs = location.pathname === '/dms' || location.pathname.startsWith('/dm/');
   const showAdminPanel = location.pathname === '/admin';
   const showChatInfo = location.pathname === '/chat-info';
   const dmInitialUserId = params.userId || null;
+  
   const [userId] = useState<string>(() => {
     let id = localStorage.getItem("chat_user_id");
     if (!id) {
@@ -72,21 +72,21 @@ const Index = () => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [pinnedMessage, setPinnedMessage] = useState<{ id: string; message_id: string; content: string; username: string; user_id: string | null } | null>(null);
   const [showPinnedExpanded, setShowPinnedExpanded] = useState(false);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
   
   const fileInputRef2 = useRef<HTMLInputElement>(null);
-  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const isFirstLoadRef = useRef(true);
   const isLoadingMoreRef = useRef(false);
   const lastScrollTopRef = useRef(0);
   const isUserScrollingUpRef = useRef(false);
-  const shouldScrollAfterRefresh = useRef(false); // متغير لتتبع إذا كنا بحاجة للتمرير بعد التحديث
+  const shouldScrollAfterRefresh = useRef(false);
 
-  // Message counts per user for activity badges
   const messageCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     messages.forEach(m => {
@@ -95,7 +95,6 @@ const Index = () => {
     return counts;
   }, [messages]);
 
-  // Memoize reactions grouped by message_id for performance
   const reactionsByMessageId = useMemo(() => {
     const map: Record<string, Reaction[]> = {};
     reactions.forEach(r => {
@@ -126,7 +125,6 @@ const Index = () => {
   const isCurrentUserAdmin = adminIds.has(userId);
   const isUserBanned = bannedUserIds.has(userId);
 
-  // تحسين دالة التحديث - جلب الرسائل مع التفاعلات فقط والتمرير للأسفل
   const refreshChatData = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
@@ -134,11 +132,6 @@ const Index = () => {
     console.log("جاري تحديث الدردشة...");
     
     try {
-      const container = messagesContainerRef.current;
-      const wasNearBottom = container ? 
-        container.scrollHeight - container.scrollTop - container.clientHeight < 200 : false;
-      
-      // 1. جلب أحدث الرسائل فقط
       const { data: messagesData, error: messagesError } = await supabase
         .from("messages")
         .select("*")
@@ -149,14 +142,12 @@ const Index = () => {
         const sortedMessages = (messagesData as Message[]).reverse();
         setMessages(sortedMessages);
         
-        // تحديث حالة وجود المزيد من الرسائل
         const { count } = await supabase
           .from("messages")
           .select("*", { count: 'exact', head: true });
         setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
         setMessagePage(0);
         
-        // 2. جلب التفاعلات للرسائل فقط
         const msgIds = sortedMessages.map(m => m.id);
         if (msgIds.length > 0) {
           const { data: reactionsData } = await supabase
@@ -165,12 +156,9 @@ const Index = () => {
             .in("message_id", msgIds);
           if (reactionsData) {
             setReactions(reactionsData as Reaction[]);
-          } else {
-            setReactions([]);
           }
         }
         
-        // 3. جلب بيانات الاستطلاعات للرسائل الجديدة فقط
         const pollMsgIds = sortedMessages
           .filter(m => m.content && m.content.startsWith("poll:"))
           .map(m => m.content.replace("poll:", ""));
@@ -190,7 +178,6 @@ const Index = () => {
         }
       }
       
-      // 4. تحديث الملفات الشخصية (إذا تغيرت)
       const { data: profilesData } = await supabase.from("profiles").select("*");
       if (profilesData) {
         const map: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }> = {};
@@ -200,15 +187,12 @@ const Index = () => {
         setProfilesMap(map);
       }
       
-      // 5. تحديث قائمة المشرفين
       const { data: adminsData } = await supabase.from("admins").select("user_id");
       if (adminsData) setAdminIds(new Set(adminsData.map((a: any) => a.user_id)));
       
-      // 6. تحديث قائمة المحظورين
       const { data: bannedData } = await supabase.from("banned_users").select("user_id");
       if (bannedData) setBannedUserIds(new Set(bannedData.map((b: any) => b.user_id)));
       
-      // 7. تحديث الرسالة المثبتة
       const { data: pinnedData } = await supabase
         .from("pinned_messages")
         .select("*")
@@ -220,7 +204,6 @@ const Index = () => {
         setPinnedMessage(null);
       }
       
-      // 8. تحديث حالة قفل الدردشة
       const { data: chatSettingsData } = await supabase
         .from("chat_settings")
         .select("*")
@@ -228,10 +211,7 @@ const Index = () => {
         .single();
       if (chatSettingsData) setChatLocked(chatSettingsData.is_locked);
       
-      // التمرير للأسفل بعد التحديث (سواء كان المستخدم في الأسفل أو نضغط على زر التحديث)
       shouldScrollAfterRefresh.current = true;
-      
-      console.log("تم تحديث البيانات بنجاح");
       
     } catch (error) {
       console.error("خطأ في تحديث البيانات:", error);
@@ -240,7 +220,6 @@ const Index = () => {
     }
   }, [refreshing]);
 
-  // تأثير للتمرير بعد التحديث
   useEffect(() => {
     if (shouldScrollAfterRefresh.current && !refreshing && messages.length > 0) {
       setTimeout(() => {
@@ -250,7 +229,6 @@ const Index = () => {
     }
   }, [refreshing, messages.length, forceScrollToBottom]);
 
-  // Scroll handler with smooth loading
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -275,7 +253,6 @@ const Index = () => {
     }
   }, [loading, messages.length, forceScrollToBottom]);
 
-  // Fetch unread DMs
   useEffect(() => {
     if (!userId) return;
     const fetchUnread = async () => {
@@ -285,7 +262,6 @@ const Index = () => {
     fetchUnread();
   }, [userId]);
 
-  // Listen for new DMs
   useEffect(() => {
     if (!userId) return;
     const channel = supabase.channel(`unread-dm-${userId}`)
@@ -302,7 +278,6 @@ const Index = () => {
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
-  // Fetch initial data
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
@@ -370,7 +345,6 @@ const Index = () => {
     fetchInitialData();
   }, []);
 
-  // Load more messages
   const loadMoreMessages = useCallback(async () => {
     if (loadingMore || !hasMoreMessages || isLoadingMoreRef.current) return;
     isLoadingMoreRef.current = true;
@@ -433,85 +407,133 @@ const Index = () => {
     }
   }, [loadingMore, hasMoreMessages, messagePage, messages]);
 
-  // Realtime listeners - تم تحسين这部分 ليظهر الرسائل فوراً
+  // Realtime listener - نسخة محسنة وجديدة
   useEffect(() => {
-    const channel = supabase.channel("public-chat-all")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
-        const newMessage = payload.new as Message;
-        setMessages((prev) => {
-          if (prev.find((m) => m.id === newMessage.id)) return prev;
-          const updated = [...prev, newMessage];
-          return updated;
-        });
-        
-        // جلب التفاعلات والاستطلاعات للرسالة الجديدة
-        if (newMessage.content && newMessage.content.startsWith("poll:")) {
-          const pollId = newMessage.content.replace("poll:", "");
-          supabase.from("polls").select("*").eq("id", pollId).single().then(({ data }) => {
-            if (data) {
-              const opts = typeof data.options === 'string' ? JSON.parse(data.options as string) : data.options;
-              setPolls(prev => ({ ...prev, [data.id]: { question: data.question, options: opts as string[], is_active: data.is_active } }));
-            }
+    if (!username) return;
+    
+    console.log("🔄 إعداد اتصال Realtime للرسائل...");
+    
+    // إغلاق القناة القديمة إذا وجدت
+    if (realtimeChannelRef.current) {
+      supabase.removeChannel(realtimeChannelRef.current);
+    }
+    
+    // إنشاء قناة جديدة
+    const channel = supabase.channel('public-messages', {
+      config: {
+        broadcast: { self: true },
+        presence: { key: userId }
+      }
+    });
+    
+    // الاستماع للأحداث الجديدة
+    channel
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload) => {
+          console.log("📨 Realtime: تم استلام رسالة جديدة!", payload.new);
+          const newMessage = payload.new as Message;
+          
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newMessage.id)) return prev;
+            console.log("✅ إضافة الرسالة إلى الواجهة:", newMessage.id);
+            return [...prev, newMessage];
           });
-        }
-        
-        // التمرير للأسفل إذا كان المستخدم في الأسفل
-        if (messagesContainerRef.current) {
-          const container = messagesContainerRef.current;
-          const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
-          if (isNearBottom) {
-            setTimeout(() => scrollToBottom(true), 100);
-          } else if (newMessage.user_id !== userId) {
-            setHasNewMessages(true);
+          
+          // جلب بيانات الاستطلاع إذا كانت رسالة استطلاع
+          if (newMessage.content && newMessage.content.startsWith("poll:")) {
+            const pollId = newMessage.content.replace("poll:", "");
+            supabase.from("polls").select("*").eq("id", pollId).single().then(({ data }) => {
+              if (data) {
+                const opts = typeof data.options === 'string' ? JSON.parse(data.options) : data.options;
+                setPolls(prev => ({ 
+                  ...prev, 
+                  [data.id]: { 
+                    question: data.question, 
+                    options: opts as string[], 
+                    is_active: data.is_active 
+                  } 
+                }));
+              }
+            });
+          }
+          
+          // التمرير للأسفل إذا كان المستخدم في الأسفل
+          if (messagesContainerRef.current) {
+            const container = messagesContainerRef.current;
+            const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+            if (isNearBottom) {
+              setTimeout(() => scrollToBottom(true), 100);
+            } else if (newMessage.user_id !== userId) {
+              setHasNewMessages(true);
+            }
           }
         }
-      })
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "messages" }, (payload) => {
-        const deleted = payload.old as { id: string };
-        setMessages((prev) => prev.filter((m) => m.id !== deleted.id));
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reactions" }, (payload) => {
-        const r = payload.new as Reaction;
-        setReactions((prev) => prev.find((x) => x.id === r.id) ? prev : [...prev, r]);
-      })
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "reactions" }, (payload) => {
-        const deleted = payload.old as { id: string };
-        setReactions((prev) => prev.filter((r) => r.id !== deleted.id));
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, (payload) => {
-        if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-          const p = payload.new as any;
-          if (p.user_id) setProfilesMap((prev) => ({ ...prev, [p.user_id]: { username: p.username, avatar_url: p.avatar_url, allow_dms: p.allow_dms ?? true } }));
-          if (payload.eventType === "INSERT") setTotalUsers(prev => prev + 1);
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload) => {
+          const deleted = payload.old as { id: string };
+          console.log("🗑️ Realtime: تم حذف رسالة", deleted.id);
+          setMessages((prev) => prev.filter((m) => m.id !== deleted.id));
         }
-        if (payload.eventType === "DELETE") {
-          const p = payload.old as any;
-          if (p.user_id) setProfilesMap((prev) => { const m = { ...prev }; delete m[p.user_id]; return m; });
-          setTotalUsers(prev => Math.max(0, prev - 1));
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'reactions'
+        },
+        (payload) => {
+          const r = payload.new as Reaction;
+          console.log("❤️ Realtime: تفاعل جديد", r);
+          setReactions((prev) => prev.find((x) => x.id === r.id) ? prev : [...prev, r]);
         }
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_settings" }, (payload) => {
-        const settings = payload.new as any;
-        setChatLocked(settings.is_locked);
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "banned_users" }, (payload) => {
-        const banned = payload.new as any;
-        setBannedUserIds(prev => new Set([...prev, banned.user_id]));
-      })
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "banned_users" }, (payload) => {
-        const unbanned = payload.old as any;
-        setBannedUserIds(prev => { const s = new Set(prev); s.delete(unbanned.user_id); return s; });
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "pinned_messages" }, (payload) => {
-        setPinnedMessage(payload.new as any);
-      })
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "pinned_messages" }, (payload) => {
-        const old = payload.old as any;
-        setPinnedMessage(prev => (prev && prev.id === old.id ? null : prev));
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [scrollToBottom, userId]);
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'reactions'
+        },
+        (payload) => {
+          const deleted = payload.old as { id: string };
+          setReactions((prev) => prev.filter((r) => r.id !== deleted.id));
+        }
+      )
+      .subscribe((status) => {
+        console.log("📡 Realtime connection status:", status);
+        if (status === 'SUBSCRIBED') {
+          console.log("✅ Realtime متصل بنجاح!");
+          setRealtimeConnected(true);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error("❌ خطأ في اتصال Realtime");
+          setRealtimeConnected(false);
+        }
+      });
+    
+    realtimeChannelRef.current = channel;
+    
+    return () => {
+      console.log("🔌 إغلاق اتصال Realtime");
+      if (realtimeChannelRef.current) {
+        supabase.removeChannel(realtimeChannelRef.current);
+        realtimeChannelRef.current = null;
+      }
+    };
+  }, [username, userId, scrollToBottom]);
 
   // Presence
   useEffect(() => {
@@ -539,7 +561,6 @@ const Index = () => {
     return () => { supabase.removeChannel(presenceChannel); presenceChannelRef.current = null; };
   }, [username, userId]);
 
-  // Scroll when returning from DMs
   useEffect(() => {
     if (isReturningFromDMs) {
       forceScrollToBottom();
@@ -608,6 +629,7 @@ const Index = () => {
   const handleSend = async () => {
     if ((!input.trim() && !selectedFile) || !username || sending || isUserBanned) return;
     if (chatLocked && !isCurrentUserAdmin) return;
+    
     const content = input.trim();
     setInput("");
     setSending(true);
@@ -632,7 +654,13 @@ const Index = () => {
       setUploadingFile(false);
     }
     
-    const insertData: any = { username, user_id: userId, content: content || (fileUrl ? `📎 ${fileName}` : "") };
+    const insertData: any = { 
+      username, 
+      user_id: userId, 
+      content: content || (fileUrl ? `📎 ${fileName}` : ""),
+      created_at: new Date().toISOString()
+    };
+    
     if (fileUrl) {
       insertData.file_url = fileUrl;
       insertData.file_name = fileName;
@@ -645,9 +673,18 @@ const Index = () => {
     }
     setReplyTo(null);
     
-    // إرسال الرسالة - realtime سيتولى إضافتها للواجهة
-    await supabase.from("messages").insert(insertData);
-    playSound();
+    console.log("📤 إرسال رسالة جديدة:", insertData);
+    
+    const { error } = await supabase.from("messages").insert(insertData);
+    
+    if (error) {
+      console.error("❌ فشل إرسال الرسالة:", error);
+      alert("فشل إرسال الرسالة: " + error.message);
+    } else {
+      console.log("✅ تم إرسال الرسالة بنجاح، انتظر وصولها عبر Realtime");
+      playSound();
+    }
+    
     setSending(false);
     inputRef.current?.focus();
     setShowStickerPicker(false);
@@ -663,14 +700,10 @@ const Index = () => {
     if (!username || sending || isUserBanned) return;
     if (chatLocked && !isCurrentUserAdmin) return;
     setSending(true);
-    await supabase.from("messages").insert({ username, user_id: userId, content: `sticker:${sticker}` });
+    await supabase.from("messages").insert({ username, user_id: userId, content: `sticker:${sticker}`, created_at: new Date().toISOString() });
     setSending(false);
     setShowStickerPicker(false);
-    
-    // تمرير للأسفل بعد إرسال الملصق
-    setTimeout(() => {
-      forceScrollToBottom();
-    }, 100);
+    setTimeout(() => { forceScrollToBottom(); }, 100);
   };
 
   const handleSendAnnouncement = async () => {
@@ -678,14 +711,10 @@ const Index = () => {
     const content = `📢 إعلان المشرف: ${input.trim()}`;
     setInput("");
     setSending(true);
-    await supabase.from("messages").insert({ username, user_id: userId, content });
+    await supabase.from("messages").insert({ username, user_id: userId, content, created_at: new Date().toISOString() });
     setSending(false);
     inputRef.current?.focus();
-    
-    // تمرير للأسفل بعد الإعلان
-    setTimeout(() => {
-      forceScrollToBottom();
-    }, 100);
+    setTimeout(() => { forceScrollToBottom(); }, 100);
   };
 
   const handleCreatePoll = async (question: string, options: string[]) => {
@@ -694,7 +723,7 @@ const Index = () => {
     try {
       const { data: poll, error } = await supabase.from("polls").insert({ question, options, created_by: userId }).select().single();
       if (poll && !error) {
-        await supabase.from("messages").insert({ username, user_id: userId, content: `poll:${poll.id}` });
+        await supabase.from("messages").insert({ username, user_id: userId, content: `poll:${poll.id}`, created_at: new Date().toISOString() });
         setPolls(prev => ({ ...prev, [poll.id]: { question, options, is_active: true } }));
       }
     } catch (e) {
@@ -702,11 +731,7 @@ const Index = () => {
     }
     setSending(false);
     setShowPollCreator(false);
-    
-    // تمرير للأسفل بعد إنشاء الاستطلاع
-    setTimeout(() => {
-      forceScrollToBottom();
-    }, 100);
+    setTimeout(() => { forceScrollToBottom(); }, 100);
   };
 
   const handleDeleteMessage = async (messageId: string) => {
@@ -732,8 +757,6 @@ const Index = () => {
     await supabase.from("pinned_messages").delete().eq("id", pinnedMessage.id);
     setPinnedMessage(null);
   };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {};
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -864,7 +887,7 @@ const Index = () => {
 
   return (
     <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
-      {/* Header - Fixed */}
+      {/* Header */}
       <header className="flex-shrink-0 px-3 py-2.5 flex items-center justify-between overflow-hidden fixed top-0 left-0 right-0 z-20" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
@@ -881,6 +904,12 @@ const Index = () => {
                 <Users className="w-3 h-3" style={{ color: "hsl(var(--muted-foreground))" }} />
                 <span className="text-[11px]" style={{ color: "hsl(var(--muted-foreground))" }}>{totalUsers}</span>
               </div>
+              {realtimeConnected && (
+                <div className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>مباشر</span>
+                </div>
+              )}
             </div>
           </button>
         </div>
@@ -921,7 +950,7 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Pinned message banner - with top padding for fixed header */}
+      {/* Pinned message banner */}
       {pinnedMessage && (
         <div className="flex-shrink-0 px-3 py-2 flex items-start gap-2 animate-fade-in mt-14" style={{ background: "hsl(var(--primary) / 0.08)", borderBottom: "1px solid hsl(var(--primary) / 0.2)" }}>
           <Pin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
@@ -937,7 +966,7 @@ const Index = () => {
         </div>
       )}
 
-      {/* Messages area - مع padding-bottom لحل مشكلة اختفاء آخر رسالة */}
+      {/* Messages area */}
       <div 
         ref={messagesContainerRef} 
         className="flex-1 overflow-y-auto px-3 space-y-2 relative"
@@ -1102,7 +1131,7 @@ const Index = () => {
           </div>
         </div>
       ) : (
-        /* Input area - Fixed at bottom */
+        /* Input area */
         <div className="flex-shrink-0 px-3 pb-3 pt-1.5 fixed bottom-0 left-0 right-0 z-20" style={{ background: "hsl(var(--chat-bg))" }}>
           {chatLocked && isCurrentUserAdmin && (
             <div className="flex items-center justify-center gap-2 mb-2 px-3 py-1.5 rounded-full" style={{ background: "hsl(var(--destructive) / 0.1)" }}>
@@ -1111,7 +1140,7 @@ const Index = () => {
             </div>
           )}
 
-          {/* Reply preview - WhatsApp style */}
+          {/* Reply preview */}
           {replyTo && (
             <div className="mb-2 px-3 py-2 rounded-xl flex items-center justify-between gap-2 animate-fade-in"
               style={{ background: "hsl(var(--chat-reply-bg, var(--secondary)))", border: "1px solid hsl(var(--border))", borderRight: "3px solid hsl(var(--primary))" }}>
@@ -1225,7 +1254,7 @@ const Index = () => {
               style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
-            {/* حقل إدخال الرسالة - مستطيل بدون حواف مدورة */}
+            
             <div className="flex-1 flex items-end" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))", borderRadius: "0px" }}>
               <textarea ref={inputRef} value={input}
                 onChange={handleInputChange}
