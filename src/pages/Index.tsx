@@ -125,18 +125,19 @@ const Index = () => {
   const isCurrentUserAdmin = adminIds.has(userId);
   const isUserBanned = bannedUserIds.has(userId);
 
-  // Refresh function - reload all data from database
+  // تحسين دالة التحديث - جلب الرسائل مع التفاعلات فقط
   const refreshChatData = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
     
-    console.log("Refreshing chat data...");
+    console.log("جاري تحديث الدردشة...");
     
     try {
       const container = messagesContainerRef.current;
       const wasNearBottom = container ? 
         container.scrollHeight - container.scrollTop - container.clientHeight < 200 : false;
       
+      // 1. جلب أحدث الرسائل فقط
       const { data: messagesData, error: messagesError } = await supabase
         .from("messages")
         .select("*")
@@ -147,21 +148,28 @@ const Index = () => {
         const sortedMessages = (messagesData as Message[]).reverse();
         setMessages(sortedMessages);
         
+        // تحديث حالة وجود المزيد من الرسائل
         const { count } = await supabase
           .from("messages")
           .select("*", { count: 'exact', head: true });
         setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
         setMessagePage(0);
         
+        // 2. جلب التفاعلات للرسائل فقط
         const msgIds = sortedMessages.map(m => m.id);
         if (msgIds.length > 0) {
           const { data: reactionsData } = await supabase
             .from("reactions")
             .select("*")
             .in("message_id", msgIds);
-          if (reactionsData) setReactions(reactionsData as Reaction[]);
+          if (reactionsData) {
+            setReactions(reactionsData as Reaction[]);
+          } else {
+            setReactions([]);
+          }
         }
         
+        // 3. جلب بيانات الاستطلاعات للرسائل الجديدة فقط
         const pollMsgIds = sortedMessages
           .filter(m => m.content && m.content.startsWith("poll:"))
           .map(m => m.content.replace("poll:", ""));
@@ -176,11 +184,12 @@ const Index = () => {
               const opts = typeof p.options === 'string' ? JSON.parse(p.options) : p.options;
               pollMap[p.id] = { question: p.question, options: opts, is_active: p.is_active };
             });
-            setPolls(pollMap);
+            setPolls(prev => ({ ...prev, ...pollMap }));
           }
         }
       }
       
+      // 4. تحديث الملفات الشخصية (إذا تغيرت)
       const { data: profilesData } = await supabase.from("profiles").select("*");
       if (profilesData) {
         const map: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }> = {};
@@ -190,12 +199,15 @@ const Index = () => {
         setProfilesMap(map);
       }
       
+      // 5. تحديث قائمة المشرفين
       const { data: adminsData } = await supabase.from("admins").select("user_id");
       if (adminsData) setAdminIds(new Set(adminsData.map((a: any) => a.user_id)));
       
+      // 6. تحديث قائمة المحظورين
       const { data: bannedData } = await supabase.from("banned_users").select("user_id");
       if (bannedData) setBannedUserIds(new Set(bannedData.map((b: any) => b.user_id)));
       
+      // 7. تحديث الرسالة المثبتة
       const { data: pinnedData } = await supabase
         .from("pinned_messages")
         .select("*")
@@ -207,6 +219,7 @@ const Index = () => {
         setPinnedMessage(null);
       }
       
+      // 8. تحديث حالة قفل الدردشة
       const { data: chatSettingsData } = await supabase
         .from("chat_settings")
         .select("*")
@@ -218,10 +231,10 @@ const Index = () => {
         setTimeout(() => forceScrollToBottom(), 100);
       }
       
-      console.log("Chat data refreshed successfully");
+      console.log("تم تحديث البيانات بنجاح");
       
     } catch (error) {
-      console.error("Error refreshing chat data:", error);
+      console.error("خطأ في تحديث البيانات:", error);
     } finally {
       setRefreshing(false);
     }
@@ -885,13 +898,15 @@ const Index = () => {
         </div>
       )}
 
-      {/* Messages area - with padding for fixed header and bottom input */}
+      {/* Messages area - مع padding-bottom لحل مشكلة اختفاء آخر رسالة */}
       <div 
         ref={messagesContainerRef} 
-        className="flex-1 overflow-y-auto px-3 py-3 space-y-2 relative"
+        className="flex-1 overflow-y-auto px-3 space-y-2 relative"
         style={{ 
           marginTop: pinnedMessage ? '108px' : '56px',
-          marginBottom: 'auto',
+          marginBottom: '0px',
+          paddingBottom: '100px',
+          paddingTop: '12px',
           backgroundImage: chatBg ? `url(${chatBg})` : undefined,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
