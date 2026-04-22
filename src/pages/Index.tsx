@@ -907,7 +907,7 @@ const Index = () => {
               {realtimeConnected && (
                 <div className="flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>مباشر</span>
+                  <span className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}></span>
                 </div>
               )}
             </div>
