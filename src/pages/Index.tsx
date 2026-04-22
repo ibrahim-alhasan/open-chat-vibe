@@ -1258,7 +1258,7 @@ const Index = () => {
             <div className="flex-1 flex items-end" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))", borderRadius: "0px" }}>
               <textarea ref={inputRef} value={input}
                 onChange={handleInputChange}
-                placeholder={isCurrentUserAdmin ? "اكتب رسالتك... — اكتب @ لذكر شخص" : "اكتب رسالتك... — اكتب @ لذكر شخص"}
+                placeholder="اكتب رسالتك ...."
                 rows={1} maxLength={500}
                 className="flex-1 resize-none bg-transparent outline-none text-[14px] leading-relaxed select-text px-3 py-2"
                 style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
