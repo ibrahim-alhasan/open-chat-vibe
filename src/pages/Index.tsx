@@ -130,16 +130,13 @@ const Index = () => {
     if (refreshing) return;
     setRefreshing(true);
     
-    // Show refresh indicator in console
     console.log("Refreshing chat data...");
     
     try {
-      // Store current scroll position and whether we were near bottom
       const container = messagesContainerRef.current;
       const wasNearBottom = container ? 
         container.scrollHeight - container.scrollTop - container.clientHeight < 200 : false;
       
-      // Fetch fresh messages
       const { data: messagesData, error: messagesError } = await supabase
         .from("messages")
         .select("*")
@@ -150,14 +147,12 @@ const Index = () => {
         const sortedMessages = (messagesData as Message[]).reverse();
         setMessages(sortedMessages);
         
-        // Get total count for pagination
         const { count } = await supabase
           .from("messages")
           .select("*", { count: 'exact', head: true });
         setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
         setMessagePage(0);
         
-        // Fetch fresh reactions for loaded messages
         const msgIds = sortedMessages.map(m => m.id);
         if (msgIds.length > 0) {
           const { data: reactionsData } = await supabase
@@ -167,7 +162,6 @@ const Index = () => {
           if (reactionsData) setReactions(reactionsData as Reaction[]);
         }
         
-        // Fetch fresh polls for poll messages
         const pollMsgIds = sortedMessages
           .filter(m => m.content && m.content.startsWith("poll:"))
           .map(m => m.content.replace("poll:", ""));
@@ -187,7 +181,6 @@ const Index = () => {
         }
       }
       
-      // Fetch fresh profiles
       const { data: profilesData } = await supabase.from("profiles").select("*");
       if (profilesData) {
         const map: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }> = {};
@@ -197,15 +190,12 @@ const Index = () => {
         setProfilesMap(map);
       }
       
-      // Fetch fresh admins
       const { data: adminsData } = await supabase.from("admins").select("user_id");
       if (adminsData) setAdminIds(new Set(adminsData.map((a: any) => a.user_id)));
       
-      // Fetch fresh banned users
       const { data: bannedData } = await supabase.from("banned_users").select("user_id");
       if (bannedData) setBannedUserIds(new Set(bannedData.map((b: any) => b.user_id)));
       
-      // Fetch fresh pinned message
       const { data: pinnedData } = await supabase
         .from("pinned_messages")
         .select("*")
@@ -217,7 +207,6 @@ const Index = () => {
         setPinnedMessage(null);
       }
       
-      // Fetch fresh chat settings
       const { data: chatSettingsData } = await supabase
         .from("chat_settings")
         .select("*")
@@ -225,12 +214,10 @@ const Index = () => {
         .single();
       if (chatSettingsData) setChatLocked(chatSettingsData.is_locked);
       
-      // Scroll to bottom if we were near bottom before refresh
       if (wasNearBottom) {
         setTimeout(() => forceScrollToBottom(), 100);
       }
       
-      // Optional: Show a toast notification (if you have a toast system)
       console.log("Chat data refreshed successfully");
       
     } catch (error) {
@@ -825,8 +812,8 @@ const Index = () => {
 
   return (
     <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
-      {/* Header */}
-      <header className="flex-shrink-0 px-3 py-2.5 flex items-center justify-between overflow-hidden" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
+      {/* Header - Fixed */}
+      <header className="flex-shrink-0 px-3 py-2.5 flex items-center justify-between overflow-hidden fixed top-0 left-0 right-0 z-20" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
             <MessageCircle className="w-5 h-5" style={{ color: "hsl(var(--primary-foreground))" }} />
@@ -882,10 +869,9 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Pinned message banner */}
+      {/* Pinned message banner - with top padding for fixed header */}
       {pinnedMessage && (
-        <div className="flex-shrink-0 px-3 py-2 flex items-start gap-2 animate-fade-in"
-          style={{ background: "hsl(var(--primary) / 0.08)", borderBottom: "1px solid hsl(var(--primary) / 0.2)" }}>
+        <div className="flex-shrink-0 px-3 py-2 flex items-start gap-2 animate-fade-in mt-14" style={{ background: "hsl(var(--primary) / 0.08)", borderBottom: "1px solid hsl(var(--primary) / 0.2)" }}>
           <Pin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
           <button onClick={() => setShowPinnedExpanded(v => !v)} className="flex-1 min-w-0 text-right">
             <div className="text-[10px] font-semibold mb-0.5" style={{ color: "hsl(var(--primary))" }}>رسالة مثبّتة · {pinnedMessage.username}</div>
@@ -899,8 +885,19 @@ const Index = () => {
         </div>
       )}
 
-      {/* Messages area */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2 relative" style={chatBg ? { backgroundImage: `url(${chatBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' } : undefined}>
+      {/* Messages area - with padding for fixed header and bottom input */}
+      <div 
+        ref={messagesContainerRef} 
+        className="flex-1 overflow-y-auto px-3 py-3 space-y-2 relative"
+        style={{ 
+          marginTop: pinnedMessage ? '108px' : '56px',
+          marginBottom: 'auto',
+          backgroundImage: chatBg ? `url(${chatBg})` : undefined,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
         {loadingMore && (
           <div className="flex justify-center py-2">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full" style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
@@ -980,7 +977,7 @@ const Index = () => {
         )}
 
         {(showScrollButton || hasNewMessages) && (
-          <div className="fixed bottom-20 right-4 flex flex-col items-end gap-2 z-10">
+          <div className="fixed bottom-24 right-4 flex flex-col items-end gap-2 z-10">
             {hasNewMessages && (
               <button onClick={() => scrollToBottom(true)} className="px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 animate-bounce" style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))" }}>
                 <span className="text-[12px]">رسائل جديدة</span>
@@ -998,7 +995,7 @@ const Index = () => {
 
       {/* Typing indicator */}
       {typingNames.length > 0 && (
-        <div className="flex-shrink-0 px-4 py-1 animate-fade-in">
+        <div className="flex-shrink-0 px-4 py-1 animate-fade-in" style={{ marginBottom: 'auto' }}>
           <div className="flex items-center gap-2">
             <div className="flex gap-0.5">
               <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "hsl(var(--primary))", animationDelay: "0ms" }} />
@@ -1051,8 +1048,8 @@ const Index = () => {
           </div>
         </div>
       ) : (
-        /* Input area */
-        <div className="flex-shrink-0 px-3 pb-3 pt-1.5">
+        /* Input area - Fixed at bottom */
+        <div className="flex-shrink-0 px-3 pb-3 pt-1.5 fixed bottom-0 left-0 right-0 z-20" style={{ background: "hsl(var(--chat-bg))" }}>
           {chatLocked && isCurrentUserAdmin && (
             <div className="flex items-center justify-center gap-2 mb-2 px-3 py-1.5 rounded-full" style={{ background: "hsl(var(--destructive) / 0.1)" }}>
               <Lock className="w-3 h-3" style={{ color: "hsl(var(--destructive))" }} />
@@ -1060,7 +1057,7 @@ const Index = () => {
             </div>
           )}
 
-          {/* Reply preview */}
+          {/* Reply preview - WhatsApp style */}
           {replyTo && (
             <div className="mb-2 px-3 py-2 rounded-xl flex items-center justify-between gap-2 animate-fade-in"
               style={{ background: "hsl(var(--chat-reply-bg, var(--secondary)))", border: "1px solid hsl(var(--border))", borderRight: "3px solid hsl(var(--primary))" }}>
@@ -1166,7 +1163,6 @@ const Index = () => {
               style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
               <Paperclip className="w-4 h-4" />
             </button>
-            {/* زر إعادة التحميل - موجود هنا */}
             <button 
               onClick={refreshChatData} 
               disabled={refreshing} 
@@ -1175,12 +1171,13 @@ const Index = () => {
               style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
-            <div className="flex-1 flex items-end p-1.5 rounded-full" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
+            {/* حقل إدخال الرسالة - مستطيل بدون حواف مدورة */}
+            <div className="flex-1 flex items-end" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))", borderRadius: "0px" }}>
               <textarea ref={inputRef} value={input}
                 onChange={handleInputChange}
                 placeholder={isCurrentUserAdmin ? "اكتب رسالتك... — اكتب @ لذكر شخص" : "اكتب رسالتك... — اكتب @ لذكر شخص"}
                 rows={1} maxLength={500}
-                className="flex-1 resize-none bg-transparent outline-none text-[14px] leading-relaxed select-text px-3"
+                className="flex-1 resize-none bg-transparent outline-none text-[14px] leading-relaxed select-text px-3 py-2"
                 style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
               />
             </div>
