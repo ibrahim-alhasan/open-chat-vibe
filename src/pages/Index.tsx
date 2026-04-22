@@ -11,7 +11,7 @@ import AdminPanel from "@/components/AdminPanel";
 import PollCreator from "@/components/PollCreator";
 import PollMessage from "@/components/PollMessage";
 import { playSound } from "@/lib/sounds";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff , Bot} from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff , Bot, RefreshCw } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 100;
 
@@ -45,6 +45,7 @@ const Index = () => {
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [messagePage, setMessagePage] = useState(0);
   const [sending, setSending] = useState(false);
@@ -124,6 +125,121 @@ const Index = () => {
   const isCurrentUserAdmin = adminIds.has(userId);
   const isUserBanned = bannedUserIds.has(userId);
 
+  // Refresh function - reload all data from database
+  const refreshChatData = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    
+    // Show refresh indicator in console
+    console.log("Refreshing chat data...");
+    
+    try {
+      // Store current scroll position and whether we were near bottom
+      const container = messagesContainerRef.current;
+      const wasNearBottom = container ? 
+        container.scrollHeight - container.scrollTop - container.clientHeight < 200 : false;
+      
+      // Fetch fresh messages
+      const { data: messagesData, error: messagesError } = await supabase
+        .from("messages")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(MESSAGES_PER_PAGE);
+      
+      if (!messagesError && messagesData) {
+        const sortedMessages = (messagesData as Message[]).reverse();
+        setMessages(sortedMessages);
+        
+        // Get total count for pagination
+        const { count } = await supabase
+          .from("messages")
+          .select("*", { count: 'exact', head: true });
+        setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
+        setMessagePage(0);
+        
+        // Fetch fresh reactions for loaded messages
+        const msgIds = sortedMessages.map(m => m.id);
+        if (msgIds.length > 0) {
+          const { data: reactionsData } = await supabase
+            .from("reactions")
+            .select("*")
+            .in("message_id", msgIds);
+          if (reactionsData) setReactions(reactionsData as Reaction[]);
+        }
+        
+        // Fetch fresh polls for poll messages
+        const pollMsgIds = sortedMessages
+          .filter(m => m.content && m.content.startsWith("poll:"))
+          .map(m => m.content.replace("poll:", ""));
+        if (pollMsgIds.length > 0) {
+          const { data: pollsData } = await supabase
+            .from("polls")
+            .select("*")
+            .in("id", pollMsgIds);
+          if (pollsData) {
+            const pollMap: Record<string, { question: string; options: string[]; is_active: boolean }> = {};
+            pollsData.forEach((p: any) => {
+              const opts = typeof p.options === 'string' ? JSON.parse(p.options) : p.options;
+              pollMap[p.id] = { question: p.question, options: opts, is_active: p.is_active };
+            });
+            setPolls(pollMap);
+          }
+        }
+      }
+      
+      // Fetch fresh profiles
+      const { data: profilesData } = await supabase.from("profiles").select("*");
+      if (profilesData) {
+        const map: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }> = {};
+        profilesData.forEach((p: any) => {
+          if (p.user_id) map[p.user_id] = { username: p.username, avatar_url: p.avatar_url, allow_dms: p.allow_dms ?? true };
+        });
+        setProfilesMap(map);
+      }
+      
+      // Fetch fresh admins
+      const { data: adminsData } = await supabase.from("admins").select("user_id");
+      if (adminsData) setAdminIds(new Set(adminsData.map((a: any) => a.user_id)));
+      
+      // Fetch fresh banned users
+      const { data: bannedData } = await supabase.from("banned_users").select("user_id");
+      if (bannedData) setBannedUserIds(new Set(bannedData.map((b: any) => b.user_id)));
+      
+      // Fetch fresh pinned message
+      const { data: pinnedData } = await supabase
+        .from("pinned_messages")
+        .select("*")
+        .order("pinned_at", { ascending: false })
+        .limit(1);
+      if (pinnedData && pinnedData.length > 0) {
+        setPinnedMessage(pinnedData[0] as any);
+      } else {
+        setPinnedMessage(null);
+      }
+      
+      // Fetch fresh chat settings
+      const { data: chatSettingsData } = await supabase
+        .from("chat_settings")
+        .select("*")
+        .limit(1)
+        .single();
+      if (chatSettingsData) setChatLocked(chatSettingsData.is_locked);
+      
+      // Scroll to bottom if we were near bottom before refresh
+      if (wasNearBottom) {
+        setTimeout(() => forceScrollToBottom(), 100);
+      }
+      
+      // Optional: Show a toast notification (if you have a toast system)
+      console.log("Chat data refreshed successfully");
+      
+    } catch (error) {
+      console.error("Error refreshing chat data:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, forceScrollToBottom]);
+
   // Scroll handler with smooth loading
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -142,8 +258,6 @@ const Index = () => {
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
   }, [hasMoreMessages, loading]);
-
-  // No more manual popstate/history handling - React Router handles it
 
   useEffect(() => {
     if (!loading && messages.length > 0 && isFirstLoadRef.current) {
@@ -199,15 +313,13 @@ const Index = () => {
           const { count } = await supabase.from("messages").select("*", { count: 'exact', head: true });
           setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
 
-          // Fetch reactions ONLY for the loaded messages (avoids 1000-row default limit)
           const msgIds = sortedMessages.map(m => m.id);
           if (msgIds.length > 0) {
             const { data: reactionsData } = await supabase.from("reactions").select("*").in("message_id", msgIds);
             if (reactionsData) setReactions(reactionsData as Reaction[]);
           }
 
-          // Fetch polls for poll messages
-          const pollMsgIds = sortedMessages.filter(m => m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
+          const pollMsgIds = sortedMessages.filter(m => m.content && m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
           if (pollMsgIds.length > 0) {
             const { data: pollsData } = await supabase.from("polls").select("*").in("id", pollMsgIds);
             if (pollsData) {
@@ -248,7 +360,7 @@ const Index = () => {
     fetchInitialData();
   }, []);
 
-  // Load more messages with smooth scroll preservation
+  // Load more messages
   const loadMoreMessages = useCallback(async () => {
     if (loadingMore || !hasMoreMessages || isLoadingMoreRef.current) return;
     isLoadingMoreRef.current = true;
@@ -263,7 +375,6 @@ const Index = () => {
       if (!error && data && data.length > 0) {
         const olderMessages = (data as Message[]).reverse();
 
-        // Fetch reactions for older messages
         const olderIds = olderMessages.map(m => m.id);
         if (olderIds.length > 0) {
           const { data: reactionsData } = await supabase.from("reactions").select("*").in("message_id", olderIds);
@@ -276,8 +387,7 @@ const Index = () => {
           }
         }
 
-        // Fetch polls for older messages
-        const pollMsgIds = olderMessages.filter(m => m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
+        const pollMsgIds = olderMessages.filter(m => m.content && m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
         if (pollMsgIds.length > 0) {
           const { data: pollsData } = await supabase.from("polls").select("*").in("id", pollMsgIds);
           if (pollsData) {
@@ -322,7 +432,7 @@ const Index = () => {
           if (prev.find((m) => m.id === newMessage.id)) return prev;
           return [...prev, newMessage];
         });
-        if (newMessage.content.startsWith("poll:")) {
+        if (newMessage.content && newMessage.content.startsWith("poll:")) {
           const pollId = newMessage.content.replace("poll:", "");
           supabase.from("polls").select("*").eq("id", pollId).single().then(({ data }) => {
             if (data) {
@@ -548,7 +658,6 @@ const Index = () => {
     if (!username || sending) return;
     setSending(true);
     try {
-      // Store options as a proper JSON array (not double-stringified)
       const { data: poll, error } = await supabase.from("polls").insert({ question, options, created_by: userId }).select().single();
       if (poll && !error) {
         await supabase.from("messages").insert({ username, user_id: userId, content: `poll:${poll.id}` });
@@ -568,7 +677,6 @@ const Index = () => {
 
   const handlePinMessage = async (msg: Message) => {
     if (!isCurrentUserAdmin) return;
-    // Remove existing pin first (only one pinned at a time)
     await supabase.from("pinned_messages").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     const { data } = await supabase.from("pinned_messages").insert({
       message_id: msg.id,
@@ -586,11 +694,8 @@ const Index = () => {
     setPinnedMessage(null);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Enter adds new line; send via button only
-  };
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {};
 
-  // Handle @mention in input
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setInput(value);
@@ -600,18 +705,16 @@ const Index = () => {
 
     const cursorPos = e.target.selectionStart || 0;
     const textBeforeCursor = value.slice(0, cursorPos);
-    // Support names with spaces: capture everything after last @
     const mentionMatch = textBeforeCursor.match(/@([^@]*)$/);
     if (mentionMatch) {
       const query = mentionMatch[1].toLowerCase().trim();
       setMentionQuery(query);
-      // Fuzzy search: split query into parts, all parts must appear in username
       const queryParts = query.split(/\s+/).filter(Boolean);
       const results = Object.entries(profilesMap)
         .filter(([uid, p]) => {
           if (uid === userId) return false;
           const name = p.username.toLowerCase();
-          if (queryParts.length === 0) return true; // show all when just "@"
+          if (queryParts.length === 0) return true;
           return queryParts.every(part => name.includes(part));
         })
         .slice(0, 8)
@@ -655,7 +758,6 @@ const Index = () => {
     setChatLocked(newLocked);
   };
 
-  // Reply handler - WhatsApp style (inline reply, no thread)
   const handleReply = (message: Message) => {
     setReplyTo(message);
     inputRef.current?.focus();
@@ -695,7 +797,6 @@ const Index = () => {
     );
   }
 
-  // Render a message or poll
   const renderMessageContent = (msg: Message) => {
     if (msg.content && msg.content.startsWith("poll:")) {
       const pId = msg.content.replace("poll:", "");
@@ -711,7 +812,6 @@ const Index = () => {
           />
         );
       }
-      // Poll data not loaded yet - show loading
       return (
         <div className="w-full max-w-[300px] rounded-xl overflow-hidden" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
           <div className="px-3 py-8 text-center">
@@ -761,9 +861,9 @@ const Index = () => {
             </button>
           )}
           <button onClick={() => window.open('go:aimain')} title="الذكاء الاصطناعي"
-  className="relative p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
-  <Bot className="w-5 h-5" />
-</button>
+            className="relative p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
+            <Bot className="w-5 h-5" />
+          </button>
           <button onClick={() => navigate('/dms')} title="الرسائل الخاصة"
             className="relative p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
             <MessageSquare className="w-5 h-5" />
@@ -960,7 +1060,7 @@ const Index = () => {
             </div>
           )}
 
-          {/* Reply preview - WhatsApp style */}
+          {/* Reply preview */}
           {replyTo && (
             <div className="mb-2 px-3 py-2 rounded-xl flex items-center justify-between gap-2 animate-fade-in"
               style={{ background: "hsl(var(--chat-reply-bg, var(--secondary)))", border: "1px solid hsl(var(--border))", borderRight: "3px solid hsl(var(--primary))" }}>
@@ -971,7 +1071,7 @@ const Index = () => {
                     {replyTo.user_id === userId ? "أنت" : (replyTo.user_id ? getProfile(replyTo.user_id).username : replyTo.username)}
                   </p>
                   <p className="text-[11px] truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    {replyTo.content.startsWith("sticker:") ? "ملصق" : replyTo.content.slice(0, 60)}
+                    {replyTo.content && replyTo.content.startsWith("sticker:") ? "ملصق" : replyTo.content?.slice(0, 60)}
                   </p>
                 </div>
               </div>
@@ -1065,6 +1165,15 @@ const Index = () => {
               className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 disabled:opacity-40"
               style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
               <Paperclip className="w-4 h-4" />
+            </button>
+            {/* زر إعادة التحميل - موجود هنا */}
+            <button 
+              onClick={refreshChatData} 
+              disabled={refreshing} 
+              title="إعادة تحميل الدردشة"
+              className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 disabled:opacity-40 hover:bg-opacity-80 duration-300"
+              style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
             <div className="flex-1 flex items-end p-1.5 rounded-full" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
               <textarea ref={inputRef} value={input}
