@@ -84,6 +84,7 @@ const Index = () => {
   const isLoadingMoreRef = useRef(false);
   const lastScrollTopRef = useRef(0);
   const isUserScrollingUpRef = useRef(false);
+  const shouldScrollAfterRefresh = useRef(false); // متغير لتتبع إذا كنا بحاجة للتمرير بعد التحديث
 
   // Message counts per user for activity badges
   const messageCounts = useMemo(() => {
@@ -125,7 +126,7 @@ const Index = () => {
   const isCurrentUserAdmin = adminIds.has(userId);
   const isUserBanned = bannedUserIds.has(userId);
 
-  // تحسين دالة التحديث - جلب الرسائل مع التفاعلات فقط
+  // تحسين دالة التحديث - جلب الرسائل مع التفاعلات فقط والتمرير للأسفل
   const refreshChatData = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
@@ -227,9 +228,8 @@ const Index = () => {
         .single();
       if (chatSettingsData) setChatLocked(chatSettingsData.is_locked);
       
-      if (wasNearBottom) {
-        setTimeout(() => forceScrollToBottom(), 100);
-      }
+      // التمرير للأسفل بعد التحديث (سواء كان المستخدم في الأسفل أو نضغط على زر التحديث)
+      shouldScrollAfterRefresh.current = true;
       
       console.log("تم تحديث البيانات بنجاح");
       
@@ -238,7 +238,17 @@ const Index = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [refreshing, forceScrollToBottom]);
+  }, [refreshing]);
+
+  // تأثير للتمرير بعد التحديث
+  useEffect(() => {
+    if (shouldScrollAfterRefresh.current && !refreshing && messages.length > 0) {
+      setTimeout(() => {
+        forceScrollToBottom();
+        shouldScrollAfterRefresh.current = false;
+      }, 200);
+    }
+  }, [refreshing, messages.length, forceScrollToBottom]);
 
   // Scroll handler with smooth loading
   useEffect(() => {
@@ -423,15 +433,18 @@ const Index = () => {
     }
   }, [loadingMore, hasMoreMessages, messagePage, messages]);
 
-  // Realtime listeners
+  // Realtime listeners - تم تحسين这部分 ليظهر الرسائل فوراً
   useEffect(() => {
     const channel = supabase.channel("public-chat-all")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
         const newMessage = payload.new as Message;
         setMessages((prev) => {
           if (prev.find((m) => m.id === newMessage.id)) return prev;
-          return [...prev, newMessage];
+          const updated = [...prev, newMessage];
+          return updated;
         });
+        
+        // جلب التفاعلات والاستطلاعات للرسالة الجديدة
         if (newMessage.content && newMessage.content.startsWith("poll:")) {
           const pollId = newMessage.content.replace("poll:", "");
           supabase.from("polls").select("*").eq("id", pollId).single().then(({ data }) => {
@@ -441,11 +454,16 @@ const Index = () => {
             }
           });
         }
+        
+        // التمرير للأسفل إذا كان المستخدم في الأسفل
         if (messagesContainerRef.current) {
           const container = messagesContainerRef.current;
           const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
-          if (isNearBottom) setTimeout(() => scrollToBottom(true), 100);
-          else if (newMessage.user_id !== userId) setHasNewMessages(true);
+          if (isNearBottom) {
+            setTimeout(() => scrollToBottom(true), 100);
+          } else if (newMessage.user_id !== userId) {
+            setHasNewMessages(true);
+          }
         }
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "messages" }, (payload) => {
@@ -627,12 +645,18 @@ const Index = () => {
     }
     setReplyTo(null);
     
+    // إرسال الرسالة - realtime سيتولى إضافتها للواجهة
     await supabase.from("messages").insert(insertData);
     playSound();
     setSending(false);
     inputRef.current?.focus();
     setShowStickerPicker(false);
     setShowPollCreator(false);
+    
+    // تمرير للأسفل بعد الإرسال
+    setTimeout(() => {
+      forceScrollToBottom();
+    }, 100);
   };
 
   const handleSendSticker = async (sticker: string) => {
@@ -642,6 +666,11 @@ const Index = () => {
     await supabase.from("messages").insert({ username, user_id: userId, content: `sticker:${sticker}` });
     setSending(false);
     setShowStickerPicker(false);
+    
+    // تمرير للأسفل بعد إرسال الملصق
+    setTimeout(() => {
+      forceScrollToBottom();
+    }, 100);
   };
 
   const handleSendAnnouncement = async () => {
@@ -652,6 +681,11 @@ const Index = () => {
     await supabase.from("messages").insert({ username, user_id: userId, content });
     setSending(false);
     inputRef.current?.focus();
+    
+    // تمرير للأسفل بعد الإعلان
+    setTimeout(() => {
+      forceScrollToBottom();
+    }, 100);
   };
 
   const handleCreatePoll = async (question: string, options: string[]) => {
@@ -668,6 +702,11 @@ const Index = () => {
     }
     setSending(false);
     setShowPollCreator(false);
+    
+    // تمرير للأسفل بعد إنشاء الاستطلاع
+    setTimeout(() => {
+      forceScrollToBottom();
+    }, 100);
   };
 
   const handleDeleteMessage = async (messageId: string) => {
@@ -1190,7 +1229,7 @@ const Index = () => {
             <div className="flex-1 flex items-end" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))", borderRadius: "0px" }}>
               <textarea ref={inputRef} value={input}
                 onChange={handleInputChange}
-                placeholder={isCurrentUserAdmin ?  "اكتب رسالتك ...." :  "اكتب رسالتك ...."}
+                placeholder={isCurrentUserAdmin ? "اكتب رسالتك... — اكتب @ لذكر شخص" : "اكتب رسالتك... — اكتب @ لذكر شخص"}
                 rows={1} maxLength={500}
                 className="flex-1 resize-none bg-transparent outline-none text-[14px] leading-relaxed select-text px-3 py-2"
                 style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
