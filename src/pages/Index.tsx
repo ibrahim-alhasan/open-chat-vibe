@@ -11,7 +11,7 @@ import AdminPanel from "@/components/AdminPanel";
 import PollCreator from "@/components/PollCreator";
 import PollMessage from "@/components/PollMessage";
 import { playSound } from "@/lib/sounds";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot, RefreshCw } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 100;
 
@@ -45,7 +45,6 @@ const Index = () => {
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [messagePage, setMessagePage] = useState(0);
   const [sending, setSending] = useState(false);
@@ -85,7 +84,6 @@ const Index = () => {
   const isLoadingMoreRef = useRef(false);
   const lastScrollTopRef = useRef(0);
   const isUserScrollingUpRef = useRef(false);
-  const shouldScrollAfterRefresh = useRef(false);
 
   const messageCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -124,110 +122,6 @@ const Index = () => {
   const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
   const isCurrentUserAdmin = adminIds.has(userId);
   const isUserBanned = bannedUserIds.has(userId);
-
-  const refreshChatData = useCallback(async () => {
-    if (refreshing) return;
-    setRefreshing(true);
-    
-    console.log("جاري تحديث الدردشة...");
-    
-    try {
-      const { data: messagesData, error: messagesError } = await supabase
-        .from("messages")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(MESSAGES_PER_PAGE);
-      
-      if (!messagesError && messagesData) {
-        const sortedMessages = (messagesData as Message[]).reverse();
-        setMessages(sortedMessages);
-        
-        const { count } = await supabase
-          .from("messages")
-          .select("*", { count: 'exact', head: true });
-        setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
-        setMessagePage(0);
-        
-        const msgIds = sortedMessages.map(m => m.id);
-        if (msgIds.length > 0) {
-          const { data: reactionsData } = await supabase
-            .from("reactions")
-            .select("*")
-            .in("message_id", msgIds);
-          if (reactionsData) {
-            setReactions(reactionsData as Reaction[]);
-          }
-        }
-        
-        const pollMsgIds = sortedMessages
-          .filter(m => m.content && m.content.startsWith("poll:"))
-          .map(m => m.content.replace("poll:", ""));
-        if (pollMsgIds.length > 0) {
-          const { data: pollsData } = await supabase
-            .from("polls")
-            .select("*")
-            .in("id", pollMsgIds);
-          if (pollsData) {
-            const pollMap: Record<string, { question: string; options: string[]; is_active: boolean }> = {};
-            pollsData.forEach((p: any) => {
-              const opts = typeof p.options === 'string' ? JSON.parse(p.options) : p.options;
-              pollMap[p.id] = { question: p.question, options: opts, is_active: p.is_active };
-            });
-            setPolls(prev => ({ ...prev, ...pollMap }));
-          }
-        }
-      }
-      
-      const { data: profilesData } = await supabase.from("profiles").select("*");
-      if (profilesData) {
-        const map: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }> = {};
-        profilesData.forEach((p: any) => {
-          if (p.user_id) map[p.user_id] = { username: p.username, avatar_url: p.avatar_url, allow_dms: p.allow_dms ?? true };
-        });
-        setProfilesMap(map);
-      }
-      
-      const { data: adminsData } = await supabase.from("admins").select("user_id");
-      if (adminsData) setAdminIds(new Set(adminsData.map((a: any) => a.user_id)));
-      
-      const { data: bannedData } = await supabase.from("banned_users").select("user_id");
-      if (bannedData) setBannedUserIds(new Set(bannedData.map((b: any) => b.user_id)));
-      
-      const { data: pinnedData } = await supabase
-        .from("pinned_messages")
-        .select("*")
-        .order("pinned_at", { ascending: false })
-        .limit(1);
-      if (pinnedData && pinnedData.length > 0) {
-        setPinnedMessage(pinnedData[0] as any);
-      } else {
-        setPinnedMessage(null);
-      }
-      
-      const { data: chatSettingsData } = await supabase
-        .from("chat_settings")
-        .select("*")
-        .limit(1)
-        .single();
-      if (chatSettingsData) setChatLocked(chatSettingsData.is_locked);
-      
-      shouldScrollAfterRefresh.current = true;
-      
-    } catch (error) {
-      console.error("خطأ في تحديث البيانات:", error);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing]);
-
-  useEffect(() => {
-    if (shouldScrollAfterRefresh.current && !refreshing && messages.length > 0) {
-      setTimeout(() => {
-        forceScrollToBottom();
-        shouldScrollAfterRefresh.current = false;
-      }, 200);
-    }
-  }, [refreshing, messages.length, forceScrollToBottom]);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -283,7 +177,7 @@ const Index = () => {
       setLoading(true);
       try {
         const [messagesRes, profilesRes, totalCountRes, adminsRes, chatSettingsRes, bannedRes, pinnedRes] = await Promise.all([
-          supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(MESSAGES_PER_PAGE),
+          supabase.from("messages").select("*").order("created_at", { ascending: true }).limit(MESSAGES_PER_PAGE),
           supabase.from("profiles").select("*"),
           supabase.from("profiles").select("*", { count: 'exact', head: true }),
           supabase.from("admins").select("user_id"),
@@ -293,18 +187,17 @@ const Index = () => {
         ]);
 
         if (!messagesRes.error && messagesRes.data) {
-          const sortedMessages = (messagesRes.data as Message[]).reverse();
-          setMessages(sortedMessages);
+          setMessages(messagesRes.data as Message[]);
           const { count } = await supabase.from("messages").select("*", { count: 'exact', head: true });
           setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
 
-          const msgIds = sortedMessages.map(m => m.id);
+          const msgIds = (messagesRes.data as Message[]).map(m => m.id);
           if (msgIds.length > 0) {
             const { data: reactionsData } = await supabase.from("reactions").select("*").in("message_id", msgIds);
             if (reactionsData) setReactions(reactionsData as Reaction[]);
           }
 
-          const pollMsgIds = sortedMessages.filter(m => m.content && m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
+          const pollMsgIds = (messagesRes.data as Message[]).filter(m => m.content && m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
           if (pollMsgIds.length > 0) {
             const { data: pollsData } = await supabase.from("polls").select("*").in("id", pollMsgIds);
             if (pollsData) {
@@ -355,9 +248,9 @@ const Index = () => {
     const prevScrollHeight = container?.scrollHeight || 0;
     const prevScrollTop = container?.scrollTop || 0;
     try {
-      const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: false }).lt("created_at", oldestMessage.created_at).limit(MESSAGES_PER_PAGE);
+      const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: true }).lt("created_at", oldestMessage.created_at).limit(MESSAGES_PER_PAGE);
       if (!error && data && data.length > 0) {
-        const olderMessages = (data as Message[]).reverse();
+        const olderMessages = data as Message[];
 
         const olderIds = olderMessages.map(m => m.id);
         if (olderIds.length > 0) {
@@ -407,18 +300,16 @@ const Index = () => {
     }
   }, [loadingMore, hasMoreMessages, messagePage, messages]);
 
-  // Realtime listener - نسخة محسنة وجديدة
+  // Realtime listener - fixed ordering
   useEffect(() => {
     if (!username) return;
     
     console.log("🔄 إعداد اتصال Realtime للرسائل...");
     
-    // إغلاق القناة القديمة إذا وجدت
     if (realtimeChannelRef.current) {
       supabase.removeChannel(realtimeChannelRef.current);
     }
     
-    // إنشاء قناة جديدة
     const channel = supabase.channel('public-messages', {
       config: {
         broadcast: { self: true },
@@ -426,7 +317,6 @@ const Index = () => {
       }
     });
     
-    // الاستماع للأحداث الجديدة
     channel
       .on(
         'postgres_changes',
@@ -441,11 +331,13 @@ const Index = () => {
           
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMessage.id)) return prev;
+            // Insert maintaining chronological order
+            const newMessages = [...prev, newMessage];
+            newMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
             console.log("✅ إضافة الرسالة إلى الواجهة:", newMessage.id);
-            return [...prev, newMessage];
+            return newMessages;
           });
           
-          // جلب بيانات الاستطلاع إذا كانت رسالة استطلاع
           if (newMessage.content && newMessage.content.startsWith("poll:")) {
             const pollId = newMessage.content.replace("poll:", "");
             supabase.from("polls").select("*").eq("id", pollId).single().then(({ data }) => {
@@ -463,7 +355,6 @@ const Index = () => {
             });
           }
           
-          // التمرير للأسفل إذا كان المستخدم في الأسفل
           if (messagesContainerRef.current) {
             const container = messagesContainerRef.current;
             const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
@@ -690,7 +581,6 @@ const Index = () => {
     setShowStickerPicker(false);
     setShowPollCreator(false);
     
-    // تمرير للأسفل بعد الإرسال
     setTimeout(() => {
       forceScrollToBottom();
     }, 100);
@@ -1245,14 +1135,6 @@ const Index = () => {
               className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 disabled:opacity-40"
               style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
               <Paperclip className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={refreshChatData} 
-              disabled={refreshing} 
-              title="إعادة تحميل الدردشة"
-              className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 disabled:opacity-40 hover:bg-opacity-80 duration-300"
-              style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
             
             <div className="flex-1 flex items-end" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))", borderRadius: "0px" }}>
