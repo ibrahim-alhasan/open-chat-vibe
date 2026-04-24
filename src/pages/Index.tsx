@@ -11,7 +11,7 @@ import AdminPanel from "@/components/AdminPanel";
 import PollCreator from "@/components/PollCreator";
 import PollMessage from "@/components/PollMessage";
 import { playSound } from "@/lib/sounds";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, Reply, Lock, Unlock, ShieldCheck, Ban, BarChart3, Paperclip, Pin, PinOff, Bot } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 100;
 
@@ -300,11 +300,9 @@ const Index = () => {
     }
   }, [loadingMore, hasMoreMessages, messagePage, messages]);
 
-  // Realtime listener - fixed ordering
+  // Realtime listener - improved performance
   useEffect(() => {
     if (!username) return;
-    
-    console.log("🔄 إعداد اتصال Realtime للرسائل...");
     
     if (realtimeChannelRef.current) {
       supabase.removeChannel(realtimeChannelRef.current);
@@ -326,15 +324,12 @@ const Index = () => {
           table: 'messages'
         },
         (payload) => {
-          console.log("📨 Realtime: تم استلام رسالة جديدة!", payload.new);
           const newMessage = payload.new as Message;
           
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMessage.id)) return prev;
-            // Insert maintaining chronological order
             const newMessages = [...prev, newMessage];
             newMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-            console.log("✅ إضافة الرسالة إلى الواجهة:", newMessage.id);
             return newMessages;
           });
           
@@ -375,7 +370,6 @@ const Index = () => {
         },
         (payload) => {
           const deleted = payload.old as { id: string };
-          console.log("🗑️ Realtime: تم حذف رسالة", deleted.id);
           setMessages((prev) => prev.filter((m) => m.id !== deleted.id));
         }
       )
@@ -388,7 +382,6 @@ const Index = () => {
         },
         (payload) => {
           const r = payload.new as Reaction;
-          console.log("❤️ Realtime: تفاعل جديد", r);
           setReactions((prev) => prev.find((x) => x.id === r.id) ? prev : [...prev, r]);
         }
       )
@@ -405,12 +398,9 @@ const Index = () => {
         }
       )
       .subscribe((status) => {
-        console.log("📡 Realtime connection status:", status);
         if (status === 'SUBSCRIBED') {
-          console.log("✅ Realtime متصل بنجاح!");
           setRealtimeConnected(true);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error("❌ خطأ في اتصال Realtime");
           setRealtimeConnected(false);
         }
       });
@@ -418,7 +408,6 @@ const Index = () => {
     realtimeChannelRef.current = channel;
     
     return () => {
-      console.log("🔌 إغلاق اتصال Realtime");
       if (realtimeChannelRef.current) {
         supabase.removeChannel(realtimeChannelRef.current);
         realtimeChannelRef.current = null;
@@ -564,15 +553,12 @@ const Index = () => {
     }
     setReplyTo(null);
     
-    console.log("📤 إرسال رسالة جديدة:", insertData);
-    
     const { error } = await supabase.from("messages").insert(insertData);
     
     if (error) {
       console.error("❌ فشل إرسال الرسالة:", error);
       alert("فشل إرسال الرسالة: " + error.message);
     } else {
-      console.log("✅ تم إرسال الرسالة بنجاح، انتظر وصولها عبر Realtime");
       playSound();
     }
     
@@ -593,17 +579,6 @@ const Index = () => {
     await supabase.from("messages").insert({ username, user_id: userId, content: `sticker:${sticker}`, created_at: new Date().toISOString() });
     setSending(false);
     setShowStickerPicker(false);
-    setTimeout(() => { forceScrollToBottom(); }, 100);
-  };
-
-  const handleSendAnnouncement = async () => {
-    if (!input.trim() || !username || sending) return;
-    const content = `📢 إعلان المشرف: ${input.trim()}`;
-    setInput("");
-    setSending(true);
-    await supabase.from("messages").insert({ username, user_id: userId, content, created_at: new Date().toISOString() });
-    setSending(false);
-    inputRef.current?.focus();
     setTimeout(() => { forceScrollToBottom(); }, 100);
   };
 
@@ -648,13 +623,19 @@ const Index = () => {
     setPinnedMessage(null);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  // تحسين معالجة الإدخال لمنع التعلق
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setInput(value);
+    
+    // تعديل الارتفاع تلقائياً
     e.target.style.height = "auto";
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
+    
+    // تحديث حالة الكتابة
     handleTyping();
 
+    // معالجة الإشارات @
     const cursorPos = e.target.selectionStart || 0;
     const textBeforeCursor = value.slice(0, cursorPos);
     const mentionMatch = textBeforeCursor.match(/@([^@]*)$/);
@@ -676,7 +657,7 @@ const Index = () => {
       setMentionQuery(null);
       setMentionResults([]);
     }
-  };
+  }, [profilesMap, userId]);
 
   const handleMentionSelect = (mentionUsername: string) => {
     const cursorPos = inputRef.current?.selectionStart || 0;
@@ -1081,23 +1062,6 @@ const Index = () => {
             </div>
           )}
 
-          {/* Admin sticker picker */}
-          {showStickerPicker && isCurrentUserAdmin && (
-            <div className="mb-2 p-3 rounded-xl animate-fade-in" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
-              <p className="text-[11px] font-medium mb-2 px-1" style={{ color: "hsl(var(--muted-foreground))" }}>ملصقات المشرفين المتحركة</p>
-              <div className="grid grid-cols-8 gap-1">
-                {ADMIN_ANIMATED_STICKERS.map((sticker) => (
-                  <button key={sticker.emoji} onClick={() => handleSendSticker(sticker.emoji)}
-                    className={`w-10 h-10 flex items-center justify-center rounded-lg text-xl transition-all hover:scale-125 active:scale-90 ${sticker.animation}`}
-                    style={{ background: "hsl(var(--secondary))" }}
-                    title={sticker.label}>
-                    {sticker.emoji}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* File preview */}
           {selectedFile && (
             <div className="mb-2 p-2 rounded-xl flex items-center gap-3 animate-fade-in"
@@ -1137,13 +1101,36 @@ const Index = () => {
               <Paperclip className="w-4 h-4" />
             </button>
             
-            <div className="flex-1 flex items-end" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))", borderRadius: "0px" }}>
-              <textarea ref={inputRef} value={input}
+            {/* حقل الإدخال مع حواف دائرية وتحسين الأداء */}
+            <div className="flex-1 flex items-end overflow-hidden" style={{ 
+              background: "hsl(var(--chat-input-bg))", 
+              border: "1px solid hsl(var(--border))", 
+              borderRadius: "12px",
+              transition: "all 0.2s ease"
+            }}>
+              <textarea 
+                ref={inputRef} 
+                value={input}
                 onChange={handleInputChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
                 placeholder="اكتب رسالتك ...."
-                rows={1} maxLength={500}
+                rows={1} 
+                maxLength={500}
                 className="flex-1 resize-none bg-transparent outline-none text-[14px] leading-relaxed select-text px-3 py-2"
-                style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
+                style={{ 
+                  color: "hsl(var(--foreground))", 
+                  minHeight: "40px", 
+                  maxHeight: "120px", 
+                  direction: "rtl", 
+                  textAlign: "right",
+                  fontFamily: "inherit"
+                }}
+                suppressContentEditableWarning
               />
             </div>
             <button onClick={handleSend} disabled={(!input.trim() && !selectedFile) || sending}
