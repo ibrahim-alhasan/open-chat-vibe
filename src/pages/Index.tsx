@@ -46,6 +46,7 @@ const Index = () => {
   const [input, setInput] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
+
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
@@ -89,6 +90,7 @@ const Index = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const isTypingRef = useRef(false); // إضافة مرجع لحالة الكتابة لتقليل الضغط على الشبكة
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -161,6 +163,7 @@ const Index = () => {
         const { count } = await supabase
           .from("messages")
           .select("*", { count: 'exact', head: true });
+    
         setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
         setMessagePage(0);
      
@@ -178,12 +181,13 @@ const Index = () => {
         const pollMsgIds = sortedMessages
           .filter(m => m.content && m.content.startsWith("poll:"))
           .map(m => m.content.replace("poll:", ""));
-          
+
         if (pollMsgIds.length > 0) {
           const { data: pollsData } = await supabase
             .from("polls")
             .select("*")
             .in("id", pollMsgIds);
+
           if (pollsData) {
             const pollMap: Record<string, { question: string; options: string[]; is_active: boolean }> = {};
             pollsData.forEach((p: any) => {
@@ -196,6 +200,7 @@ const Index = () => {
       }
       
       const { data: profilesData } = await supabase.from("profiles").select("*");
+
       if (profilesData) {
         const map: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }> = {};
         profilesData.forEach((p: any) => {
@@ -205,9 +210,11 @@ const Index = () => {
       }
       
       const { data: adminsData } = await supabase.from("admins").select("user_id");
+
       if (adminsData) setAdminIds(new Set(adminsData.map((a: any) => a.user_id)));
       
       const { data: bannedData } = await supabase.from("banned_users").select("user_id");
+
       if (bannedData) setBannedUserIds(new Set(bannedData.map((b: any) => b.user_id)));
       
       const { data: pinnedData } = await supabase
@@ -215,6 +222,7 @@ const Index = () => {
         .select("*")
         .order("pinned_at", { ascending: false })
         .limit(1);
+
       if (pinnedData && pinnedData.length > 0) {
         setPinnedMessage(pinnedData[0] as any);
       } else {
@@ -226,6 +234,7 @@ const Index = () => {
         .select("*")
         .limit(1)
         .single();
+
       if (chatSettingsData) setChatLocked(chatSettingsData.is_locked);
       
       shouldScrollAfterRefresh.current = true;
@@ -344,8 +353,10 @@ const Index = () => {
           setProfilesMap(map);
         }
         if (!totalCountRes.error) setTotalUsers(totalCountRes.count || 0);
+
         if (!adminsRes.error && adminsRes.data) setAdminIds(new Set(adminsRes.data.map((a: any) => a.user_id)));
         if (!bannedRes.error && bannedRes.data) setBannedUserIds(new Set(bannedRes.data.map((b: any) => b.user_id)));
+
         if (!pinnedRes.error && pinnedRes.data && pinnedRes.data.length > 0) {
           setPinnedMessage(pinnedRes.data[0] as any);
         }
@@ -408,6 +419,7 @@ const Index = () => {
           // ترتيب تصاعدي بحسب الوقت
           return allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
         });
+
         setMessagePage(nextPage);
         setHasMoreMessages(data.length === MESSAGES_PER_PAGE);
         requestAnimationFrame(() => {
@@ -465,7 +477,7 @@ const Index = () => {
             // ترتيب تصاعدي بحسب الوقت دائماً
             return [...prev, newMessage].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
           });
-          
+
           if (newMessage.content && newMessage.content.startsWith("poll:")) {
             const pollId = newMessage.content.replace("poll:", "");
             supabase.from("polls").select("*").eq("id", pollId).single().then(({ data }) => {
@@ -593,9 +605,17 @@ const Index = () => {
 
   const handleTyping = () => {
     if (!presenceChannelRef.current) return;
-    presenceChannelRef.current.track({ user_id: userId, username, is_typing: true, online_at: new Date().toISOString() });
+    
+    // تجنب إرسال طلب تتبع مع كل حرف مكتوب لمنع التعليق والضغط على الشبكة
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      presenceChannelRef.current.track({ user_id: userId, username, is_typing: true, online_at: new Date().toISOString() });
+    }
+
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
     typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false;
       presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
     }, 2000);
   };
@@ -654,6 +674,9 @@ const Index = () => {
     setSending(true);
     setMentionQuery(null);
     setMentionResults([]);
+    
+    // إنهاء حالة الكتابة مباشرة
+    isTypingRef.current = false;
     presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
     
     let fileUrl: string | null = null;
@@ -675,9 +698,10 @@ const Index = () => {
     const insertData: any = { 
       username, 
       user_id: userId, 
-      content: content || (fileUrl ? `📎 ${fileName}` : ""),
-      created_at: new Date().toISOString()
+      content: content || (fileUrl ? `📎 ${fileName}` : "")
+      // تم إزالة created_at لتتولاها قاعدة البيانات
     };
+    
     if (fileUrl) {
       insertData.file_url = fileUrl;
       insertData.file_name = fileName;
@@ -714,7 +738,8 @@ const Index = () => {
     if (!username || sending || isUserBanned) return;
     if (chatLocked && !isCurrentUserAdmin) return;
     setSending(true);
-    await supabase.from("messages").insert({ username, user_id: userId, content: `sticker:${sticker}`, created_at: new Date().toISOString() });
+    // تم إزالة created_at
+    await supabase.from("messages").insert({ username, user_id: userId, content: `sticker:${sticker}` });
     setSending(false);
     setShowStickerPicker(false);
     setTimeout(() => { forceScrollToBottom(); }, 100);
@@ -725,7 +750,8 @@ const Index = () => {
     const content = `📢 إعلان المشرف: ${input.trim()}`;
     setInput("");
     setSending(true);
-    await supabase.from("messages").insert({ username, user_id: userId, content, created_at: new Date().toISOString() });
+    // تم إزالة created_at
+    await supabase.from("messages").insert({ username, user_id: userId, content });
     setSending(false);
     inputRef.current?.focus();
     setTimeout(() => { forceScrollToBottom(); }, 100);
@@ -737,7 +763,8 @@ const Index = () => {
     try {
       const { data: poll, error } = await supabase.from("polls").insert({ question, options, created_by: userId }).select().single();
       if (poll && !error) {
-        await supabase.from("messages").insert({ username, user_id: userId, content: `poll:${poll.id}`, created_at: new Date().toISOString() });
+        // تم إزالة created_at
+        await supabase.from("messages").insert({ username, user_id: userId, content: `poll:${poll.id}` });
         setPolls(prev => ({ ...prev, [poll.id]: { question, options, is_active: true } }));
       }
     } catch (e) {
@@ -959,7 +986,6 @@ const Index = () => {
             <img src={avatarUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
               style={{ border: "2px solid hsl(var(--primary) / 0.4)" }} onClick={() => setShowSettings(true)} />
           )}
-       
           <button onClick={() => setShowSettings(true)} title="الإعدادات" className="p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
             <Settings className="w-5 h-5" />
           </button>
