@@ -11,7 +11,7 @@ import AdminPanel from "@/components/AdminPanel";
 import PollCreator from "@/components/PollCreator";
 import PollMessage from "@/components/PollMessage";
 import { playSound } from "@/lib/sounds";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot, RefreshCw } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 100;
 
@@ -24,7 +24,7 @@ const Index = () => {
   const showAdminPanel = location.pathname === '/admin';
   const showChatInfo = location.pathname === '/chat-info';
   const dmInitialUserId = params.userId || null;
-  
+
   const [userId] = useState<string>(() => {
     let id = localStorage.getItem("chat_user_id");
     if (!id) {
@@ -36,11 +36,13 @@ const Index = () => {
 
   const [username, setUsername] = useState<string | null>(() => localStorage.getItem("chat_username"));
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => localStorage.getItem("chat_avatar_url"));
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [profilesMap, setProfilesMap] = useState<Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }>>({});
   const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
   const [bannedUserIds, setBannedUserIds] = useState<Set<string>>(new Set());
+
   const [input, setInput] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,42 +50,54 @@ const Index = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [messagePage, setMessagePage] = useState(0);
+
   const [sending, setSending] = useState(false);
   const [onlineCount, setOnlineCount] = useState(0);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [totalUsers, setTotalUsers] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
+
   const [profileModal, setProfileModal] = useState<string | null>(null);
   const [unreadDMs, setUnreadDMs] = useState(0);
   const [isReturningFromDMs, setIsReturningFromDMs] = useState(false);
+
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const [chatLocked, setChatLocked] = useState(true);
   const [chatLockLoaded, setChatLockLoaded] = useState(false);
+
   const [chatBg, setChatBg] = useState<string | null>(() => localStorage.getItem("chat_bg_image"));
   const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
+
   const [polls, setPolls] = useState<Record<string, { question: string; options: string[]; is_active: boolean }>>({});
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+
   const [mentionResults, setMentionResults] = useState<{ userId: string; username: string }[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [pinnedMessage, setPinnedMessage] = useState<{ id: string; message_id: string; content: string; username: string; user_id: string | null } | null>(null);
   const [showPinnedExpanded, setShowPinnedExpanded] = useState(false);
+
   const [realtimeConnected, setRealtimeConnected] = useState(false);
   
   const fileInputRef2 = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
   const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const isFirstLoadRef = useRef(true);
   const isLoadingMoreRef = useRef(false);
   const lastScrollTopRef = useRef(0);
+
   const isUserScrollingUpRef = useRef(false);
   const shouldScrollAfterRefresh = useRef(false);
 
@@ -123,6 +137,7 @@ const Index = () => {
 
   const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
   const isCurrentUserAdmin = adminIds.has(userId);
+
   const isUserBanned = bannedUserIds.has(userId);
 
   const refreshChatData = useCallback(async () => {
@@ -139,7 +154,8 @@ const Index = () => {
         .limit(MESSAGES_PER_PAGE);
       
       if (!messagesError && messagesData) {
-        const sortedMessages = (messagesData as Message[]).reverse();
+        // ترتيب تصاعدي بحسب الوقت الأقدم أولاً
+        const sortedMessages = (messagesData as Message[]).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
         setMessages(sortedMessages);
         
         const { count } = await supabase
@@ -147,7 +163,7 @@ const Index = () => {
           .select("*", { count: 'exact', head: true });
         setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
         setMessagePage(0);
-        
+     
         const msgIds = sortedMessages.map(m => m.id);
         if (msgIds.length > 0) {
           const { data: reactionsData } = await supabase
@@ -162,6 +178,7 @@ const Index = () => {
         const pollMsgIds = sortedMessages
           .filter(m => m.content && m.content.startsWith("poll:"))
           .map(m => m.content.replace("poll:", ""));
+          
         if (pollMsgIds.length > 0) {
           const { data: pollsData } = await supabase
             .from("polls")
@@ -241,6 +258,7 @@ const Index = () => {
       const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
       setShowScrollButton(!isNearBottom);
       if (isNearBottom) setHasNewMessages(false);
+  
       if (scrollTop < 200 && hasMoreMessages && !isLoadingMoreRef.current && !loading) loadMoreMessages();
     };
     container.addEventListener('scroll', handleScroll, { passive: true });
@@ -293,7 +311,8 @@ const Index = () => {
         ]);
 
         if (!messagesRes.error && messagesRes.data) {
-          const sortedMessages = (messagesRes.data as Message[]).reverse();
+          // ترتيب تصاعدي بحسب الوقت
+          const sortedMessages = (messagesRes.data as Message[]).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
           setMessages(sortedMessages);
           const { count } = await supabase.from("messages").select("*", { count: 'exact', head: true });
           setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
@@ -357,7 +376,7 @@ const Index = () => {
     try {
       const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: false }).lt("created_at", oldestMessage.created_at).limit(MESSAGES_PER_PAGE);
       if (!error && data && data.length > 0) {
-        const olderMessages = (data as Message[]).reverse();
+        const olderMessages = data as Message[];
 
         const olderIds = olderMessages.map(m => m.id);
         if (olderIds.length > 0) {
@@ -384,7 +403,11 @@ const Index = () => {
           }
         }
         
-        setMessages(prev => [...olderMessages, ...prev]);
+        setMessages(prev => {
+          const allMessages = [...olderMessages, ...prev];
+          // ترتيب تصاعدي بحسب الوقت
+          return allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        });
         setMessagePage(nextPage);
         setHasMoreMessages(data.length === MESSAGES_PER_PAGE);
         requestAnimationFrame(() => {
@@ -407,18 +430,16 @@ const Index = () => {
     }
   }, [loadingMore, hasMoreMessages, messagePage, messages]);
 
-  // Realtime listener - نسخة محسنة وجديدة
+  // Realtime listener
   useEffect(() => {
     if (!username) return;
     
     console.log("🔄 إعداد اتصال Realtime للرسائل...");
     
-    // إغلاق القناة القديمة إذا وجدت
     if (realtimeChannelRef.current) {
       supabase.removeChannel(realtimeChannelRef.current);
     }
     
-    // إنشاء قناة جديدة
     const channel = supabase.channel('public-messages', {
       config: {
         broadcast: { self: true },
@@ -426,7 +447,6 @@ const Index = () => {
       }
     });
     
-    // الاستماع للأحداث الجديدة
     channel
       .on(
         'postgres_changes',
@@ -442,10 +462,10 @@ const Index = () => {
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMessage.id)) return prev;
             console.log("✅ إضافة الرسالة إلى الواجهة:", newMessage.id);
-            return [...prev, newMessage];
+            // ترتيب تصاعدي بحسب الوقت دائماً
+            return [...prev, newMessage].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
           });
           
-          // جلب بيانات الاستطلاع إذا كانت رسالة استطلاع
           if (newMessage.content && newMessage.content.startsWith("poll:")) {
             const pollId = newMessage.content.replace("poll:", "");
             supabase.from("polls").select("*").eq("id", pollId).single().then(({ data }) => {
@@ -463,7 +483,6 @@ const Index = () => {
             });
           }
           
-          // التمرير للأسفل إذا كان المستخدم في الأسفل
           if (messagesContainerRef.current) {
             const container = messagesContainerRef.current;
             const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
@@ -523,7 +542,7 @@ const Index = () => {
           setRealtimeConnected(false);
         }
       });
-    
+
     realtimeChannelRef.current = channel;
     
     return () => {
@@ -640,7 +659,6 @@ const Index = () => {
     let fileUrl: string | null = null;
     let fileName: string | null = null;
     let fileType: string | null = null;
-    
     if (selectedFile) {
       setUploadingFile(true);
       const result = await uploadPublicFile(selectedFile);
@@ -660,7 +678,6 @@ const Index = () => {
       content: content || (fileUrl ? `📎 ${fileName}` : ""),
       created_at: new Date().toISOString()
     };
-    
     if (fileUrl) {
       insertData.file_url = fileUrl;
       insertData.file_name = fileName;
@@ -674,7 +691,6 @@ const Index = () => {
     setReplyTo(null);
     
     console.log("📤 إرسال رسالة جديدة:", insertData);
-    
     const { error } = await supabase.from("messages").insert(insertData);
     
     if (error) {
@@ -689,8 +705,6 @@ const Index = () => {
     inputRef.current?.focus();
     setShowStickerPicker(false);
     setShowPollCreator(false);
-    
-    // تمرير للأسفل بعد الإرسال
     setTimeout(() => {
       forceScrollToBottom();
     }, 100);
@@ -932,6 +946,7 @@ const Index = () => {
             className="relative p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
             <Bot className="w-5 h-5" />
           </button>
+          
           <button onClick={() => navigate('/dms')} title="الرسائل الخاصة"
             className="relative p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
             <MessageSquare className="w-5 h-5" />
@@ -944,6 +959,7 @@ const Index = () => {
             <img src={avatarUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
               style={{ border: "2px solid hsl(var(--primary) / 0.4)" }} onClick={() => setShowSettings(true)} />
           )}
+       
           <button onClick={() => setShowSettings(true)} title="الإعدادات" className="p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
             <Settings className="w-5 h-5" />
           </button>
@@ -1246,16 +1262,8 @@ const Index = () => {
               style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
               <Paperclip className="w-4 h-4" />
             </button>
-            <button 
-              onClick={refreshChatData} 
-              disabled={refreshing} 
-              title="إعادة تحميل الدردشة"
-              className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 disabled:opacity-40 hover:bg-opacity-80 duration-300"
-              style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
             
-            <div className="flex-1 flex items-end" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))", borderRadius: "0px" }}>
+            <div className="flex-1 flex items-end rounded-2xl overflow-hidden" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
               <textarea ref={inputRef} value={input}
                 onChange={handleInputChange}
                 placeholder="اكتب رسالتك ...."
