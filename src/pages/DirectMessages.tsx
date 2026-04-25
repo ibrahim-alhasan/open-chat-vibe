@@ -48,7 +48,7 @@ interface Conversation {
 interface DirectMessagesProps {
   currentUserId: string;
   currentUsername: string;
-  profilesMap: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }>;
+  profilesMap: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean; is_admin?: boolean }>;
   onlineUsers: Set<string>;
   initialConversationUserId?: string | null;
   onBack: () => void;
@@ -102,12 +102,13 @@ const DirectMessages = ({
   const [typingUser, setTypingUser] = useState(false);
   const [showConvoSettings, setShowConvoSettings] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
-  
+  const [showAdminAlert, setShowAdminAlert] = useState(false);
+
   // Swipe state
   const [swipeState, setSwipeState] = useState<{ 
     msgId: string; 
     offset: number; 
-    startX: number; 
+    startX: number;
     startTime: number;
     isSwiping: boolean;
   } | null>(null);
@@ -157,7 +158,7 @@ const DirectMessages = ({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
+  const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null, is_admin: false };
 
   // Fetch blocked users
   useEffect(() => {
@@ -191,7 +192,7 @@ const DirectMessages = ({
       
       const allMsgs = [...(sentMsgs || []), ...(receivedMsgs || [])];
       const convMap: Record<string, Conversation> = {};
-      
+
       allMsgs.forEach((msg: any) => {
         const otherUserId = msg.sender_user_id === currentUserId ? msg.receiver_user_id : msg.sender_user_id;
         if (!otherUserId) return;
@@ -214,7 +215,7 @@ const DirectMessages = ({
         }
         if (msg.receiver_user_id === currentUserId && !msg.is_read) convMap[otherUserId].unreadCount++;
       });
-      
+
       setConversations(Object.values(convMap).sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime()));
       setLoading(false);
       
@@ -234,7 +235,7 @@ const DirectMessages = ({
       .select("*")
       .or(`and(sender_user_id.eq.${currentUserId},receiver_user_id.eq.${otherUserId}),and(sender_user_id.eq.${otherUserId},receiver_user_id.eq.${currentUserId})`)
       .order("created_at", { ascending: true });
-    
+
     setConversationMessages(data as DirectMessage[] || []);
     
     // Load reactions for these messages
@@ -281,7 +282,7 @@ const DirectMessages = ({
           await channel.track({ user_id: currentUserId, is_typing: false });
         }
       });
-    
+  
     dmPresenceRef.current = channel;
     return () => {
       supabase.removeChannel(channel);
@@ -330,7 +331,7 @@ const DirectMessages = ({
               }, ...prev];
             }
           });
-          
+
           // If this conversation is active, add the message
           if (activeConversationRef.current === otherUserId) {
             setConversationMessages(prev => {
@@ -370,7 +371,6 @@ const DirectMessages = ({
         }
       })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [currentUserId]);
 
@@ -383,6 +383,7 @@ const DirectMessages = ({
     if (unreadIds.length > 0) {
       supabase.from("direct_messages").update({ is_read: true }).in("id", unreadIds).then(() => {
         setConversationMessages(prev => prev.map(m => unreadIds.includes(m.id) ? { ...m, is_read: true } : m));
+        
         // Update conversation unread count
         setConversations(prev => prev.map(c => c.userId === activeConversation ? { ...c, unreadCount: 0 } : c));
       });
@@ -417,14 +418,13 @@ const DirectMessages = ({
 
   const handleSend = async () => {
     if ((!input.trim() && !selectedImage) || !activeConversation || sending || isConversationBlocked || isReceiverDmsDisabled) return;
-    
     const content = input.trim();
     setInput("");
     const currentReply = replyTo;
     setReplyTo(null);
     setSending(true);
     setUploadingImage(true);
-    
+
     // Use profile username if available, otherwise fall back to conversation username
     const receiverProfile = profilesMap[activeConversation];
     const receiverUsername = receiverProfile?.username || 
@@ -455,7 +455,7 @@ const DirectMessages = ({
       image_url: imageUrl,
       image_name: imageName
     });
-    
+
     playSound();
     setSending(false);
     setUploadingImage(false);
@@ -463,6 +463,13 @@ const DirectMessages = ({
   };
 
   const handleDeleteMessage = async (msgId: string) => {
+    // Check if the other person is an admin and the current user is NOT an admin
+    if (activeConversation && profilesMap[activeConversation]?.is_admin && !isAdmin) {
+      setShowAdminAlert(true);
+      setShowActionsForMsg(null);
+      return;
+    }
+
     await supabase.from("direct_messages").delete().eq("id", msgId);
     setConversationMessages(prev => prev.filter(m => m.id !== msgId));
     setShowActionsForMsg(null);
@@ -472,9 +479,12 @@ const DirectMessages = ({
 
   const handleDeleteAllConversation = async () => {
     if (!activeConversation || deletingAll) return;
+    
     setDeletingAll(true);
+
     await supabase.from("direct_messages").delete()
       .or(`and(sender_user_id.eq.${currentUserId},receiver_user_id.eq.${activeConversation}),and(sender_user_id.eq.${activeConversation},receiver_user_id.eq.${currentUserId})`);
+    
     setConversationMessages([]);
     setConversations(prev => prev.filter(c => c.userId !== activeConversation));
     setActiveConversation(null);
@@ -482,8 +492,6 @@ const DirectMessages = ({
     setShowDeleteConfirm(false);
     setDeletingAll(false);
   };
-
-  // Enter adds new line; send via button only
 
   const handleDmReaction = async (dmId: string, emoji: string) => {
     setEmojiPickerMsg(null);
@@ -514,9 +522,11 @@ const DirectMessages = ({
     else if (gameType === "colorguess") initialBoard = "-:-";
     else if (gameType === "mathchallenge") initialBoard = "pending";
     else if (gameType === "connect4") initialBoard = "-".repeat(42);
+    
     const { data: game } = await supabase.from("games").insert({
       game_type: gameType, player_x: currentUserId, current_turn: currentUserId, status: "pending", board: initialBoard,
     }).select().single();
+
     if (!game) return;
     const receiverProfile = getProfile(activeConversation);
     await supabase.from("direct_messages").insert({
@@ -642,7 +652,15 @@ const DirectMessages = ({
       {/* Conversation settings dropdown */}
       {showConvoSettings && activeConversation && (
         <div className="flex-shrink-0 px-3 py-2 animate-fade-in" style={{ background: "hsl(var(--card))", borderBottom: "1px solid hsl(var(--border))" }}>
-          <button onClick={() => setShowDeleteConfirm(true)} disabled={deletingAll}
+          <button onClick={() => {
+            // Check if the other person is an admin and the current user is NOT an admin
+            if (activeConversation && profilesMap[activeConversation]?.is_admin && !isAdmin) {
+              setShowAdminAlert(true);
+              setShowConvoSettings(false);
+            } else {
+              setShowDeleteConfirm(true);
+            }
+          }} disabled={deletingAll}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-50"
             style={{ background: "hsl(var(--destructive) / 0.1)", color: "hsl(var(--destructive))" }}>
             <Trash2 className="w-4 h-4" />
@@ -714,12 +732,12 @@ const DirectMessages = ({
           <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-4 space-y-3">
             {loadingMessages ? (
               <div className="flex justify-center items-center h-32">
-                <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
+                 <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
               </div>
             ) : (
               conversationMessages.map((msg) => {
                 const isOwn = msg.sender_user_id === currentUserId;
-                const senderProfile = msg.sender_user_id ? getProfile(msg.sender_user_id) : { username: msg.sender_username, avatar_url: null };
+                const senderProfile = msg.sender_user_id ? getProfile(msg.sender_user_id) : { username: msg.sender_username, avatar_url: null, is_admin: false };
                 const msgReactions = dmReactions.filter(r => r.dm_id === msg.id);
                 const reactionGroups = msgReactions.reduce<Record<string, DmReaction[]>>((acc, r) => {
                   if (!acc[r.emoji]) acc[r.emoji] = [];
@@ -752,7 +770,7 @@ const DirectMessages = ({
                       <div className={`space-y-1 flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
                         {msg.reply_to_content && (
                           <div className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs max-w-full" style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: isOwn ? "2px solid hsl(var(--primary))" : undefined, borderLeft: !isOwn ? "2px solid hsl(var(--primary))" : undefined }}>
-                            <p className="truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{msg.reply_to_content}</p>
+                             <p className="truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{msg.reply_to_content}</p>
                           </div>
                         )}
 
@@ -760,7 +778,7 @@ const DirectMessages = ({
                           {msg.image_url && (
                             <div className={`mb-1 rounded-xl sm:rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] ${isOwn ? "rounded-tr-sm" : "rounded-tl-sm"}`}
                               onClick={(e) => { e.stopPropagation(); setViewingImage(msg.image_url!); }}>
-                              <img src={msg.image_url} alt="صورة" className="w-full max-w-[200px] sm:max-w-[250px] h-auto max-h-[200px] sm:max-h-[300px] object-cover" loading="lazy" />
+                               <img src={msg.image_url} alt="صورة" className="w-full max-w-[200px] sm:max-w-[250px] h-auto max-h-[200px] sm:max-h-[300px] object-cover" loading="lazy" />
                             </div>
                           )}
 
@@ -776,22 +794,22 @@ const DirectMessages = ({
                               else if (gameType === "numberbattle") GameComponent = NumberBattle;
                               else if (gameType === "coinflip") GameComponent = CoinFlip;
                               else if (gameType === "colorguess") GameComponent = ColorGuess;
-                              else if (gameType === "mathchallenge") GameComponent = MathChallenge;
+                               else if (gameType === "mathchallenge") GameComponent = MathChallenge;
                               return (
                                 <div className={`${isOwn ? "flex justify-end" : "flex justify-start"}`} onClick={(e) => e.stopPropagation()}>
                                   <GameComponent {...gameProps} />
                                 </div>
-                              );
+                               );
                             })()
                           ) : (
                             <>
                               {msg.content && msg.content !== "📷 صورة" && (
-                                <div className={`px-3 sm:px-3 py-2 rounded-2xl text-sm break-words select-none ${isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"}`}
+                                 <div className={`px-3 sm:px-3 py-2 rounded-2xl text-sm break-words select-none ${isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"}`}
                                   style={{ direction: "rtl", textAlign: "right", maxWidth: "100%" }}>
                                   <LinkifiedText text={msg.content} />
                                 </div>
                               )}
-                            </>
+                             </>
                           )}
 
                           {Object.keys(reactionGroups).length > 0 && (
@@ -801,7 +819,7 @@ const DirectMessages = ({
                                 return (
                                   <button key={emoji} onClick={(e) => { e.stopPropagation(); handleDmReaction(msg.id, emoji); }}
                                     className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs hover:scale-105 active:scale-95"
-                                    style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", border: myReaction ? "1px solid hsl(var(--primary) / 0.5)" : "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}>
+                                     style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", border: myReaction ? "1px solid hsl(var(--primary) / 0.5)" : "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}>
                                     <span>{emoji}</span><span>{group.length}</span>
                                   </button>
                                 );
@@ -810,23 +828,23 @@ const DirectMessages = ({
                           )}
 
                           <span className="text-xs px-1 mt-1 block" style={{ color: "hsl(var(--chat-timestamp))" }}>
-                            {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ar })}
+                             {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true, locale: ar })}
                           </span>
                         </div>
                       </div>
 
-                      {swipeState?.msgId === msg.id && swipeState.offset > 20 && (
+                       {swipeState?.msgId === msg.id && swipeState.offset > 20 && (
                         <div className={`absolute top-1/2 -translate-y-1/2 ${isOwn ? 'left-0 -translate-x-8' : 'right-0 translate-x-8'}`}>
                           <div className="flex items-center gap-1 animate-pulse" style={{ color: "hsl(var(--primary))" }}>
-                            <Reply className="w-4 h-4" /><span className="text-xs">رد</span>
+                             <Reply className="w-4 h-4" /><span className="text-xs">رد</span>
                           </div>
                         </div>
                       )}
 
-                      {showActionsForMsg === msg.id && (
+                       {showActionsForMsg === msg.id && (
                         <div ref={actionsMenuRef}
                           className="fixed sm:absolute bottom-20 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-2 p-2 rounded-xl shadow-lg"
-                          style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 16px hsl(220 16% 4% / 0.6)", width: "auto", maxWidth: "90vw" }}
+                           style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 16px hsl(220 16% 4% / 0.6)", width: "auto", maxWidth: "90vw" }}
                           onClick={(e) => e.stopPropagation()}>
                           <button onClick={() => { setEmojiPickerMsg(msg.id); setShowActionsForMsg(null); }}
                             className="p-2 rounded-lg flex items-center justify-center gap-1"
@@ -840,7 +858,7 @@ const DirectMessages = ({
                           </button>
                           {isOwn && (
                             <button onClick={() => handleDeleteMessage(msg.id)}
-                              className="p-2 rounded-lg flex items-center justify-center gap-1"
+                               className="p-2 rounded-lg flex items-center justify-center gap-1"
                               style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}>
                               <Trash2 className="w-4 h-4" /><span className="text-xs">حذف</span>
                             </button>
@@ -857,10 +875,10 @@ const DirectMessages = ({
                             return (
                               <button key={emoji} onClick={() => handleDmReaction(msg.id, emoji)}
                                 className="w-8 h-8 flex items-center justify-center rounded-lg text-lg transition-all hover:scale-125 active:scale-90"
-                                style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent" }}>
+                                 style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent" }}>
                                 {emoji}
                               </button>
-                            );
+                             );
                           })}
                         </div>
                       )}
@@ -876,7 +894,7 @@ const DirectMessages = ({
           {typingUser && (
             <div className="flex-shrink-0 px-4 py-1 animate-fade-in">
               <div className="flex items-center gap-2">
-                <div className="flex gap-0.5">
+                 <div className="flex gap-0.5">
                   <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "hsl(var(--primary))", animationDelay: "0ms" }} />
                   <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "hsl(var(--primary))", animationDelay: "150ms" }} />
                   <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "hsl(var(--primary))", animationDelay: "300ms" }} />
@@ -913,7 +931,7 @@ const DirectMessages = ({
               </div>
               <button onClick={() => setReplyTo(null)} className="flex-shrink-0 p-2 rounded-lg" style={{ color: "hsl(var(--muted-foreground))" }}>
                 <X className="w-4 h-4" />
-              </button>
+               </button>
             </div>
           )}
 
@@ -958,10 +976,10 @@ const DirectMessages = ({
                         { type: "colorguess", icon: "🎨", name: "تخمين اللون" },
                         { type: "mathchallenge", icon: "📐", name: "تحدي الرياضيات" },
                       ].map((game) => (
-                        <button key={game.type} onClick={() => handleSendGameInvite(game.type)}
+                         <button key={game.type} onClick={() => handleSendGameInvite(game.type)}
                           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-right hover:opacity-80 transition-opacity"
                           style={{ color: "hsl(var(--foreground))" }}>
-                          <span className="text-base">{game.icon}</span>
+                           <span className="text-base">{game.icon}</span>
                           <span className="text-xs font-medium">{game.name}</span>
                         </button>
                       ))}
@@ -975,7 +993,7 @@ const DirectMessages = ({
                   rows={1} maxLength={1000}
                   className="flex-1 resize-none bg-transparent outline-none text-sm leading-relaxed select-text px-3"
                   style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }} />
-                <button onClick={handleSend} disabled={(!input.trim() && !selectedImage) || sending}
+                 <button onClick={handleSend} disabled={(!input.trim() && !selectedImage) || sending}
                   className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 disabled:opacity-40"
                   style={{ background: (input.trim() || selectedImage) && !sending ? "hsl(var(--primary))" : "hsl(var(--secondary))" }}>
                   <Send className="w-4 h-4" style={{ color: (input.trim() || selectedImage) && !sending ? "hsl(var(--primary-foreground))" : "hsl(var(--muted-foreground))" }} />
@@ -1011,6 +1029,28 @@ const DirectMessages = ({
                 {deletingAll ? "جارٍ الحذف..." : "حذف"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Action Block Alert Dialog */}
+      {showAdminAlert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-fade-in" onClick={() => setShowAdminAlert(false)}>
+          <div className="mx-4 w-full max-w-sm rounded-2xl p-6 space-y-4 animate-fade-in"
+            style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+            onClick={(e) => e.stopPropagation()}>
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto" style={{ background: "hsl(var(--destructive) / 0.1)" }}>
+                <Ban className="w-6 h-6" style={{ color: "hsl(var(--destructive))" }} />
+              </div>
+              <h3 className="font-bold text-base" style={{ color: "hsl(var(--foreground))" }}>إجراء غير مسموح</h3>
+              <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>لا يمكن حذف محادثات المشرف الا من طرفه.</p>
+            </div>
+            <button onClick={() => setShowAdminAlert(false)}
+              className="w-full py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95"
+              style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))" }}>
+              حسناً
+            </button>
           </div>
         </div>
       )}
