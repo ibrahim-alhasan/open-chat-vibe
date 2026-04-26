@@ -56,7 +56,6 @@ const Index = () => {
   const [onlineCount, setOnlineCount] = useState(0);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
 
-  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [totalUsers, setTotalUsers] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -90,12 +89,10 @@ const Index = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const isTypingRef = useRef(false); // إضافة مرجع لحالة الكتابة لتقليل الضغط على الشبكة
-  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-
   const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
   const isFirstLoadRef = useRef(true);
   const isLoadingMoreRef = useRef(false);
   const lastScrollTopRef = useRef(0);
@@ -139,7 +136,6 @@ const Index = () => {
 
   const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
   const isCurrentUserAdmin = adminIds.has(userId);
-
   const isUserBanned = bannedUserIds.has(userId);
 
   const refreshChatData = useCallback(async () => {
@@ -156,7 +152,6 @@ const Index = () => {
         .limit(MESSAGES_PER_PAGE);
       
       if (!messagesError && messagesData) {
-        // ترتيب تصاعدي بحسب الوقت الأقدم أولاً
         const sortedMessages = (messagesData as Message[]).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
         setMessages(sortedMessages);
         
@@ -181,13 +176,12 @@ const Index = () => {
         const pollMsgIds = sortedMessages
           .filter(m => m.content && m.content.startsWith("poll:"))
           .map(m => m.content.replace("poll:", ""));
-
+        
         if (pollMsgIds.length > 0) {
           const { data: pollsData } = await supabase
             .from("polls")
             .select("*")
             .in("id", pollMsgIds);
-
           if (pollsData) {
             const pollMap: Record<string, { question: string; options: string[]; is_active: boolean }> = {};
             pollsData.forEach((p: any) => {
@@ -200,7 +194,6 @@ const Index = () => {
       }
       
       const { data: profilesData } = await supabase.from("profiles").select("*");
-
       if (profilesData) {
         const map: Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }> = {};
         profilesData.forEach((p: any) => {
@@ -210,11 +203,9 @@ const Index = () => {
       }
       
       const { data: adminsData } = await supabase.from("admins").select("user_id");
-
       if (adminsData) setAdminIds(new Set(adminsData.map((a: any) => a.user_id)));
       
       const { data: bannedData } = await supabase.from("banned_users").select("user_id");
-
       if (bannedData) setBannedUserIds(new Set(bannedData.map((b: any) => b.user_id)));
       
       const { data: pinnedData } = await supabase
@@ -222,7 +213,6 @@ const Index = () => {
         .select("*")
         .order("pinned_at", { ascending: false })
         .limit(1);
-
       if (pinnedData && pinnedData.length > 0) {
         setPinnedMessage(pinnedData[0] as any);
       } else {
@@ -234,7 +224,6 @@ const Index = () => {
         .select("*")
         .limit(1)
         .single();
-
       if (chatSettingsData) setChatLocked(chatSettingsData.is_locked);
       
       shouldScrollAfterRefresh.current = true;
@@ -320,12 +309,11 @@ const Index = () => {
         ]);
 
         if (!messagesRes.error && messagesRes.data) {
-          // ترتيب تصاعدي بحسب الوقت
           const sortedMessages = (messagesRes.data as Message[]).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
           setMessages(sortedMessages);
           const { count } = await supabase.from("messages").select("*", { count: 'exact', head: true });
           setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
-
+          
           const msgIds = sortedMessages.map(m => m.id);
           if (msgIds.length > 0) {
             const { data: reactionsData } = await supabase.from("reactions").select("*").in("message_id", msgIds);
@@ -353,10 +341,8 @@ const Index = () => {
           setProfilesMap(map);
         }
         if (!totalCountRes.error) setTotalUsers(totalCountRes.count || 0);
-
         if (!adminsRes.error && adminsRes.data) setAdminIds(new Set(adminsRes.data.map((a: any) => a.user_id)));
         if (!bannedRes.error && bannedRes.data) setBannedUserIds(new Set(bannedRes.data.map((b: any) => b.user_id)));
-
         if (!pinnedRes.error && pinnedRes.data && pinnedRes.data.length > 0) {
           setPinnedMessage(pinnedRes.data[0] as any);
         }
@@ -416,10 +402,8 @@ const Index = () => {
         
         setMessages(prev => {
           const allMessages = [...olderMessages, ...prev];
-          // ترتيب تصاعدي بحسب الوقت
           return allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
         });
-
         setMessagePage(nextPage);
         setHasMoreMessages(data.length === MESSAGES_PER_PAGE);
         requestAnimationFrame(() => {
@@ -474,10 +458,9 @@ const Index = () => {
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMessage.id)) return prev;
             console.log("✅ إضافة الرسالة إلى الواجهة:", newMessage.id);
-            // ترتيب تصاعدي بحسب الوقت دائماً
             return [...prev, newMessage].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
           });
-
+          
           if (newMessage.content && newMessage.content.startsWith("poll:")) {
             const pollId = newMessage.content.replace("poll:", "");
             supabase.from("polls").select("*").eq("id", pollId).single().then(({ data }) => {
@@ -554,7 +537,7 @@ const Index = () => {
           setRealtimeConnected(false);
         }
       });
-
+      
     realtimeChannelRef.current = channel;
     
     return () => {
@@ -566,30 +549,44 @@ const Index = () => {
     };
   }, [username, userId, scrollToBottom]);
 
-  // Presence
+  // Presence - معدل لضمان الموثوقية العالية بدون حالة الكتابة
   useEffect(() => {
     if (!username || !userId) return;
     const presenceChannel = supabase.channel("presence-chat", { config: { presence: { key: userId } } });
+    
     presenceChannel
       .on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();
         const keys = Object.keys(state);
         setOnlineCount(keys.length);
         setOnlineUsers(new Set(keys));
-        const typing = new Set<string>();
-        keys.forEach(key => {
-          const presences = state[key] as any[];
-          if (presences?.[0]?.is_typing && key !== userId) typing.add(key);
-        });
-        setTypingUsers(typing);
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          await presenceChannel.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
+          await presenceChannel.track({ user_id: userId, username, online_at: new Date().toISOString() });
         }
       });
+      
     presenceChannelRef.current = presenceChannel;
-    return () => { supabase.removeChannel(presenceChannel); presenceChannelRef.current = null; };
+
+    // مستمع لحل مشكلة عدم تحديث المتصلين عند خروج الهاتف من وضع السكون أو العودة للتطبيق
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible" && presenceChannelRef.current) {
+        try {
+          await presenceChannelRef.current.track({ user_id: userId, username, online_at: new Date().toISOString() });
+        } catch (error) {
+          console.error("Error tracking presence on visibility change", error);
+        }
+      }
+    };
+    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => { 
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      supabase.removeChannel(presenceChannel); 
+      presenceChannelRef.current = null;
+    };
   }, [username, userId]);
 
   useEffect(() => {
@@ -602,23 +599,6 @@ const Index = () => {
       return () => { clearTimeout(timeout1); clearTimeout(timeout2); clearTimeout(timeout3); clearTimeout(resetTimeout); };
     }
   }, [isReturningFromDMs, forceScrollToBottom]);
-
-  const handleTyping = () => {
-    if (!presenceChannelRef.current) return;
-    
-    // تجنب إرسال طلب تتبع مع كل حرف مكتوب لمنع التعليق والضغط على الشبكة
-    if (!isTypingRef.current) {
-      isTypingRef.current = true;
-      presenceChannelRef.current.track({ user_id: userId, username, is_typing: true, online_at: new Date().toISOString() });
-    }
-
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    
-    typingTimeoutRef.current = setTimeout(() => {
-      isTypingRef.current = false;
-      presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
-    }, 2000);
-  };
 
   const handleJoin = async (name: string, avatarFile?: File | null) => {
     localStorage.setItem("chat_username", name);
@@ -675,13 +655,10 @@ const Index = () => {
     setMentionQuery(null);
     setMentionResults([]);
     
-    // إنهاء حالة الكتابة مباشرة
-    isTypingRef.current = false;
-    presenceChannelRef.current?.track({ user_id: userId, username, is_typing: false, online_at: new Date().toISOString() });
-    
     let fileUrl: string | null = null;
     let fileName: string | null = null;
     let fileType: string | null = null;
+    
     if (selectedFile) {
       setUploadingFile(true);
       const result = await uploadPublicFile(selectedFile);
@@ -699,7 +676,6 @@ const Index = () => {
       username, 
       user_id: userId, 
       content: content || (fileUrl ? `📎 ${fileName}` : "")
-      // تم إزالة created_at لتتولاها قاعدة البيانات
     };
     
     if (fileUrl) {
@@ -729,16 +705,13 @@ const Index = () => {
     inputRef.current?.focus();
     setShowStickerPicker(false);
     setShowPollCreator(false);
-    setTimeout(() => {
-      forceScrollToBottom();
-    }, 100);
+    setTimeout(() => { forceScrollToBottom(); }, 100);
   };
 
   const handleSendSticker = async (sticker: string) => {
     if (!username || sending || isUserBanned) return;
     if (chatLocked && !isCurrentUserAdmin) return;
     setSending(true);
-    // تم إزالة created_at
     await supabase.from("messages").insert({ username, user_id: userId, content: `sticker:${sticker}` });
     setSending(false);
     setShowStickerPicker(false);
@@ -750,7 +723,6 @@ const Index = () => {
     const content = `📢 إعلان المشرف: ${input.trim()}`;
     setInput("");
     setSending(true);
-    // تم إزالة created_at
     await supabase.from("messages").insert({ username, user_id: userId, content });
     setSending(false);
     inputRef.current?.focus();
@@ -763,7 +735,6 @@ const Index = () => {
     try {
       const { data: poll, error } = await supabase.from("polls").insert({ question, options, created_by: userId }).select().single();
       if (poll && !error) {
-        // تم إزالة created_at
         await supabase.from("messages").insert({ username, user_id: userId, content: `poll:${poll.id}` });
         setPolls(prev => ({ ...prev, [poll.id]: { question, options, is_active: true } }));
       }
@@ -804,7 +775,8 @@ const Index = () => {
     setInput(value);
     e.target.style.height = "auto";
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
-    handleTyping();
+    
+    // تم إزالة handleTyping() لمنع تعليق الكيبورد
 
     const cursorPos = e.target.selectionStart || 0;
     const textBeforeCursor = value.slice(0, cursorPos);
@@ -866,11 +838,10 @@ const Index = () => {
     inputRef.current?.focus();
   };
 
-  const typingNames = Array.from(typingUsers).map(uid => getProfile(uid).username).filter(Boolean);
   const adminProfiles = Array.from(adminIds).map(id => ({ id, ...getProfile(id) }));
 
   if (!username) return <UsernameModal onJoin={handleJoin} />;
-
+  
   if (showChatInfo) {
     return (
       <ChatInfo totalUsers={totalUsers} onlineCount={onlineCount} profilesMap={profilesMap} adminIds={adminIds} onlineUsers={onlineUsers} onUsernameClick={(uid) => { navigate('/'); setProfileModal(uid); }} />
@@ -1117,22 +1088,6 @@ const Index = () => {
           </div>
         )}
       </div>
-
-      {/* Typing indicator */}
-      {typingNames.length > 0 && (
-        <div className="flex-shrink-0 px-4 py-1 animate-fade-in" style={{ marginBottom: 'auto' }}>
-          <div className="flex items-center gap-2">
-            <div className="flex gap-0.5">
-              <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "hsl(var(--primary))", animationDelay: "0ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "hsl(var(--primary))", animationDelay: "150ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "hsl(var(--primary))", animationDelay: "300ms" }} />
-            </div>
-            <span className="text-[11px]" style={{ color: "hsl(var(--muted-foreground))" }}>
-              {typingNames.length === 1 ? `${typingNames[0]} يكتب...` : `${typingNames.join(" و ")} يكتبون...`}
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* Banned user message */}
       {!chatLockLoaded ? null : isUserBanned && !isCurrentUserAdmin ? (
