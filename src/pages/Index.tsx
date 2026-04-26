@@ -134,7 +134,7 @@ const Index = () => {
     setHasNewMessages(false);
   }, []);
 
-  const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null };
+  const getProfile = useCallback((uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null }, [profilesMap]);
   const isCurrentUserAdmin = adminIds.has(userId);
   const isUserBanned = bannedUserIds.has(userId);
 
@@ -430,8 +430,6 @@ const Index = () => {
   useEffect(() => {
     if (!username) return;
     
-    console.log("🔄 إعداد اتصال Realtime للرسائل...");
-    
     if (realtimeChannelRef.current) {
       supabase.removeChannel(realtimeChannelRef.current);
     }
@@ -444,20 +442,10 @@ const Index = () => {
     });
     
     channel
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages'
-        },
-        (payload) => {
-          console.log("📨 Realtime: تم استلام رسالة جديدة!", payload.new);
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
           const newMessage = payload.new as Message;
-          
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMessage.id)) return prev;
-            console.log("✅ إضافة الرسالة إلى الواجهة:", newMessage.id);
             return [...prev, newMessage].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
           });
           
@@ -468,11 +456,7 @@ const Index = () => {
                 const opts = typeof data.options === 'string' ? JSON.parse(data.options) : data.options;
                 setPolls(prev => ({ 
                   ...prev, 
-                  [data.id]: { 
-                    question: data.question, 
-                    options: opts as string[], 
-                    is_active: data.is_active 
-                  } 
+                  [data.id]: { question: data.question, options: opts as string[], is_active: data.is_active } 
                 }));
               }
             });
@@ -489,51 +473,25 @@ const Index = () => {
           }
         }
       )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'messages'
-        },
-        (payload) => {
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
           const deleted = payload.old as { id: string };
-          console.log("🗑️ Realtime: تم حذف رسالة", deleted.id);
           setMessages((prev) => prev.filter((m) => m.id !== deleted.id));
         }
       )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'reactions'
-        },
-        (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reactions' }, (payload) => {
           const r = payload.new as Reaction;
-          console.log("❤️ Realtime: تفاعل جديد", r);
           setReactions((prev) => prev.find((x) => x.id === r.id) ? prev : [...prev, r]);
         }
       )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'reactions'
-        },
-        (payload) => {
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'reactions' }, (payload) => {
           const deleted = payload.old as { id: string };
           setReactions((prev) => prev.filter((r) => r.id !== deleted.id));
         }
       )
       .subscribe((status) => {
-        console.log("📡 Realtime connection status:", status);
         if (status === 'SUBSCRIBED') {
-          console.log("✅ Realtime متصل بنجاح!");
           setRealtimeConnected(true);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error("❌ خطأ في اتصال Realtime");
           setRealtimeConnected(false);
         }
       });
@@ -541,7 +499,6 @@ const Index = () => {
     realtimeChannelRef.current = channel;
     
     return () => {
-      console.log("🔌 إغلاق اتصال Realtime");
       if (realtimeChannelRef.current) {
         supabase.removeChannel(realtimeChannelRef.current);
         realtimeChannelRef.current = null;
@@ -549,7 +506,7 @@ const Index = () => {
     };
   }, [username, userId, scrollToBottom]);
 
-  // Presence - معدل لضمان الموثوقية العالية بدون حالة الكتابة
+  // Presence 
   useEffect(() => {
     if (!username || !userId) return;
     const presenceChannel = supabase.channel("presence-chat", { config: { presence: { key: userId } } });
@@ -569,13 +526,12 @@ const Index = () => {
       
     presenceChannelRef.current = presenceChannel;
 
-    // مستمع لحل مشكلة عدم تحديث المتصلين عند خروج الهاتف من وضع السكون أو العودة للتطبيق
     const handleVisibilityChange = async () => {
       if (document.visibilityState === "visible" && presenceChannelRef.current) {
         try {
           await presenceChannelRef.current.track({ user_id: userId, username, online_at: new Date().toISOString() });
         } catch (error) {
-          console.error("Error tracking presence on visibility change", error);
+          console.error("Error tracking presence", error);
         }
       }
     };
@@ -599,6 +555,36 @@ const Index = () => {
       return () => { clearTimeout(timeout1); clearTimeout(timeout2); clearTimeout(timeout3); clearTimeout(resetTimeout); };
     }
   }, [isReturningFromDMs, forceScrollToBottom]);
+
+  // --- دوال التحكم في الرسائل (محسنة لعدم إعادة الترسيم المستمر) ---
+  const handleReply = useCallback((message: Message) => {
+    setReplyTo(message);
+    inputRef.current?.focus();
+  }, []);
+
+  const handleDeleteMessage = useCallback(async (messageId: string) => {
+    await supabase.from("messages").delete().eq("id", messageId);
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
+  }, []);
+
+  const handlePinMessage = useCallback(async (msg: Message) => {
+    if (!adminIds.has(userId)) return;
+    await supabase.from("pinned_messages").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    const name = msg.user_id && profilesMap[msg.user_id] ? profilesMap[msg.user_id].username : msg.username;
+    const { data } = await supabase.from("pinned_messages").insert({
+      message_id: msg.id,
+      pinned_by: userId,
+      content: msg.content?.slice(0, 300) ?? "",
+      username: name,
+      user_id: msg.user_id ?? null,
+    }).select().single();
+    if (data) setPinnedMessage(data as any);
+  }, [adminIds, userId, profilesMap]);
+
+  const handleUsernameClick = useCallback((uid: string) => {
+    setProfileModal(uid);
+  }, []);
+  // ------------------------------------------------------------------
 
   const handleJoin = async (name: string, avatarFile?: File | null) => {
     localStorage.setItem("chat_username", name);
@@ -690,14 +676,8 @@ const Index = () => {
     }
     setReplyTo(null);
     
-    console.log("📤 إرسال رسالة جديدة:", insertData);
     const { error } = await supabase.from("messages").insert(insertData);
-    
-    if (error) {
-      console.error("❌ فشل إرسال الرسالة:", error);
-      alert("فشل إرسال الرسالة: " + error.message);
-    } else {
-      console.log("✅ تم إرسال الرسالة بنجاح، انتظر وصولها عبر Realtime");
+    if (!error) {
       playSound();
     }
     
@@ -718,17 +698,6 @@ const Index = () => {
     setTimeout(() => { forceScrollToBottom(); }, 100);
   };
 
-  const handleSendAnnouncement = async () => {
-    if (!input.trim() || !username || sending) return;
-    const content = `📢 إعلان المشرف: ${input.trim()}`;
-    setInput("");
-    setSending(true);
-    await supabase.from("messages").insert({ username, user_id: userId, content });
-    setSending(false);
-    inputRef.current?.focus();
-    setTimeout(() => { forceScrollToBottom(); }, 100);
-  };
-
   const handleCreatePoll = async (question: string, options: string[]) => {
     if (!username || sending) return;
     setSending(true);
@@ -746,39 +715,16 @@ const Index = () => {
     setTimeout(() => { forceScrollToBottom(); }, 100);
   };
 
-  const handleDeleteMessage = async (messageId: string) => {
-    await supabase.from("messages").delete().eq("id", messageId);
-    setMessages((prev) => prev.filter((m) => m.id !== messageId));
-  };
-
-  const handlePinMessage = async (msg: Message) => {
-    if (!isCurrentUserAdmin) return;
-    await supabase.from("pinned_messages").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-    const { data } = await supabase.from("pinned_messages").insert({
-      message_id: msg.id,
-      pinned_by: userId,
-      content: msg.content?.slice(0, 300) ?? "",
-      username: msg.user_id ? getProfile(msg.user_id).username : msg.username,
-      user_id: msg.user_id ?? null,
-    }).select().single();
-    if (data) setPinnedMessage(data as any);
-  };
-
-  const handleUnpinMessage = async () => {
-    if (!isCurrentUserAdmin || !pinnedMessage) return;
-    await supabase.from("pinned_messages").delete().eq("id", pinnedMessage.id);
-    setPinnedMessage(null);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setInput(value);
-    e.target.style.height = "auto";
-    e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
     
-    // تم إزالة handleTyping() لمنع تعليق الكيبورد
-
-    const cursorPos = e.target.selectionStart || 0;
+    // تحسين تغيير الارتفاع لمنع الضغط على متصفح الهاتف
+    const target = e.target;
+    target.style.height = 'auto';
+    target.style.height = `${Math.min(target.scrollHeight, 120)}px`;
+    
+    const cursorPos = target.selectionStart || 0;
     const textBeforeCursor = value.slice(0, cursorPos);
     const mentionMatch = textBeforeCursor.match(/@([^@]*)$/);
     if (mentionMatch) {
@@ -799,7 +745,7 @@ const Index = () => {
       setMentionQuery(null);
       setMentionResults([]);
     }
-  };
+  }, [profilesMap, userId]);
 
   const handleMentionSelect = (mentionUsername: string) => {
     const cursorPos = inputRef.current?.selectionStart || 0;
@@ -833,12 +779,78 @@ const Index = () => {
     setChatLocked(newLocked);
   };
 
-  const handleReply = (message: Message) => {
-    setReplyTo(message);
-    inputRef.current?.focus();
-  };
-
   const adminProfiles = Array.from(adminIds).map(id => ({ id, ...getProfile(id) }));
+
+  const renderMessageContent = useCallback((msg: Message) => {
+    if (msg.content && msg.content.startsWith("poll:")) {
+      const pId = msg.content.replace("poll:", "");
+      const pollData = polls[pId];
+      if (pollData && pollData.options && Array.isArray(pollData.options)) {
+        return (
+          <PollMessage 
+            pollId={pId} 
+            question={pollData.question} 
+            options={pollData.options} 
+            currentUserId={userId} 
+            isActive={pollData.is_active} 
+          />
+        );
+      }
+      return (
+        <div className="w-full max-w-[300px] rounded-xl overflow-hidden" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
+          <div className="px-3 py-8 text-center">
+            <div className="inline-block w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }, [polls, userId]);
+
+  // -- ميزة العزل: قائمة الرسائل الآن معزولة بالكامل عن تحديث حقل الكتابة --
+  const renderedMessagesList = useMemo(() => {
+    return messages.map((msg) => {
+      const isPoll = msg.content && msg.content.startsWith("poll:");
+      const pollContent = isPoll ? renderMessageContent(msg) : null;
+      
+      if (isPoll) {
+        return (
+          <div key={msg.id} className="flex gap-2 animate-fade-in">
+            <div className="max-w-[85%]">
+              <div className="flex items-center gap-1 mb-1">
+                <ShieldCheck className="w-3 h-3" style={{ color: "#1D9BF0" }} />
+                <span className="text-[11px] font-semibold" style={{ color: "#1D9BF0" }}>
+                  {msg.user_id && profilesMap[msg.user_id] ? profilesMap[msg.user_id].username : msg.username}
+                </span>
+              </div>
+              {pollContent}
+            </div>
+          </div>
+        );
+      }
+      
+      return (
+        <ChatMessage 
+          key={msg.id} 
+          message={msg} 
+          currentUserId={userId} 
+          currentUsername={username} 
+          currentAvatarUrl={avatarUrl} 
+          reactions={reactionsByMessageId[msg.id] || []} 
+          profilesMap={profilesMap} 
+          isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false} 
+          isAdmin={msg.user_id ? adminIds.has(msg.user_id) : false} 
+          isCurrentUserAdmin={adminIds.has(userId)} 
+          messageCounts={messageCounts} 
+          onReply={handleReply} 
+          onUsernameClick={handleUsernameClick} 
+          onDelete={handleDeleteMessage} 
+          onPin={handlePinMessage}
+        />
+      );
+    });
+  }, [messages, polls, userId, username, avatarUrl, reactionsByMessageId, profilesMap, onlineUsers, adminIds, messageCounts, handleReply, handleUsernameClick, handleDeleteMessage, handlePinMessage, renderMessageContent]);
+
 
   if (!username) return <UsernameModal onJoin={handleJoin} />;
   
@@ -870,32 +882,6 @@ const Index = () => {
       <DirectMessages currentUserId={userId} currentUsername={username} profilesMap={profilesMap} onlineUsers={onlineUsers} initialConversationUserId={dmInitialUserId} onBack={handleBackFromDMs} isAdmin={isCurrentUserAdmin} />
     );
   }
-
-  const renderMessageContent = (msg: Message) => {
-    if (msg.content && msg.content.startsWith("poll:")) {
-      const pId = msg.content.replace("poll:", "");
-      const pollData = polls[pId];
-      if (pollData && pollData.options && Array.isArray(pollData.options)) {
-        return (
-          <PollMessage 
-            pollId={pId} 
-            question={pollData.question} 
-            options={pollData.options} 
-            currentUserId={userId} 
-            isActive={pollData.is_active} 
-          />
-        );
-      }
-      return (
-        <div className="w-full max-w-[300px] rounded-xl overflow-hidden" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
-          <div className="px-3 py-8 text-center">
-            <div className="inline-block w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
     <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
@@ -1028,46 +1014,7 @@ const Index = () => {
           </div>
         ) : (
           <>
-            {messages.map((msg) => {
-              const isPoll = msg.content && msg.content.startsWith("poll:");
-              const pollContent = isPoll ? renderMessageContent(msg) : null;
-              
-              if (isPoll) {
-                return (
-                  <div key={msg.id} className="flex gap-2 animate-fade-in">
-                    <div className="max-w-[85%]">
-                      <div className="flex items-center gap-1 mb-1">
-                        <ShieldCheck className="w-3 h-3" style={{ color: "#1D9BF0" }} />
-                        <span className="text-[11px] font-semibold" style={{ color: "#1D9BF0" }}>
-                          {msg.user_id && profilesMap[msg.user_id] ? profilesMap[msg.user_id].username : msg.username}
-                        </span>
-                      </div>
-                      {pollContent}
-                    </div>
-                  </div>
-                );
-              }
-              
-              return (
-                <ChatMessage 
-                  key={msg.id} 
-                  message={msg} 
-                  currentUserId={userId} 
-                  currentUsername={username} 
-                  currentAvatarUrl={avatarUrl} 
-                  reactions={reactionsByMessageId[msg.id] || []} 
-                  profilesMap={profilesMap} 
-                  isOnline={msg.user_id ? onlineUsers.has(msg.user_id) : false} 
-                  isAdmin={msg.user_id ? adminIds.has(msg.user_id) : false} 
-                  isCurrentUserAdmin={isCurrentUserAdmin} 
-                  messageCounts={messageCounts} 
-                  onReply={handleReply} 
-                  onUsernameClick={(uid) => setProfileModal(uid)} 
-                  onDelete={handleDeleteMessage} 
-                  onPin={handlePinMessage}
-                />
-              );
-            })}
+            {renderedMessagesList}
             <div ref={messagesEndRef} />
           </>
         )}
