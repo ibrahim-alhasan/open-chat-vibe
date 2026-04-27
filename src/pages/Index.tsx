@@ -36,26 +36,21 @@ const Index = () => {
 
   const [username, setUsername] = useState<string | null>(() => localStorage.getItem("chat_username"));
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => localStorage.getItem("chat_avatar_url"));
-
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [profilesMap, setProfilesMap] = useState<Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }>>({});
   const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
   const [bannedUserIds, setBannedUserIds] = useState<Set<string>>(new Set());
-
   const [input, setInput] = useState("");
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
-
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [messagePage, setMessagePage] = useState(0);
-
   const [sending, setSending] = useState(false);
   const [onlineCount, setOnlineCount] = useState(0);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-
   const [totalUsers, setTotalUsers] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -96,7 +91,6 @@ const Index = () => {
   const isFirstLoadRef = useRef(true);
   const isLoadingMoreRef = useRef(false);
   const lastScrollTopRef = useRef(0);
-
   const isUserScrollingUpRef = useRef(false);
   const shouldScrollAfterRefresh = useRef(false);
 
@@ -176,7 +170,7 @@ const Index = () => {
         const pollMsgIds = sortedMessages
           .filter(m => m.content && m.content.startsWith("poll:"))
           .map(m => m.content.replace("poll:", ""));
-        
+          
         if (pollMsgIds.length > 0) {
           const { data: pollsData } = await supabase
             .from("polls")
@@ -294,6 +288,37 @@ const Index = () => {
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
+  // إعداد استماع مباشر للوحة التحكم (حالة الدردشة والحظر)
+  useEffect(() => {
+    if (!userId) return;
+    
+    const controlChannel = supabase.channel('system-controls')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_settings' }, (payload) => {
+        if (payload.new && typeof payload.new.is_locked !== 'undefined') {
+          setChatLocked(payload.new.is_locked);
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'banned_users' }, (payload) => {
+        if (payload.new && payload.new.user_id) {
+          setBannedUserIds(prev => new Set(prev).add(payload.new.user_id));
+        }
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'banned_users' }, (payload) => {
+        if (payload.old && payload.old.user_id) {
+          setBannedUserIds(prev => {
+            const updated = new Set(prev);
+            updated.delete(payload.old.user_id);
+            return updated;
+          });
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(controlChannel);
+    };
+  }, [userId]);
+
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
@@ -313,7 +338,6 @@ const Index = () => {
           setMessages(sortedMessages);
           const { count } = await supabase.from("messages").select("*", { count: 'exact', head: true });
           setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
-          
           const msgIds = sortedMessages.map(m => m.id);
           if (msgIds.length > 0) {
             const { data: reactionsData } = await supabase.from("reactions").select("*").in("message_id", msgIds);
@@ -426,7 +450,7 @@ const Index = () => {
     }
   }, [loadingMore, hasMoreMessages, messagePage, messages]);
 
-  // Realtime listener
+  // Realtime listener for messages
   useEffect(() => {
     if (!username) return;
     
@@ -448,7 +472,7 @@ const Index = () => {
             if (prev.some((m) => m.id === newMessage.id)) return prev;
             return [...prev, newMessage].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
           });
-          
+      
           if (newMessage.content && newMessage.content.startsWith("poll:")) {
             const pollId = newMessage.content.replace("poll:", "");
             supabase.from("polls").select("*").eq("id", pollId).single().then(({ data }) => {
@@ -495,7 +519,6 @@ const Index = () => {
           setRealtimeConnected(false);
         }
       });
-      
     realtimeChannelRef.current = channel;
     
     return () => {
@@ -529,7 +552,7 @@ const Index = () => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === "visible" && presenceChannelRef.current) {
         try {
-          await presenceChannelRef.current.track({ user_id: userId, username, online_at: new Date().toISOString() });
+           await presenceChannelRef.current.track({ user_id: userId, username, online_at: new Date().toISOString() });
         } catch (error) {
           console.error("Error tracking presence", error);
         }
@@ -537,7 +560,6 @@ const Index = () => {
     };
     
     document.addEventListener("visibilitychange", handleVisibilityChange);
-
     return () => { 
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       supabase.removeChannel(presenceChannel); 
@@ -556,7 +578,7 @@ const Index = () => {
     }
   }, [isReturningFromDMs, forceScrollToBottom]);
 
-  // --- دوال التحكم في الرسائل (محسنة لعدم إعادة الترسيم المستمر) ---
+  // --- دوال التحكم في الرسائل ---
   const handleReply = useCallback((message: Message) => {
     setReplyTo(message);
     inputRef.current?.focus();
@@ -581,9 +603,16 @@ const Index = () => {
     if (data) setPinnedMessage(data as any);
   }, [adminIds, userId, profilesMap]);
 
+  const handleUnpinMessage = useCallback(async () => {
+    if (!adminIds.has(userId)) return;
+    await supabase.from("pinned_messages").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    setPinnedMessage(null);
+  }, [adminIds, userId]);
+
   const handleUsernameClick = useCallback((uid: string) => {
     setProfileModal(uid);
   }, []);
+
   // ------------------------------------------------------------------
 
   const handleJoin = async (name: string, avatarFile?: File | null) => {
@@ -635,6 +664,29 @@ const Index = () => {
     if ((!input.trim() && !selectedFile) || !username || sending || isUserBanned) return;
     if (chatLocked && !isCurrentUserAdmin) return;
     
+    // --- Pre-flight validation لسد ثغرة ضعف الإنترنت ---
+    if (!isCurrentUserAdmin) {
+      setSending(true); // تعيين حالة الإرسال لمنع التكرار أثناء الفحص
+      const [{ data: settingsData }, { data: banData }] = await Promise.all([
+        supabase.from("chat_settings").select("is_locked").single(),
+        supabase.from("banned_users").select("user_id").eq("user_id", userId).maybeSingle()
+      ]);
+
+      if (settingsData?.is_locked) {
+        setChatLocked(true);
+        setSending(false);
+        return; // إلغاء الإرسال وتحديث حالة الإغلاق
+      }
+
+      if (banData) {
+        setBannedUserIds(prev => new Set(prev).add(userId));
+        setSending(false);
+        return; // إلغاء الإرسال وتحديث حالة الحظر
+      }
+      setSending(false);
+    }
+    // ----------------------------------------------------
+
     const content = input.trim();
     setInput("");
     setSending(true);
@@ -644,7 +696,6 @@ const Index = () => {
     let fileUrl: string | null = null;
     let fileName: string | null = null;
     let fileType: string | null = null;
-    
     if (selectedFile) {
       setUploadingFile(true);
       const result = await uploadPublicFile(selectedFile);
@@ -663,7 +714,6 @@ const Index = () => {
       user_id: userId, 
       content: content || (fileUrl ? `📎 ${fileName}` : "")
     };
-    
     if (fileUrl) {
       insertData.file_url = fileUrl;
       insertData.file_name = fileName;
@@ -675,7 +725,6 @@ const Index = () => {
       insertData.reply_to_content = replyTo.content?.slice(0, 80) ?? null;
     }
     setReplyTo(null);
-    
     const { error } = await supabase.from("messages").insert(insertData);
     if (!error) {
       playSound();
@@ -719,7 +768,6 @@ const Index = () => {
     const value = e.target.value;
     setInput(value);
     
-    // تحسين تغيير الارتفاع لمنع الضغط على متصفح الهاتف
     const target = e.target;
     target.style.height = 'auto';
     target.style.height = `${Math.min(target.scrollHeight, 120)}px`;
@@ -807,7 +855,6 @@ const Index = () => {
     return null;
   }, [polls, userId]);
 
-  // -- ميزة العزل: قائمة الرسائل الآن معزولة بالكامل عن تحديث حقل الكتابة --
   const renderedMessagesList = useMemo(() => {
     return messages.map((msg) => {
       const isPoll = msg.content && msg.content.startsWith("poll:");
@@ -850,7 +897,6 @@ const Index = () => {
       );
     });
   }, [messages, polls, userId, username, avatarUrl, reactionsByMessageId, profilesMap, onlineUsers, adminIds, messageCounts, handleReply, handleUsernameClick, handleDeleteMessage, handlePinMessage, renderMessageContent]);
-
 
   if (!username) return <UsernameModal onJoin={handleJoin} />;
   
@@ -1077,7 +1123,7 @@ const Index = () => {
       ) : (
         /* Input area */
         <div className="flex-shrink-0 px-3 pb-3 pt-1.5 fixed bottom-0 left-0 right-0 z-20" style={{ background: "hsl(var(--chat-bg))" }}>
-          {chatLocked && isCurrentUserAdmin && (
+           {chatLocked && isCurrentUserAdmin && (
             <div className="flex items-center justify-center gap-2 mb-2 px-3 py-1.5 rounded-full" style={{ background: "hsl(var(--destructive) / 0.1)" }}>
               <Lock className="w-3 h-3" style={{ color: "hsl(var(--destructive))" }} />
               <span className="text-[11px]" style={{ color: "hsl(var(--destructive))" }}>الدردشة مغلقة - أنت مشرف يمكنك الكتابة</span>
