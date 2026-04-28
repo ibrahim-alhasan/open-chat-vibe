@@ -128,6 +128,91 @@ const Index = () => {
     setHasNewMessages(false);
   }, []);
 
+  // دالة جديدة للتمرير إلى رسالة معينة
+  const scrollToMessage = useCallback(async (messageId: string) => {
+    const messageElement = document.getElementById(`message-${messageId}`);
+    if (messageElement) {
+      // الرسالة موجودة بالفعل في DOM
+      messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      // إضافة تأثير تمييز مؤقت
+      messageElement.style.transition = "background-color 0.3s ease";
+      messageElement.style.backgroundColor = "hsl(var(--primary) / 0.15)";
+      setTimeout(() => {
+        messageElement.style.backgroundColor = "";
+      }, 2000);
+      return true;
+    }
+    
+    // الرسالة غير موجودة، نحاول تحميلها
+    const messageIndex = messages.findIndex(m => m.id === messageId);
+    if (messageIndex === -1) {
+      // الرسالة غير محملة، نحاول جلبها من قاعدة البيانات
+      const { data: targetMessage, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("id", messageId)
+        .single();
+      
+      if (error || !targetMessage) {
+        return false;
+      }
+      
+      // نحسب عدد الرسائل الأحدث من هذه الرسالة
+      const { count: newerCount } = await supabase
+        .from("messages")
+        .select("*", { count: 'exact', head: true })
+        .gt("created_at", targetMessage.created_at);
+      
+      const newerMessagesCount = newerCount || 0;
+      const neededPages = Math.ceil(newerMessagesCount / MESSAGES_PER_PAGE);
+      
+      // نحمل الصفحات المطلوبة
+      let currentMessages = messages;
+      for (let i = 0; i <= neededPages; i++) {
+        const { data: olderMessages, error: loadError } = await supabase
+          .from("messages")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(MESSAGES_PER_PAGE * (i + 1));
+        
+        if (!loadError && olderMessages) {
+          currentMessages = (olderMessages as Message[]).sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+          setMessages(currentMessages);
+          
+          const msgIds = currentMessages.map(m => m.id);
+          if (msgIds.length > 0) {
+            const { data: reactionsData } = await supabase
+              .from("reactions")
+              .select("*")
+              .in("message_id", msgIds);
+            if (reactionsData) {
+              setReactions(reactionsData as Reaction[]);
+            }
+          }
+        }
+      }
+      
+      // ننتظر قليلاً حتى يتم تحديث DOM ثم نبحث عن العنصر
+      setTimeout(() => {
+        const newElement = document.getElementById(`message-${messageId}`);
+        if (newElement) {
+          newElement.scrollIntoView({ behavior: "smooth", block: "center" });
+          newElement.style.transition = "background-color 0.3s ease";
+          newElement.style.backgroundColor = "hsl(var(--primary) / 0.15)";
+          setTimeout(() => {
+            newElement.style.backgroundColor = "";
+          }, 2000);
+        }
+      }, 500);
+      
+      return true;
+    }
+    
+    return false;
+  }, [messages]);
+
   const getProfile = useCallback((uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null }, [profilesMap]);
   const isCurrentUserAdmin = adminIds.has(userId);
   const isUserBanned = bannedUserIds.has(userId);
@@ -613,6 +698,10 @@ const Index = () => {
     setProfileModal(uid);
   }, []);
 
+  const handleScrollToOriginalMessage = useCallback(async (messageId: string) => {
+    await scrollToMessage(messageId);
+  }, [scrollToMessage]);
+
   // ------------------------------------------------------------------
 
   const handleJoin = async (name: string, avatarFile?: File | null) => {
@@ -862,7 +951,7 @@ const Index = () => {
       
       if (isPoll) {
         return (
-          <div key={msg.id} className="flex gap-2 animate-fade-in">
+          <div key={msg.id} id={`message-${msg.id}`} className="flex gap-2 animate-fade-in">
             <div className="max-w-[85%]">
               <div className="flex items-center gap-1 mb-1">
                 <ShieldCheck className="w-3 h-3" style={{ color: "#1D9BF0" }} />
@@ -893,10 +982,11 @@ const Index = () => {
           onUsernameClick={handleUsernameClick} 
           onDelete={handleDeleteMessage} 
           onPin={handlePinMessage}
+          onScrollToOriginalMessage={handleScrollToOriginalMessage}
         />
       );
     });
-  }, [messages, polls, userId, username, avatarUrl, reactionsByMessageId, profilesMap, onlineUsers, adminIds, messageCounts, handleReply, handleUsernameClick, handleDeleteMessage, handlePinMessage, renderMessageContent]);
+  }, [messages, polls, userId, username, avatarUrl, reactionsByMessageId, profilesMap, onlineUsers, adminIds, messageCounts, handleReply, handleUsernameClick, handleDeleteMessage, handlePinMessage, handleScrollToOriginalMessage, renderMessageContent]);
 
   if (!username) return <UsernameModal onJoin={handleJoin} />;
   
@@ -1134,14 +1224,14 @@ const Index = () => {
           {replyTo && (
             <div className="mb-2 px-3 py-2 rounded-xl flex items-center justify-between gap-2 animate-fade-in"
               style={{ background: "hsl(var(--chat-reply-bg, var(--secondary)))", border: "1px solid hsl(var(--border))", borderRight: "3px solid hsl(var(--primary))" }}>
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <CornerUpLeft className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold" style={{ color: "hsl(var(--primary))" }}>
                     {replyTo.user_id === userId ? "أنت" : (replyTo.user_id ? getProfile(replyTo.user_id).username : replyTo.username)}
                   </p>
                   <p className="text-[11px] truncate" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    {replyTo.content && replyTo.content.startsWith("sticker:") ? "ملصق" : replyTo.content?.slice(0, 60)}
+                    {replyTo.content && replyTo.content.startsWith("sticker:") ? "ملصق" : replyTo.content?.slice(0, 80)}
                   </p>
                 </div>
               </div>
