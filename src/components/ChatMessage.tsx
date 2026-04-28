@@ -43,6 +43,7 @@ interface ChatMessageProps {
   onUsernameClick?: (userId: string) => void;
   onDelete?: (messageId: string) => void;
   onPin?: (message: Message) => void;
+  onScrollToOriginalMessage?: (messageId: string) => void;
 }
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
@@ -164,7 +165,7 @@ const MentionText = ({ text, profilesMap, onUsernameClick }: { text: string; pro
 
 const ChatMessage = memo(({
   message, currentUserId, currentUsername, currentAvatarUrl, reactions, profilesMap,
-  isOnline, isAdmin, isCurrentUserAdmin, messageCounts, onReply, onUsernameClick, onDelete, onPin,
+  isOnline, isAdmin, isCurrentUserAdmin, messageCounts, onReply, onUsernameClick, onDelete, onPin, onScrollToOriginalMessage,
 }: ChatMessageProps) => {
   const isOwn = message.user_id === currentUserId;
   const profile = message.user_id && profilesMap[message.user_id];
@@ -217,6 +218,13 @@ const ChatMessage = memo(({
     if (!canDelete || !onDelete) return;
     setShowActionsMenu(false);
     onDelete(message.id);
+  };
+
+  // Handle clicking on the original message reference
+  const handleOriginalMessageClick = () => {
+    if (message.reply_to && onScrollToOriginalMessage) {
+      onScrollToOriginalMessage(message.reply_to);
+    }
   };
 
   useEffect(() => {
@@ -302,7 +310,7 @@ const ChatMessage = memo(({
   };
 
   return (
-    <div ref={messageRef} className={`flex gap-2 group animate-fade-in relative ${isOwn ? "flex-row-reverse" : "flex-row"}`} onMouseLeave={handleMouseLeave}>
+    <div id={`message-${message.id}`} ref={messageRef} className={`flex gap-2 group animate-fade-in relative ${isOwn ? "flex-row-reverse" : "flex-row"}`} onMouseLeave={handleMouseLeave}>
       {/* Avatar */}
       <div className="relative flex-shrink-0">
         {avatarUrl ? (
@@ -347,14 +355,29 @@ const ChatMessage = memo(({
           <span className="text-[10px]" style={{ color: "hsl(var(--chat-timestamp))" }}>{timeAgo}</span>
         </div>
 
-        {/* Reply preview - WhatsApp style inline */}
+        {/* Reply preview - WhatsApp style inline WITH CLICKABLE ORIGINAL MESSAGE */}
         {message.reply_to && message.reply_to_username && (
-          <div className={`px-2.5 py-1.5 rounded-lg text-[11px] flex items-start gap-1.5 ${isOwn ? "flex-row-reverse" : "flex-row"} w-full`}
-            style={{ background: "hsl(var(--chat-reply-bg))", borderLeft: !isOwn ? `2px solid ${getUserColor(message.reply_to_username)}` : undefined, borderRight: isOwn ? `2px solid ${getUserColor(message.reply_to_username)}` : undefined }}>
-            <div className={`min-w-0 ${isOwn ? "text-right" : "text-left"}`}>
-              <p className="font-semibold mb-0.5" style={{ color: getUserColor(message.reply_to_username) }}>{message.reply_to_username}</p>
-              <p className="truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{message.reply_to_content}</p>
+          <div 
+            className={`px-2.5 py-1.5 rounded-lg text-[11px] flex items-start gap-1.5 ${isOwn ? "flex-row-reverse" : "flex-row"} w-full cursor-pointer transition-all hover:opacity-80`}
+            style={{ 
+              background: "hsl(var(--chat-reply-bg))", 
+              borderLeft: !isOwn ? `2px solid ${getUserColor(message.reply_to_username)}` : undefined, 
+              borderRight: isOwn ? `2px solid ${getUserColor(message.reply_to_username)}` : undefined,
+            }}
+            onClick={handleOriginalMessageClick}
+          >
+            <div className={`min-w-0 flex-1 ${isOwn ? "text-right" : "text-left"}`}>
+              <p className="font-semibold mb-0.5" style={{ color: getUserColor(message.reply_to_username) }}>
+                {message.reply_to_username}
+              </p>
+              {/* Show up to 2 lines of the original message content */}
+              <p className="line-clamp-2" style={{ color: "hsl(var(--muted-foreground))" }}>
+                {message.reply_to_content && message.reply_to_content.length > 80 
+                  ? message.reply_to_content.slice(0, 80) + '...' 
+                  : message.reply_to_content}
+              </p>
             </div>
+            <CornerUpLeft className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: "hsl(var(--primary))" }} />
           </div>
         )}
 
