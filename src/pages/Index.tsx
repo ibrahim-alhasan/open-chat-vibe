@@ -10,6 +10,7 @@ import ChatInfo from "@/components/ChatInfo";
 import AdminPanel from "@/components/AdminPanel";
 import PollCreator from "@/components/PollCreator";
 import PollMessage from "@/components/PollMessage";
+import MediaViewer from "@/components/MediaViewer"; // استيراد مكون عرض الوسائط الجديد
 import { playSound } from "@/lib/sounds";
 import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot } from "lucide-react";
 
@@ -77,6 +78,9 @@ const Index = () => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [pinnedMessage, setPinnedMessage] = useState<{ id: string; message_id: string; content: string; username: string; user_id: string | null } | null>(null);
   const [showPinnedExpanded, setShowPinnedExpanded] = useState(false);
+  
+  // --- State خاص بعارض الوسائط ---
+  const [mediaViewer, setMediaViewer] = useState<{ url: string; type: string; name?: string } | null>(null);
 
   const [realtimeConnected, setRealtimeConnected] = useState(false);
   
@@ -663,6 +667,11 @@ const Index = () => {
     }
   }, [isReturningFromDMs, forceScrollToBottom]);
 
+  // --- دالة جديدة لفتح عارض الوسائط ---
+  const handleOpenMedia = useCallback((url: string, type: string, name?: string) => {
+    setMediaViewer({ url, type, name });
+  }, []);
+
   // --- دوال التحكم في الرسائل ---
   const handleReply = useCallback((message: Message) => {
     setReplyTo(message);
@@ -983,10 +992,11 @@ const Index = () => {
           onDelete={handleDeleteMessage} 
           onPin={handlePinMessage}
           onScrollToOriginalMessage={handleScrollToOriginalMessage}
+          onOpenMedia={handleOpenMedia} // تمرير الدالة الجديدة إلى ChatMessage
         />
       );
     });
-  }, [messages, polls, userId, username, avatarUrl, reactionsByMessageId, profilesMap, onlineUsers, adminIds, messageCounts, handleReply, handleUsernameClick, handleDeleteMessage, handlePinMessage, handleScrollToOriginalMessage, renderMessageContent]);
+  }, [messages, polls, userId, username, avatarUrl, reactionsByMessageId, profilesMap, onlineUsers, adminIds, messageCounts, handleReply, handleUsernameClick, handleDeleteMessage, handlePinMessage, handleScrollToOriginalMessage, renderMessageContent, handleOpenMedia]);
 
   if (!username) return <UsernameModal onJoin={handleJoin} />;
   
@@ -1351,6 +1361,25 @@ const Index = () => {
 
       {profileModal && (
         <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} isCurrentUserAdmin={isCurrentUserAdmin} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={() => setProfileModal(null)} onStartDM={(uid) => { navigate(`/dm/${uid}`); setProfileModal(null); }} />
+      )}
+
+      {/* Media Viewer Modal */}
+      {mediaViewer && (
+        <MediaViewer
+          url={mediaViewer.url}
+          type={mediaViewer.type}
+          name={mediaViewer.name}
+          onClose={() => setMediaViewer(null)}
+          onDownload={() => {
+            const link = document.createElement('a');
+            link.href = mediaViewer.url;
+            link.download = mediaViewer.name || 'media';
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }}
+        />
       )}
     </div>
   );
