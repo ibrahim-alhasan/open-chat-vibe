@@ -1,17 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { X, Download, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Download } from 'lucide-react';
 
 interface MediaViewerProps {
   url: string;
   type: string;
   name?: string;
   onClose: () => void;
-  onDownload: () => void;
 }
 
-const MediaViewer: React.FC<MediaViewerProps> = ({ url, type, name, onClose, onDownload }) => {
-  const [isFullscreen, setIsFullscreen] = useState(false);
+const MediaViewer: React.FC<MediaViewerProps> = ({ url, type, name, onClose }) => {
   const [isLoading, setIsLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const imgRef = React.useRef<HTMLImageElement>(null);
   const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -21,24 +20,6 @@ const MediaViewer: React.FC<MediaViewerProps> = ({ url, type, name, onClose, onD
   const isImage = type.startsWith('image/');
   const isPDF = type === 'application/pdf';
 
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
   // منع التمرير في الخلفية
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -46,6 +27,63 @@ const MediaViewer: React.FC<MediaViewerProps> = ({ url, type, name, onClose, onD
       document.body.style.overflow = '';
     };
   }, []);
+
+  // دالة التحميل
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (isDownloading) return;
+    
+    setIsDownloading(true);
+    
+    try {
+      // جلب الملف كـ Blob
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`فشل التحميل: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      
+      // إنشاء رابط تحميل مؤقت
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      
+      // تحديد اسم الملف المناسب
+      let fileName = name || 'download';
+      
+      // إذا لم يكن الاسم يحتوي على امتداد، نضيفه بناءً على النوع
+      if (!fileName.includes('.')) {
+        if (isImage) {
+          const extension = url.split('.').pop()?.split('?')[0] || 'jpg';
+          fileName += `.${extension}`;
+        } else if (isVideo) {
+          fileName += '.mp4';
+        } else if (isPDF) {
+          fileName += '.pdf';
+        }
+      }
+      
+      link.download = fileName;
+      
+      // تنفيذ التحميل
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // تنظيف الرابط المؤقت
+      window.URL.revokeObjectURL(blobUrl);
+      
+    } catch (error) {
+      console.error('فشل التحميل:', error);
+      // في حالة فشل التحميل، نفتح الملف في تبويب جديد كحل بديل
+      window.open(url, '_blank');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div
@@ -64,18 +102,16 @@ const MediaViewer: React.FC<MediaViewerProps> = ({ url, type, name, onClose, onD
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={(e) => { e.stopPropagation(); onDownload(); }}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+            onClick={handleDownload}
+            disabled={isDownloading}
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
             title="تحميل"
           >
-            <Download className="w-5 h-5" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
-            title={isFullscreen ? "إغلاق ملء الشاشة" : "ملء الشاشة"}
-          >
-            {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+            {isDownloading ? (
+              <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+            ) : (
+              <Download className="w-5 h-5" />
+            )}
           </button>
           <button
             onClick={onClose}
@@ -141,11 +177,21 @@ const MediaViewer: React.FC<MediaViewerProps> = ({ url, type, name, onClose, onD
             <p className="text-lg font-medium mb-2">لا يمكن معاينة هذا الملف</p>
             <p className="text-sm text-white/70 mb-4">{name || 'ملف'}</p>
             <button
-              onClick={onDownload}
-              className="px-4 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors text-white flex items-center gap-2"
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="px-4 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors text-white flex items-center gap-2 disabled:opacity-50"
             >
-              <Download className="w-4 h-4" />
-              تحميل الملف
+              {isDownloading ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  جاري التحميل...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  تحميل الملف
+                </>
+              )}
             </button>
           </div>
         )}
