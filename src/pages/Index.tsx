@@ -12,11 +12,12 @@ import ChatInfo from "@/components/ChatInfo";
 import AdminPanel from "@/components/AdminPanel";
 import PollCreator from "@/components/PollCreator";
 import PollMessage from "@/components/PollMessage";
-import MediaViewer from "@/components/MediaViewer"; // استيراد مكون عرض الوسائط الجديد
+import MediaViewer from "@/components/MediaViewer";
 import { playSound } from "@/lib/sounds";
 import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 100;
+const AUTH_REQUIRED_MESSAGE = "يجب عليك تسجيل الدخول أولاً";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -44,6 +45,17 @@ const Index = () => {
     });
     navigate("/auth");
     return false;
+  }, [navigate, toast]);
+
+  // Helper: show auth modal for send actions
+  const showAuthRequiredModal = useCallback((actionType: "public" | "private") => {
+    toast({
+      title: "تسجيل الدخول مطلوب",
+      description: actionType === "private" 
+        ? "لإرسال رسالة خاصة يجب عليك تسجيل الدخول أولاً"
+        : "لإرسال رسالة عامة يجب عليك تسجيل الدخول أولاً",
+    });
+    navigate("/auth");
   }, [navigate, toast]);
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -145,9 +157,7 @@ const Index = () => {
   const scrollToMessage = useCallback(async (messageId: string) => {
     const messageElement = document.getElementById(`message-${messageId}`);
     if (messageElement) {
-      // الرسالة موجودة بالفعل في DOM
       messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
-      // إضافة تأثير تمييز مؤقت
       messageElement.style.transition = "background-color 0.3s ease";
       messageElement.style.backgroundColor = "hsl(var(--primary) / 0.15)";
       setTimeout(() => {
@@ -156,10 +166,8 @@ const Index = () => {
       return true;
     }
     
-    // الرسالة غير موجودة، نحاول تحميلها
     const messageIndex = messages.findIndex(m => m.id === messageId);
     if (messageIndex === -1) {
-      // الرسالة غير محملة، نحاول جلبها من قاعدة البيانات
       const { data: targetMessage, error } = await supabase
         .from("messages")
         .select("*")
@@ -170,7 +178,6 @@ const Index = () => {
         return false;
       }
       
-      // نحسب عدد الرسائل الأحدث من هذه الرسالة
       const { count: newerCount } = await supabase
         .from("messages")
         .select("*", { count: 'exact', head: true })
@@ -179,7 +186,6 @@ const Index = () => {
       const newerMessagesCount = newerCount || 0;
       const neededPages = Math.ceil(newerMessagesCount / MESSAGES_PER_PAGE);
       
-      // نحمل الصفحات المطلوبة
       let currentMessages = messages;
       for (let i = 0; i <= neededPages; i++) {
         const { data: olderMessages, error: loadError } = await supabase
@@ -207,7 +213,6 @@ const Index = () => {
         }
       }
       
-      // ننتظر قليلاً حتى يتم تحديث DOM ثم نبحث عن العنصر
       setTimeout(() => {
         const newElement = document.getElementById(`message-${messageId}`);
         if (newElement) {
@@ -683,16 +688,28 @@ const Index = () => {
 
   // --- دوال التحكم في الرسائل ---
   const handleReply = useCallback((message: Message) => {
+    if (isGuest) {
+      showAuthRequiredModal("private");
+      return;
+    }
     setReplyTo(message);
     inputRef.current?.focus();
-  }, []);
+  }, [isGuest, showAuthRequiredModal]);
 
   const handleDeleteMessage = useCallback(async (messageId: string) => {
+    if (isGuest) {
+      showAuthRequiredModal("public");
+      return;
+    }
     await supabase.from("messages").delete().eq("id", messageId);
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
-  }, []);
+  }, [isGuest, showAuthRequiredModal]);
 
   const handlePinMessage = useCallback(async (msg: Message) => {
+    if (isGuest) {
+      showAuthRequiredModal("public");
+      return;
+    }
     if (!adminIds.has(userId)) return;
     await supabase.from("pinned_messages").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     const name = msg.user_id && profilesMap[msg.user_id] ? profilesMap[msg.user_id].username : msg.username;
@@ -704,13 +721,17 @@ const Index = () => {
       user_id: msg.user_id ?? null,
     }).select().single();
     if (data) setPinnedMessage(data as any);
-  }, [adminIds, userId, profilesMap]);
+  }, [isGuest, showAuthRequiredModal, adminIds, userId, profilesMap]);
 
   const handleUnpinMessage = useCallback(async () => {
+    if (isGuest) {
+      showAuthRequiredModal("public");
+      return;
+    }
     if (!adminIds.has(userId)) return;
     await supabase.from("pinned_messages").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     setPinnedMessage(null);
-  }, [adminIds, userId]);
+  }, [isGuest, showAuthRequiredModal, adminIds, userId]);
 
   const handleUsernameClick = useCallback((uid: string) => {
     setProfileModal(uid);
@@ -719,8 +740,6 @@ const Index = () => {
   const handleScrollToOriginalMessage = useCallback(async (messageId: string) => {
     await scrollToMessage(messageId);
   }, [scrollToMessage]);
-
-  // ------------------------------------------------------------------
 
   // handleJoin no longer needed — username is set during signup. Kept as no-op for legacy modal usage.
   const handleJoin = async (_name: string, _avatarFile?: File | null) => { /* deprecated */ };
@@ -751,13 +770,18 @@ const Index = () => {
   };
 
   const handleSend = async () => {
-    if (!username) { navigate("/auth"); return; }
+    // التحقق من تسجيل الدخول أولاً
+    if (!username) {
+      showAuthRequiredModal("public");
+      return;
+    }
+    
     if ((!input.trim() && !selectedFile) || sending || isUserBanned) return;
     if (chatLocked && !isCurrentUserAdmin) return;
     
     // --- Pre-flight validation لسد ثغرة ضعف الإنترنت ---
     if (!isCurrentUserAdmin) {
-      setSending(true); // تعيين حالة الإرسال لمنع التكرار أثناء الفحص
+      setSending(true);
       const [{ data: settingsData }, { data: banData }] = await Promise.all([
         supabase.from("chat_settings").select("is_locked").single(),
         supabase.from("banned_users").select("user_id").eq("user_id", userId).maybeSingle()
@@ -766,13 +790,13 @@ const Index = () => {
       if (settingsData?.is_locked) {
         setChatLocked(true);
         setSending(false);
-        return; // إلغاء الإرسال وتحديث حالة الإغلاق
+        return;
       }
 
       if (banData) {
         setBannedUserIds(prev => new Set(prev).add(userId));
         setSending(false);
-        return; // إلغاء الإرسال وتحديث حالة الحظر
+        return;
       }
       setSending(false);
     }
@@ -829,7 +853,10 @@ const Index = () => {
   };
 
   const handleSendSticker = async (sticker: string) => {
-    if (!username) { navigate("/auth"); return; }
+    if (!username) {
+      showAuthRequiredModal("public");
+      return;
+    }
     if (sending || isUserBanned) return;
     if (chatLocked && !isCurrentUserAdmin) return;
     setSending(true);
@@ -840,7 +867,10 @@ const Index = () => {
   };
 
   const handleCreatePoll = async (question: string, options: string[]) => {
-    if (!username) { navigate("/auth"); return; }
+    if (!username) {
+      showAuthRequiredModal("public");
+      return;
+    }
     if (sending) return;
     setSending(true);
     try {
@@ -914,9 +944,22 @@ const Index = () => {
   };
 
   const handleToggleChatLock = async () => {
+    if (isGuest) {
+      showAuthRequiredModal("public");
+      return;
+    }
     const newLocked = !chatLocked;
     await supabase.from("chat_settings").update({ is_locked: newLocked, locked_by: userId, locked_at: newLocked ? new Date().toISOString() : null }).neq("id", "00000000-0000-0000-0000-000000000000");
     setChatLocked(newLocked);
+  };
+
+  // دالة معالجة زر تواصل عبر الخاص
+  const handleDirectMessageClick = () => {
+    if (isGuest) {
+      showAuthRequiredModal("private");
+      return;
+    }
+    navigate('/dms');
   };
 
   const adminProfiles = Array.from(adminIds).map(id => ({ id, ...getProfile(id) }));
@@ -986,7 +1029,7 @@ const Index = () => {
           onDelete={handleDeleteMessage} 
           onPin={handlePinMessage}
           onScrollToOriginalMessage={handleScrollToOriginalMessage}
-          onOpenMedia={handleOpenMedia} // تمرير الدالة الجديدة إلى ChatMessage
+          onOpenMedia={handleOpenMedia}
         />
       );
     });
@@ -1077,14 +1120,19 @@ const Index = () => {
             <Bot className="w-5 h-5" />
           </button>
           
-          <button onClick={() => navigate('/dms')} title="الرسائل الخاصة"
-            className="relative p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
+          {/* زر الرسائل الخاصة مع فحص تسجيل الدخول */}
+          <button 
+            onClick={handleDirectMessageClick} 
+            title="الرسائل الخاصة"
+            className="relative p-2 rounded-full transition-colors hover:opacity-70" 
+            style={{ color: "hsl(var(--muted-foreground))" }}>
             <MessageSquare className="w-5 h-5" />
-            {unreadDMs > 0 && (
+            {!isGuest && unreadDMs > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full text-[10px] font-bold flex items-center justify-center px-1"
                 style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))" }}>{unreadDMs}</span>
             )}
           </button>
+          
           {avatarUrl && (
             <img src={avatarUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
               style={{ border: "2px solid hsl(var(--primary) / 0.4)" }} onClick={() => setShowSettings(true)} />
@@ -1203,7 +1251,13 @@ const Index = () => {
             <p className="text-[12px]" style={{ color: "hsl(var(--muted-foreground))" }}>قم بالتواصل مع المشرفين للمزيد من المعلومات</p>
             <div className="flex flex-wrap justify-center gap-2 mt-2">
               {adminProfiles.map((admin) => (
-                <button key={admin.id} onClick={() => navigate(`/dm/${admin.id}`)}
+                <button key={admin.id} onClick={() => {
+                  if (isGuest) {
+                    showAuthRequiredModal("private");
+                  } else {
+                    navigate(`/dm/${admin.id}`);
+                  }
+                }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95"
                   style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
                   {admin.avatar_url ? (
@@ -1360,7 +1414,14 @@ const Index = () => {
       )}
 
       {profileModal && (
-        <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} isCurrentUserAdmin={isCurrentUserAdmin} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={() => setProfileModal(null)} onStartDM={(uid) => { navigate(`/dm/${uid}`); setProfileModal(null); }} />
+        <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} isCurrentUserAdmin={isCurrentUserAdmin} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={() => setProfileModal(null)} onStartDM={(uid) => {
+          if (isGuest) {
+            showAuthRequiredModal("private");
+          } else {
+            navigate(`/dm/${uid}`);
+            setProfileModal(null);
+          }
+        }} />
       )}
 
       {/* Media Viewer Modal */}
