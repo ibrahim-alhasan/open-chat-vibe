@@ -19,13 +19,10 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState(currentUsername);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(currentAvatarUrl);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [allowDms, setAllowDms] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [soundEnabled, setSoundEnabledState] = useState(getIsSoundEnabled());
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
 
   const handleSignOut = async () => {
@@ -42,15 +39,6 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
     fetchProfile();
   }, [userId]);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setAvatarFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setAvatarPreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
-  };
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = username.trim();
@@ -59,17 +47,9 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
     if (trimmed.length > 20) { setError("الاسم يجب أن لا يتجاوز 20 حرفاً"); return; }
 
     setSaving(true);
-    let avatarUrl: string | null = currentAvatarUrl;
 
-    if (avatarFile) {
-      const ext = avatarFile.name.split(".").pop();
-      const fileName = `${userId}_${Date.now()}.${ext}`;
-      const { data, error: uploadError } = await supabase.storage.from("avatars").upload(fileName, avatarFile, { upsert: true });
-      if (!uploadError && data) {
-        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(data.path);
-        avatarUrl = urlData.publicUrl;
-      }
-    }
+    // No avatar upload - keep existing or set to null
+    const avatarUrl = null;
 
     await supabase.from("profiles").upsert(
       { user_id: userId, username: trimmed, avatar_url: avatarUrl, allow_dms: allowDms, updated_at: new Date().toISOString() },
@@ -77,8 +57,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
     );
 
     localStorage.setItem("chat_username", trimmed);
-    if (avatarUrl) localStorage.setItem("chat_avatar_url", avatarUrl);
-    else localStorage.removeItem("chat_avatar_url");
+    localStorage.removeItem("chat_avatar_url");
 
     setSaving(false);
     onSave(trimmed, avatarUrl);
@@ -101,18 +80,15 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
           </div>
 
           <form onSubmit={handleSave} className="space-y-5">
-            {/* Avatar picker */}
+            {/* Avatar - Show initials only, no image upload */}
             <div className="flex justify-center">
               <div className="relative">
-                <button type="button" onClick={() => fileInputRef.current?.click()}
-                  className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden transition-all duration-200 hover:opacity-80"
-                  style={{ background: avatarPreview ? "transparent" : "var(--gradient-primary)", border: "2px solid hsl(var(--primary) / 0.5)" }}>
-                  {avatarPreview ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" /> : <User className="w-8 h-8" style={{ color: "hsl(var(--primary-foreground))" }} />}
-                </button>
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer" style={{ background: "hsl(var(--primary))" }} onClick={() => fileInputRef.current?.click()}>
-                  <Camera className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary-foreground))" }} />
+                <div
+                  className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold"
+                  style={{ background: "var(--gradient-primary)", border: "2px solid hsl(var(--primary) / 0.5)", color: "hsl(var(--primary-foreground))" }}
+                >
+                  {username.slice(0, 2).toUpperCase()}
                 </div>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
               </div>
             </div>
 
