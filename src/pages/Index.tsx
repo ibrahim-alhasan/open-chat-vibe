@@ -1370,15 +1370,6 @@ const Index = () => {
           type={mediaViewer.type}
           name={mediaViewer.name}
           onClose={() => setMediaViewer(null)}
-          onDownload={() => {
-            const link = document.createElement('a');
-            link.href = mediaViewer.url;
-            link.download = mediaViewer.name || 'media';
-            link.target = '_blank';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }}
         />
       )}
     </div>
