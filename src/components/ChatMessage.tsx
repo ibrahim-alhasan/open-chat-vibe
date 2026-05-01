@@ -210,9 +210,10 @@ const ChatMessage = memo(({
   const handleReaction = async (emoji: string) => {
     setShowEmojiPicker(false);
     setShowActionsMenu(false);
-    const existing = reactions.find((r) => r.emoji === emoji && r.username === currentUserId);
+    if (!currentUserId) return;
+    const existing = reactions.find((r) => r.emoji === emoji && (r as any).user_id === currentUserId);
     if (existing) await supabase.from("reactions").delete().eq("id", existing.id);
-    else await supabase.from("reactions").insert({ message_id: message.id, username: currentUserId, emoji });
+    else await supabase.from("reactions").insert({ message_id: message.id, user_id: currentUserId, username: currentUsername || "", emoji });
   };
 
   const handleDelete = async () => {
