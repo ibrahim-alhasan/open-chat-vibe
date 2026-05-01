@@ -751,7 +751,8 @@ const Index = () => {
   };
 
   const handleSend = async () => {
-    if ((!input.trim() && !selectedFile) || !username || sending || isUserBanned) return;
+    if (!username) { navigate("/auth"); return; }
+    if ((!input.trim() && !selectedFile) || sending || isUserBanned) return;
     if (chatLocked && !isCurrentUserAdmin) return;
     
     // --- Pre-flight validation لسد ثغرة ضعف الإنترنت ---
@@ -828,7 +829,8 @@ const Index = () => {
   };
 
   const handleSendSticker = async (sticker: string) => {
-    if (!username || sending || isUserBanned) return;
+    if (!username) { navigate("/auth"); return; }
+    if (sending || isUserBanned) return;
     if (chatLocked && !isCurrentUserAdmin) return;
     setSending(true);
     await supabase.from("messages").insert({ username, user_id: userId, content: `sticker:${sticker}` });
@@ -838,7 +840,8 @@ const Index = () => {
   };
 
   const handleCreatePoll = async (question: string, options: string[]) => {
-    if (!username || sending) return;
+    if (!username) { navigate("/auth"); return; }
+    if (sending) return;
     setSending(true);
     try {
       const { data: poll, error } = await supabase.from("polls").insert({ question, options, created_by: userId }).select().single();
@@ -970,7 +973,7 @@ const Index = () => {
           key={msg.id} 
           message={msg} 
           currentUserId={userId} 
-          currentUsername={username} 
+          currentUsername={username ?? ""} 
           currentAvatarUrl={avatarUrl} 
           reactions={reactionsByMessageId[msg.id] || []} 
           profilesMap={profilesMap} 
@@ -989,7 +992,13 @@ const Index = () => {
     });
   }, [messages, polls, userId, username, avatarUrl, reactionsByMessageId, profilesMap, onlineUsers, adminIds, messageCounts, handleReply, handleUsernameClick, handleDeleteMessage, handlePinMessage, handleScrollToOriginalMessage, renderMessageContent, handleOpenMedia]);
 
-  if (!username) return <UsernameModal onJoin={handleJoin} />;
+  if (authLoading || (user && !profile && !username)) {
+    return (
+      <div className="flex items-center justify-center h-screen" style={{ background: "hsl(var(--background))" }}>
+        <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
+      </div>
+    );
+  }
   
   if (showChatInfo) {
     return (
@@ -1016,7 +1025,7 @@ const Index = () => {
 
   if (showDMs) {
     return (
-      <DirectMessages currentUserId={userId} currentUsername={username} profilesMap={profilesMap} onlineUsers={onlineUsers} initialConversationUserId={dmInitialUserId} onBack={handleBackFromDMs} isAdmin={isCurrentUserAdmin} />
+      <DirectMessages currentUserId={userId} currentUsername={username ?? ""} profilesMap={profilesMap} onlineUsers={onlineUsers} initialConversationUserId={dmInitialUserId} onBack={handleBackFromDMs} isAdmin={isCurrentUserAdmin} />
     );
   }
 
@@ -1347,7 +1356,7 @@ const Index = () => {
       )}
 
       {showSettings && (
-        <SettingsModal currentUsername={username} currentAvatarUrl={avatarUrl} userId={userId} onClose={() => setShowSettings(false)} onSave={handleSettingsSave} chatBg={chatBg} onChatBgChange={(bg) => { setChatBg(bg); if (bg) localStorage.setItem("chat_bg_image", bg); else localStorage.removeItem("chat_bg_image"); }} />
+        <SettingsModal currentUsername={username ?? ""} currentAvatarUrl={avatarUrl} userId={userId} onClose={() => setShowSettings(false)} onSave={handleSettingsSave} chatBg={chatBg} onChatBgChange={(bg) => { setChatBg(bg); if (bg) localStorage.setItem("chat_bg_image", bg); else localStorage.removeItem("chat_bg_image"); }} />
       )}
 
       {profileModal && (

@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Camera, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX } from "lucide-react";
+import { X, Camera, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getIsSoundEnabled, setSoundEnabled } from "@/lib/sounds";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface SettingsModalProps {
   currentUsername: string;
@@ -14,6 +16,8 @@ interface SettingsModalProps {
 }
 
 const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onSave, chatBg, onChatBgChange }: SettingsModalProps) => {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
   const [username, setUsername] = useState(currentUsername);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(currentAvatarUrl);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -23,6 +27,12 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
   const [soundEnabled, setSoundEnabledState] = useState(getIsSoundEnabled());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSignOut = async () => {
+    onClose();
+    await signOut();
+    navigate("/auth");
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -193,6 +203,13 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
               ) : (
                 <><Save className="w-4 h-4" /> حفظ التغييرات</>
               )}
+            </button>
+
+            <button type="button" onClick={handleSignOut}
+              className="w-full py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
+              style={{ background: "hsl(var(--destructive) / 0.12)", color: "hsl(var(--destructive))", border: "1px solid hsl(var(--destructive) / 0.25)" }}>
+              <LogOut className="w-4 h-4" />
+              تسجيل الخروج
             </button>
           </form>
         </div>
