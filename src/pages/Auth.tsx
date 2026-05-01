@@ -11,7 +11,7 @@ import { z } from "zod";
 
 const signUpSchema = z.object({
   email: z.string().trim().email("بريد إلكتروني غير صالح").max(255),
-  password: z.string().min(6, "كلمة السر 6 أحرف على الأقل").max(72),
+  password: z.string().min(1, "أدخل كلمة السر").max(72),
   username: z.string().trim().min(2, "الاسم قصير جداً").max(20, "الاسم طويل جداً")
     .regex(/^[\p{L}\p{N}_ ]+$/u, "حروف وأرقام و _ فقط"),
 });
@@ -159,10 +159,8 @@ const Auth = () => {
                 placeholder="••••••••"
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 dir="ltr"
-                minLength={6}
                 required
               />
-              {mode === "signup" && <p className="text-xs text-muted-foreground">6 أحرف على الأقل</p>}
             </div>
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (mode === "signup" ? "إنشاء حساب" : "دخول")}
