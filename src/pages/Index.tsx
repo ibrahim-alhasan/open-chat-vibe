@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import ChatMessage, { Message, Reaction, ADMIN_ANIMATED_STICKERS } from "@/components/ChatMessage";
 import UsernameModal from "@/components/UsernameModal";
 import SettingsModal from "@/components/SettingsModal";
@@ -20,23 +22,30 @@ const Index = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
+  const { user, profile, isAdmin, loading: authLoading, signOut } = useAuth();
+  const { toast } = useToast();
   
   const showDMs = location.pathname === '/dms' || location.pathname.startsWith('/dm/');
   const showAdminPanel = location.pathname === '/admin';
   const showChatInfo = location.pathname === '/chat-info';
   const dmInitialUserId = params.userId || null;
 
-  const [userId] = useState<string>(() => {
-    let id = localStorage.getItem("chat_user_id");
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem("chat_user_id", id);
-    }
-    return id;
-  });
+  // Identity comes from auth session
+  const userId = user?.id ?? "";
+  const username = profile?.username ?? null;
+  const avatarUrl = profile?.avatar_url ?? null;
+  const isGuest = !user;
 
-  const [username, setUsername] = useState<string | null>(() => localStorage.getItem("chat_username"));
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => localStorage.getItem("chat_avatar_url"));
+  // Helper: prompt guest to sign in
+  const requireAuth = useCallback((action?: string) => {
+    toast({
+      title: "تسجيل الدخول مطلوب",
+      description: action ? `سجّل دخولك أولاً ${action}` : "سجّل دخولك للمتابعة",
+    });
+    navigate("/auth");
+    return false;
+  }, [navigate, toast]);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [profilesMap, setProfilesMap] = useState<Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }>>({});
