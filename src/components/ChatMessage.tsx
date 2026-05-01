@@ -321,21 +321,16 @@ const ChatMessage = memo(({
 
   return (
     <div id={`message-${message.id}`} ref={messageRef} className={`flex gap-2 group animate-fade-in relative ${isOwn ? "flex-row-reverse" : "flex-row"}`} onMouseLeave={handleMouseLeave}>
-      {/* Avatar */}
-      <div className="relative flex-shrink-0">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="avatar" className={`w-8 h-8 rounded-full object-cover ${!isOwn ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`} 
-            style={isAdmin ? { border: "2px solid #1D9BF0" } : undefined}
-            onClick={handleAvatarClick} />
-        ) : (
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${!isOwn ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`} 
-            style={{ background: isAdmin ? "#1D9BF018" : `${userColor}18`, color: isAdmin ? "#1D9BF0" : userColor, border: isAdmin ? "2px solid #1D9BF0" : undefined }} 
-            onClick={handleAvatarClick}>
-            {getInitials(displayName)}
-          </div>
-        )}
-        {isOnline && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-[1.5px]" style={{ background: "hsl(var(--chat-online))", borderColor: "hsl(var(--chat-bg))" }} />}
-      </div>
+      
+      {/* Avatar - Show only initials, no images */}
+<div className="relative flex-shrink-0">
+  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${!isOwn ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`} 
+    style={{ background: isAdmin ? "#1D9BF018" : `${userColor}18`, color: isAdmin ? "#1D9BF0" : userColor, border: isAdmin ? "2px solid #1D9BF0" : undefined }} 
+    onClick={handleAvatarClick}>
+    {getInitials(displayName)}
+  </div>
+  {isOnline && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-[1.5px]" style={{ background: "hsl(var(--chat-online))", borderColor: "hsl(var(--chat-bg))" }} />}
+</div>
 
       {/* Message content */}
       <div className={`max-w-[75%] space-y-0.5 ${isOwn ? "items-end" : "items-start"} flex flex-col relative`}
