@@ -294,7 +294,7 @@ const Index = () => {
         setProfilesMap(map);
       }
       
-      const { data: adminsData } = await supabase.from("admins").select("user_id");
+      const { data: adminsData } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
       if (adminsData) setAdminIds(new Set(adminsData.map((a: any) => a.user_id)));
       
       const { data: bannedData } = await supabase.from("banned_users").select("user_id");
@@ -425,7 +425,7 @@ const Index = () => {
           supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(MESSAGES_PER_PAGE),
           supabase.from("profiles").select("*"),
           supabase.from("profiles").select("*", { count: 'exact', head: true }),
-          supabase.from("admins").select("user_id"),
+          supabase.from("user_roles").select("user_id").eq("role", "admin"),
           supabase.from("chat_settings").select("*").limit(1).single(),
           supabase.from("banned_users").select("user_id"),
           supabase.from("pinned_messages").select("*").order("pinned_at", { ascending: false }).limit(1),
@@ -722,25 +722,8 @@ const Index = () => {
 
   // ------------------------------------------------------------------
 
-  const handleJoin = async (name: string, avatarFile?: File | null) => {
-    localStorage.setItem("chat_username", name);
-    let url: string | null = null;
-    if (avatarFile) {
-      const ext = avatarFile.name.split(".").pop();
-      const fileName = `${userId}_${Date.now()}.${ext}`;
-      const { data, error } = await supabase.storage.from("avatars").upload(fileName, avatarFile, { upsert: true });
-      if (!error && data) {
-        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(data.path);
-        url = urlData.publicUrl;
-      }
-    }
-    if (url) localStorage.setItem("chat_avatar_url", url);
-    else localStorage.removeItem("chat_avatar_url");
-    await supabase.from("profiles").upsert({ user_id: userId, username: name, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-    setUsername(name);
-    setAvatarUrl(url);
-    setProfilesMap((prev) => ({ ...prev, [userId]: { username: name, avatar_url: url } }));
-  };
+  // handleJoin no longer needed — username is set during signup. Kept as no-op for legacy modal usage.
+  const handleJoin = async (_name: string, _avatarFile?: File | null) => { /* deprecated */ };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -917,8 +900,7 @@ const Index = () => {
   };
 
   const handleSettingsSave = (newUsername: string, newAvatarUrl: string | null) => {
-    setUsername(newUsername);
-    setAvatarUrl(newAvatarUrl);
+    // Username is immutable post-signup; only avatar can change.
     setProfilesMap((prev) => ({ ...prev, [userId]: { username: newUsername, avatar_url: newAvatarUrl, allow_dms: prev[userId]?.allow_dms } }));
   };
 
