@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import ChatMessage, { Message, Reaction, ADMIN_ANIMATED_STICKERS } from "@/components/ChatMessage";
 import UsernameModal from "@/components/UsernameModal";
 import SettingsModal from "@/components/SettingsModal";
@@ -20,23 +22,30 @@ const Index = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
+  const { user, profile, isAdmin, loading: authLoading, signOut } = useAuth();
+  const { toast } = useToast();
   
   const showDMs = location.pathname === '/dms' || location.pathname.startsWith('/dm/');
   const showAdminPanel = location.pathname === '/admin';
   const showChatInfo = location.pathname === '/chat-info';
   const dmInitialUserId = params.userId || null;
 
-  const [userId] = useState<string>(() => {
-    let id = localStorage.getItem("chat_user_id");
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem("chat_user_id", id);
-    }
-    return id;
-  });
+  // Identity comes from auth session
+  const userId = user?.id ?? "";
+  const username = profile?.username ?? null;
+  const avatarUrl = profile?.avatar_url ?? null;
+  const isGuest = !user;
 
-  const [username, setUsername] = useState<string | null>(() => localStorage.getItem("chat_username"));
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => localStorage.getItem("chat_avatar_url"));
+  // Helper: prompt guest to sign in
+  const requireAuth = useCallback((action?: string) => {
+    toast({
+      title: "تسجيل الدخول مطلوب",
+      description: action ? `سجّل دخولك أولاً ${action}` : "سجّل دخولك للمتابعة",
+    });
+    navigate("/auth");
+    return false;
+  }, [navigate, toast]);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [profilesMap, setProfilesMap] = useState<Record<string, { username: string; avatar_url: string | null; allow_dms?: boolean }>>({});
@@ -285,7 +294,7 @@ const Index = () => {
         setProfilesMap(map);
       }
       
-      const { data: adminsData } = await supabase.from("admins").select("user_id");
+      const { data: adminsData } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
       if (adminsData) setAdminIds(new Set(adminsData.map((a: any) => a.user_id)));
       
       const { data: bannedData } = await supabase.from("banned_users").select("user_id");
@@ -416,7 +425,7 @@ const Index = () => {
           supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(MESSAGES_PER_PAGE),
           supabase.from("profiles").select("*"),
           supabase.from("profiles").select("*", { count: 'exact', head: true }),
-          supabase.from("admins").select("user_id"),
+          supabase.from("user_roles").select("user_id").eq("role", "admin"),
           supabase.from("chat_settings").select("*").limit(1).single(),
           supabase.from("banned_users").select("user_id"),
           supabase.from("pinned_messages").select("*").order("pinned_at", { ascending: false }).limit(1),
@@ -713,25 +722,8 @@ const Index = () => {
 
   // ------------------------------------------------------------------
 
-  const handleJoin = async (name: string, avatarFile?: File | null) => {
-    localStorage.setItem("chat_username", name);
-    let url: string | null = null;
-    if (avatarFile) {
-      const ext = avatarFile.name.split(".").pop();
-      const fileName = `${userId}_${Date.now()}.${ext}`;
-      const { data, error } = await supabase.storage.from("avatars").upload(fileName, avatarFile, { upsert: true });
-      if (!error && data) {
-        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(data.path);
-        url = urlData.publicUrl;
-      }
-    }
-    if (url) localStorage.setItem("chat_avatar_url", url);
-    else localStorage.removeItem("chat_avatar_url");
-    await supabase.from("profiles").upsert({ user_id: userId, username: name, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-    setUsername(name);
-    setAvatarUrl(url);
-    setProfilesMap((prev) => ({ ...prev, [userId]: { username: name, avatar_url: url } }));
-  };
+  // handleJoin no longer needed — username is set during signup. Kept as no-op for legacy modal usage.
+  const handleJoin = async (_name: string, _avatarFile?: File | null) => { /* deprecated */ };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -908,8 +900,7 @@ const Index = () => {
   };
 
   const handleSettingsSave = (newUsername: string, newAvatarUrl: string | null) => {
-    setUsername(newUsername);
-    setAvatarUrl(newAvatarUrl);
+    // Username is immutable post-signup; only avatar can change.
     setProfilesMap((prev) => ({ ...prev, [userId]: { username: newUsername, avatar_url: newAvatarUrl, allow_dms: prev[userId]?.allow_dms } }));
   };
 

@@ -210,9 +210,10 @@ const ChatMessage = memo(({
   const handleReaction = async (emoji: string) => {
     setShowEmojiPicker(false);
     setShowActionsMenu(false);
-    const existing = reactions.find((r) => r.emoji === emoji && r.username === currentUserId);
+    if (!currentUserId) return;
+    const existing = reactions.find((r) => r.emoji === emoji && (r as any).user_id === currentUserId);
     if (existing) await supabase.from("reactions").delete().eq("id", existing.id);
-    else await supabase.from("reactions").insert({ message_id: message.id, username: currentUserId, emoji });
+    else await supabase.from("reactions").insert({ message_id: message.id, user_id: currentUserId, username: currentUsername || "", emoji });
   };
 
   const handleDelete = async () => {
@@ -457,7 +458,7 @@ const ChatMessage = memo(({
               <div className="flex justify-center">
                 <div className="flex items-center gap-1 px-1.5 py-1 rounded-xl pointer-events-auto" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 20px rgba(0,0,0,0.4)" }}>
                   {EMOJIS.slice(0, 4).map((emoji) => {
-                    const myReaction = reactions.find((r) => r.emoji === emoji && r.username === currentUserId);
+                    const myReaction = reactions.find((r) => r.emoji === emoji && (r as any).user_id === currentUserId);
                     return (
                       <button key={emoji} onClick={(e) => { e.stopPropagation(); handleReaction(emoji); }}
                         className="w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-all hover:scale-125 active:scale-90"
@@ -497,7 +498,7 @@ const ChatMessage = memo(({
               <div className="flex justify-center">
                 <div className="flex flex-wrap gap-1 p-2 rounded-xl pointer-events-auto" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 20px rgba(0,0,0,0.4)", maxWidth: "200px" }}>
                   {EMOJIS.map((emoji) => {
-                    const myReaction = reactions.find((r) => r.emoji === emoji && r.username === currentUserId);
+                    const myReaction = reactions.find((r) => r.emoji === emoji && (r as any).user_id === currentUserId);
                     return (
                       <button key={emoji} onClick={(e) => { e.stopPropagation(); handleReaction(emoji); }}
                         className="w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-all hover:scale-125 active:scale-90"
@@ -514,7 +515,7 @@ const ChatMessage = memo(({
         {Object.keys(reactionGroups).length > 0 && (
           <div className={`flex flex-wrap gap-1 ${isOwn ? "justify-end" : "justify-start"}`}>
             {Object.entries(reactionGroups).map(([emoji, group]) => {
-              const myReaction = group.find((r) => r.username === currentUserId);
+              const myReaction = group.find((r) => (r as any).user_id === currentUserId);
               return (
                 <button key={emoji} onClick={(e) => { e.stopPropagation(); handleReaction(emoji); }}
                   className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] hover:scale-105 active:scale-95"

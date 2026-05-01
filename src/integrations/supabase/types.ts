@@ -14,24 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      admins: {
-        Row: {
-          created_at: string
-          id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       banned_users: {
         Row: {
           banned_by: string
@@ -109,11 +91,11 @@ export type Database = {
           image_name: string | null
           image_url: string | null
           is_read: boolean
-          receiver_user_id: string | null
+          receiver_user_id: string
           receiver_username: string
           reply_to_content: string | null
           reply_to_id: string | null
-          sender_user_id: string | null
+          sender_user_id: string
           sender_username: string
         }
         Insert: {
@@ -123,11 +105,11 @@ export type Database = {
           image_name?: string | null
           image_url?: string | null
           is_read?: boolean
-          receiver_user_id?: string | null
+          receiver_user_id: string
           receiver_username: string
           reply_to_content?: string | null
           reply_to_id?: string | null
-          sender_user_id?: string | null
+          sender_user_id: string
           sender_username: string
         }
         Update: {
@@ -137,11 +119,11 @@ export type Database = {
           image_name?: string | null
           image_url?: string | null
           is_read?: boolean
-          receiver_user_id?: string | null
+          receiver_user_id?: string
           receiver_username?: string
           reply_to_content?: string | null
           reply_to_id?: string | null
-          sender_user_id?: string | null
+          sender_user_id?: string
           sender_username?: string
         }
         Relationships: []
@@ -174,7 +156,7 @@ export type Database = {
         Row: {
           board: string
           created_at: string
-          current_turn: string
+          current_turn: string | null
           game_type: string
           id: string
           player_o: string | null
@@ -186,7 +168,7 @@ export type Database = {
         Insert: {
           board?: string
           created_at?: string
-          current_turn: string
+          current_turn?: string | null
           game_type?: string
           id?: string
           player_o?: string | null
@@ -198,7 +180,7 @@ export type Database = {
         Update: {
           board?: string
           created_at?: string
-          current_turn?: string
+          current_turn?: string | null
           game_type?: string
           id?: string
           player_o?: string | null
@@ -220,7 +202,7 @@ export type Database = {
           reply_to: string | null
           reply_to_content: string | null
           reply_to_username: string | null
-          user_id: string | null
+          user_id: string
           username: string
         }
         Insert: {
@@ -233,7 +215,7 @@ export type Database = {
           reply_to?: string | null
           reply_to_content?: string | null
           reply_to_username?: string | null
-          user_id?: string | null
+          user_id: string
           username: string
         }
         Update: {
@@ -246,7 +228,7 @@ export type Database = {
           reply_to?: string | null
           reply_to_content?: string | null
           reply_to_username?: string | null
-          user_id?: string | null
+          user_id?: string
           username?: string
         }
         Relationships: [
@@ -363,22 +345,25 @@ export type Database = {
         Row: {
           allow_dms: boolean
           avatar_url: string | null
+          created_at: string
           updated_at: string
-          user_id: string | null
+          user_id: string
           username: string
         }
         Insert: {
           allow_dms?: boolean
           avatar_url?: string | null
+          created_at?: string
           updated_at?: string
-          user_id?: string | null
+          user_id: string
           username: string
         }
         Update: {
           allow_dms?: boolean
           avatar_url?: string | null
+          created_at?: string
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
           username?: string
         }
         Relationships: []
@@ -389,6 +374,7 @@ export type Database = {
           emoji: string
           id: string
           message_id: string
+          user_id: string
           username: string
         }
         Insert: {
@@ -396,6 +382,7 @@ export type Database = {
           emoji: string
           id?: string
           message_id: string
+          user_id: string
           username: string
         }
         Update: {
@@ -403,6 +390,7 @@ export type Database = {
           emoji?: string
           id?: string
           message_id?: string
+          user_id?: string
           username?: string
         }
         Relationships: [
@@ -415,15 +403,43 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -550,6 +566,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
