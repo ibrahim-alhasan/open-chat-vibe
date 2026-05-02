@@ -83,6 +83,57 @@ export type Database = {
         }
         Relationships: []
       }
+      deleted_direct_messages: {
+        Row: {
+          content: string
+          deleted_at: string
+          id: string
+          image_name: string | null
+          image_url: string | null
+          is_read: boolean
+          original_created_at: string
+          original_id: string
+          receiver_user_id: string
+          receiver_username: string
+          reply_to_content: string | null
+          reply_to_id: string | null
+          sender_user_id: string
+          sender_username: string
+        }
+        Insert: {
+          content: string
+          deleted_at?: string
+          id?: string
+          image_name?: string | null
+          image_url?: string | null
+          is_read?: boolean
+          original_created_at: string
+          original_id: string
+          receiver_user_id: string
+          receiver_username: string
+          reply_to_content?: string | null
+          reply_to_id?: string | null
+          sender_user_id: string
+          sender_username: string
+        }
+        Update: {
+          content?: string
+          deleted_at?: string
+          id?: string
+          image_name?: string | null
+          image_url?: string | null
+          is_read?: boolean
+          original_created_at?: string
+          original_id?: string
+          receiver_user_id?: string
+          receiver_username?: string
+          reply_to_content?: string | null
+          reply_to_id?: string | null
+          sender_user_id?: string
+          sender_username?: string
+        }
+        Relationships: []
+      }
       direct_messages: {
         Row: {
           content: string
