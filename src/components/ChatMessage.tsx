@@ -5,6 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useState, useEffect, useRef, memo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSignedUrl } from "@/hooks/useSignedUrl";
 
 export interface Message {
   id: string;
@@ -164,6 +165,60 @@ const MentionText = ({ text, profilesMap, onUsernameClick }: { text: string; pro
   );
 };
 
+const SignedFileAttachment = ({
+  fileUrl, fileType, fileName, isOwn, onOpenMedia,
+}: {
+  fileUrl: string;
+  fileType: string | null | undefined;
+  fileName: string | null | undefined;
+  isOwn: boolean;
+  onOpenMedia?: (url: string, type: string, name?: string) => void;
+}) => {
+  const signedUrl = useSignedUrl("public_chat_files", fileUrl);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (signedUrl && onOpenMedia) {
+      onOpenMedia(signedUrl, fileType || "image/*", fileName || "media");
+    }
+  };
+
+  if (!signedUrl) {
+    return (
+      <div className={`w-full ${isOwn ? "flex justify-end" : "flex justify-start"}`}>
+        <div className="w-[250px] h-[120px] rounded-xl animate-pulse" style={{ background: "hsl(var(--secondary))" }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`w-full ${isOwn ? "flex justify-end" : "flex justify-start"}`}>
+      {fileType?.startsWith("image/") ? (
+        <div className="rounded-xl overflow-hidden cursor-pointer max-w-[250px] transition-all hover:scale-[1.02] hover:opacity-90 active:scale-95" onClick={handleClick}>
+          <img src={signedUrl} alt={fileName || "صورة"} className="w-full h-auto max-h-[300px] object-cover" loading="lazy" />
+        </div>
+      ) : fileType?.startsWith("video/") ? (
+        <div className="relative rounded-xl overflow-hidden cursor-pointer max-w-[250px] transition-all hover:scale-[1.02] hover:opacity-90 active:scale-95 group/video" onClick={handleClick}>
+          <video src={signedUrl} className="w-full h-auto max-h-[200px] object-cover" preload="metadata" />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover/video:bg-black/40 transition-colors">
+            <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div onClick={handleClick} className="flex items-center gap-2 px-3 py-2 rounded-xl max-w-[250px] cursor-pointer transition-all hover:opacity-80 active:scale-98" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
+          <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
+          <span className="text-xs truncate flex-1" style={{ color: "hsl(var(--foreground))" }}>{fileName || "ملف"}</span>
+          <Download className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ChatMessage = memo(({
   message, currentUserId, currentUsername, currentAvatarUrl, reactions, profilesMap,
   isOnline, isAdmin, isCurrentUserAdmin, messageCounts, onReply, onUsernameClick, onDelete, onPin, onScrollToOriginalMessage, onOpenMedia,
@@ -229,13 +284,6 @@ const ChatMessage = memo(({
     }
   };
 
-  // Handle media click - open in fullscreen viewer
-  const handleMediaClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (message.file_url && onOpenMedia) {
-      onOpenMedia(message.file_url, message.file_type || 'image/*', message.file_name || 'media');
-    }
-  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -386,46 +434,15 @@ const ChatMessage = memo(({
           </div>
         )}
 
-        {/* File attachment - Now opens in fullscreen viewer instead of new tab */}
+        {/* File attachment - uses signed URL for private bucket access */}
         {message.file_url && (
-          <div className={`w-full ${isOwn ? "flex justify-end" : "flex justify-start"}`}>
-            {message.file_type?.startsWith('image/') ? (
-              <div 
-                className="rounded-xl overflow-hidden cursor-pointer max-w-[250px] transition-all hover:scale-[1.02] hover:opacity-90 active:scale-95"
-                onClick={handleMediaClick}
-              >
-                <img src={message.file_url} alt={message.file_name || 'صورة'} className="w-full h-auto max-h-[300px] object-cover" loading="lazy" />
-              </div>
-            ) : message.file_type?.startsWith('video/') ? (
-              <div 
-                className="relative rounded-xl overflow-hidden cursor-pointer max-w-[250px] transition-all hover:scale-[1.02] hover:opacity-90 active:scale-95 group/video"
-                onClick={handleMediaClick}
-              >
-                <video 
-                  src={message.file_url} 
-                  className="w-full h-auto max-h-[200px] object-cover"
-                  preload="metadata"
-                />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover/video:bg-black/40 transition-colors">
-                  <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z"/>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div 
-                onClick={handleMediaClick}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl max-w-[250px] cursor-pointer transition-all hover:opacity-80 active:scale-98"
-                style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
-              >
-                <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
-                <span className="text-xs truncate flex-1" style={{ color: "hsl(var(--foreground))" }}>{message.file_name || 'ملف'}</span>
-                <Download className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
-              </div>
-            )}
-          </div>
+          <SignedFileAttachment
+            fileUrl={message.file_url}
+            fileType={message.file_type}
+            fileName={message.file_name}
+            isOwn={isOwn}
+            onOpenMedia={onOpenMedia}
+          />
         )}
 
         {/* Message bubble */}
