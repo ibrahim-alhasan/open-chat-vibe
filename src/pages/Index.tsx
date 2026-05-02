@@ -764,8 +764,7 @@ const Index = () => {
       const fileName = `${userId}_${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from('public_chat_files').upload(fileName, file);
       if (uploadError) return null;
-      const { data: { publicUrl } } = supabase.storage.from('public_chat_files').getPublicUrl(fileName);
-      return { url: publicUrl, name: file.name, type: file.type };
+      return { url: fileName, name: file.name, type: file.type };
     } catch { return null; }
   };
 
@@ -840,9 +839,20 @@ const Index = () => {
       insertData.reply_to_content = replyTo.content?.slice(0, 80) ?? null;
     }
     setReplyTo(null);
-    const { error } = await supabase.from("messages").insert(insertData);
-    if (!error) {
+    const { data: insertedMsg, error } = await supabase
+      .from("messages")
+      .insert(insertData)
+      .select()
+      .single();
+
+    if (!error && insertedMsg) {
       playSound();
+      setMessages(prev => {
+        if (prev.some(m => m.id === insertedMsg.id)) return prev;
+        return [...prev, insertedMsg as Message].sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+      });
     }
     
     setSending(false);
