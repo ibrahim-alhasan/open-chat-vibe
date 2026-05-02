@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile, Gamepad2, Trash2, Settings } from "lucide-react";
 import { playSound } from "@/lib/sounds";
 import LinkifiedText from "@/components/LinkifiedText";
+import { useSignedUrl } from "@/hooks/useSignedUrl";
 import TicTacToe from "@/components/TicTacToe";
 import RockPaperScissors from "@/components/RockPaperScissors";
 import ConnectFour from "@/components/ConnectFour";
@@ -66,6 +67,40 @@ const getUserColor = (username: string) => {
   let hash = 0;
   for (let i = 0; i < username.length; i++) hash = username.charCodeAt(i) + ((hash << 5) - hash);
   return colors[Math.abs(hash) % colors.length];
+};
+
+const SignedDmImage = ({
+  imageUrl,
+  isOwn,
+  onView,
+}: {
+  imageUrl: string;
+  isOwn: boolean;
+  onView: (url: string) => void;
+}) => {
+  const signedUrl = useSignedUrl("direct_message_images", imageUrl);
+
+  if (!signedUrl) {
+    return (
+      <div className={`mb-1 rounded-xl sm:rounded-2xl overflow-hidden ${isOwn ? "rounded-tr-sm" : "rounded-tl-sm"}`}>
+        <div className="w-[200px] sm:w-[250px] h-[150px] sm:h-[200px] animate-pulse" style={{ background: "hsl(var(--secondary))" }} />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`mb-1 rounded-xl sm:rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] ${isOwn ? "rounded-tr-sm" : "rounded-tl-sm"}`}
+      onClick={(e) => { e.stopPropagation(); onView(signedUrl); }}
+    >
+      <img
+        src={signedUrl}
+        alt="صورة"
+        className="w-full max-w-[200px] sm:max-w-[250px] h-auto max-h-[200px] sm:max-h-[300px] object-cover"
+        loading="lazy"
+      />
+    </div>
+  );
 };
 
 const DirectMessages = ({ 
@@ -409,10 +444,9 @@ const DirectMessages = ({
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${currentUserId}_${Date.now()}.${fileExt}`;
-      const { error: uploadError, data } = await supabase.storage.from('direct_message_images').upload(fileName, file);
+      const { error: uploadError } = await supabase.storage.from('direct_message_images').upload(fileName, file);
       if (uploadError) return null;
-      const { data: { publicUrl } } = supabase.storage.from('direct_message_images').getPublicUrl(fileName);
-      return publicUrl;
+      return fileName;
     } catch { return null; }
   };
 
@@ -444,17 +478,41 @@ const DirectMessages = ({
     // Stop typing indicator
     dmPresenceRef.current?.track({ user_id: currentUserId, is_typing: false });
 
-    await supabase.from("direct_messages").insert({
-      sender_username: currentUsername,
-      receiver_username: receiverUsername,
-      sender_user_id: currentUserId,
-      receiver_user_id: activeConversation,
-      content: content || (imageUrl ? "📷 صورة" : ""),
-      reply_to_id: currentReply?.id ?? null,
-      reply_to_content: currentReply?.content?.slice(0, 80) ?? null,
-      image_url: imageUrl,
-      image_name: imageName
-    });
+    const { data: insertedMsg, error: insertError } = await supabase
+      .from("direct_messages")
+      .insert({
+        sender_username: currentUsername,
+        receiver_username: receiverUsername,
+        sender_user_id: currentUserId,
+        receiver_user_id: activeConversation,
+        content: content || (imageUrl ? "📷 صورة" : ""),
+        reply_to_id: currentReply?.id ?? null,
+        reply_to_content: currentReply?.content?.slice(0, 80) ?? null,
+        image_url: imageUrl,
+        image_name: imageName
+      })
+      .select()
+      .single();
+
+    if (!insertError && insertedMsg) {
+      setConversationMessages(prev => {
+        if (prev.find(m => m.id === insertedMsg.id)) return prev;
+        return [...prev, insertedMsg as DirectMessage];
+      });
+      setConversations(prev => {
+        const lastContent = imageUrl ? "📷 صورة" : (content || "");
+        const exists = prev.find(c => c.userId === activeConversation);
+        if (exists) {
+          return prev
+            .map(c => c.userId === activeConversation
+              ? { ...c, lastMessage: lastContent, lastTime: insertedMsg.created_at }
+              : c)
+            .sort((a, b) => new Date(b.lastTime).getTime() - new Date(a.lastTime).getTime());
+        }
+        return prev;
+      });
+      setTimeout(() => scrollToBottom(), 80);
+    }
 
     playSound();
     setSending(false);
@@ -776,10 +834,11 @@ const DirectMessages = ({
 
                         <div className="relative group">
                           {msg.image_url && (
-                            <div className={`mb-1 rounded-xl sm:rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] ${isOwn ? "rounded-tr-sm" : "rounded-tl-sm"}`}
-                              onClick={(e) => { e.stopPropagation(); setViewingImage(msg.image_url!); }}>
-                               <img src={msg.image_url} alt="صورة" className="w-full max-w-[200px] sm:max-w-[250px] h-auto max-h-[200px] sm:max-h-[300px] object-cover" loading="lazy" />
-                            </div>
+                            <SignedDmImage
+                              imageUrl={msg.image_url}
+                              isOwn={isOwn}
+                              onView={setViewingImage}
+                            />
                           )}
 
                           {msg.content && msg.content.startsWith("🎮 GAME:") ? (
