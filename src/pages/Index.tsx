@@ -555,8 +555,6 @@ const Index = () => {
 
   // Realtime listener for messages
   useEffect(() => {
-    if (!username) return;
-    
     if (realtimeChannelRef.current) {
       supabase.removeChannel(realtimeChannelRef.current);
     }
@@ -564,7 +562,7 @@ const Index = () => {
     const channel = supabase.channel('public-messages', {
       config: {
         broadcast: { self: true },
-        presence: { key: userId }
+        presence: { key: userId || `guest-${Math.random().toString(36).slice(2,9)}` }
       }
     });
     
@@ -630,12 +628,14 @@ const Index = () => {
         realtimeChannelRef.current = null;
       }
     };
-  }, [username, userId, scrollToBottom]);
+  }, [userId, scrollToBottom]);
 
   // Presence 
   useEffect(() => {
-    if (!username || !userId) return;
-    const presenceChannel = supabase.channel("presence-chat", { config: { presence: { key: userId } } });
+    // Guests are also counted as online (anonymous key)
+    const presenceKey = userId || `guest-${Math.random().toString(36).slice(2,11)}`;
+    const presenceName = username || "زائر";
+    const presenceChannel = supabase.channel("presence-chat", { config: { presence: { key: presenceKey } } });
     
     presenceChannel
       .on("presence", { event: "sync" }, () => {
@@ -646,7 +646,7 @@ const Index = () => {
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          await presenceChannel.track({ user_id: userId, username, online_at: new Date().toISOString() });
+          await presenceChannel.track({ user_id: presenceKey, username: presenceName, online_at: new Date().toISOString() });
         }
       });
       
@@ -655,7 +655,7 @@ const Index = () => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === "visible" && presenceChannelRef.current) {
         try {
-           await presenceChannelRef.current.track({ user_id: userId, username, online_at: new Date().toISOString() });
+           await presenceChannelRef.current.track({ user_id: presenceKey, username: presenceName, online_at: new Date().toISOString() });
         } catch (error) {
           console.error("Error tracking presence", error);
         }
