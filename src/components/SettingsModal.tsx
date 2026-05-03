@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Camera, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogOut } from "lucide-react";
+import { X, Camera, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogOut, LogIn } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getIsSoundEnabled, setSoundEnabled } from "@/lib/sounds";
 import { useAuth } from "@/contexts/AuthContext";
@@ -212,6 +212,25 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
                 <LogOut className="w-4 h-4" />
                 تسجيل الخروج
               </button>
+            )}
+
+            {/* زر تسجيل الدخول - يظهر فقط للزوار */}
+            {!isAuthenticated && (
+              <button
+                type="button"
+                onClick={() => { onClose(); navigate("/auth"); }}
+                className="w-full py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
+                style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
+              >
+                <LogIn className="w-4 h-4" />
+                تسجيل الدخول / إنشاء حساب
+              </button>
+            )}
+
+            {!isAuthenticated && (
+              <p className="text-[11px] text-center leading-relaxed" style={{ color: "hsl(var(--muted-foreground))" }}>
+                سجّل دخولك للمشاركة في الدردشة وحفظ ملفك الشخصي ورسائلك.
+              </p>
             )}
           </form>
         </div>
