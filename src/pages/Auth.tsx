@@ -86,44 +86,61 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center space-y-3">
-          <div className="inline-flex w-16 h-16 rounded-2xl bg-primary/15 items-center justify-center mx-auto">
-            <MessageCircle className="w-8 h-8 text-primary" />
+    <div
+      className="fixed inset-0 flex flex-col overflow-hidden bg-background"
+      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
+      {/* Decorative gradient header */}
+      <div
+        className="relative flex-shrink-0 px-5 pt-6 pb-8"
+        style={{
+          background: "linear-gradient(160deg, hsl(var(--primary) / 0.25) 0%, hsl(var(--primary) / 0.05) 100%)",
+        }}
+      >
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-14 h-14 rounded-2xl bg-primary/20 backdrop-blur flex items-center justify-center shadow-lg">
+            <MessageCircle className="w-7 h-7 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">مرحباً بك في الدردشة</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed px-2">
+          <h1 className="text-lg font-bold text-foreground">مرحباً بك في الدردشة</h1>
+          <p className="text-[11px] text-muted-foreground text-center leading-snug px-2 max-w-[300px]">
             تم إضافة تسجيل الدخول لحماية المستخدمين وحفظ تقدمهم ورسائلهم.
           </p>
-          <div className="flex items-center justify-center gap-4 pt-2 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5 text-primary" /> آمن</span>
-            <span className="flex items-center gap-1.5"><Save className="w-3.5 h-3.5 text-primary" /> محفوظ</span>
+          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1"><Shield className="w-3 h-3 text-primary" /> آمن</span>
+            <span className="flex items-center gap-1"><Save className="w-3 h-3 text-primary" /> محفوظ</span>
           </div>
         </div>
+      </div>
 
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-lg space-y-4">
-          <div className="grid grid-cols-2 gap-1 bg-muted rounded-lg p-1">
+      {/* Form sheet pulled up over header */}
+      <div className="flex-1 min-h-0 -mt-5 px-4 pb-3 flex flex-col">
+        <div className="bg-card border border-border rounded-t-3xl rounded-b-2xl shadow-xl p-4 space-y-3 flex-1 flex flex-col">
+          {/* Mode switcher */}
+          <div className="grid grid-cols-2 gap-1 bg-muted rounded-xl p-1 flex-shrink-0">
             <button
               type="button"
               onClick={() => setMode("signup")}
-              className={`py-2 rounded-md text-sm font-medium transition-colors ${mode === "signup" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+              className={`py-1.5 rounded-lg text-xs font-medium transition-all ${
+                mode === "signup" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+              }`}
             >
               حساب جديد
             </button>
             <button
               type="button"
               onClick={() => setMode("signin")}
-              className={`py-2 rounded-md text-sm font-medium transition-colors ${mode === "signin" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+              className={`py-1.5 rounded-lg text-xs font-medium transition-all ${
+                mode === "signin" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+              }`}
             >
               تسجيل دخول
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form onSubmit={handleSubmit} className="space-y-2.5 flex-1 flex flex-col">
             {mode === "signup" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="username">اسم العرض</Label>
+              <div className="space-y-1">
+                <Label htmlFor="username" className="text-xs">اسم العرض</Label>
                 <Input
                   id="username"
                   type="text"
@@ -131,13 +148,13 @@ const Auth = () => {
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="مثلاً: أحمد"
                   maxLength={20}
+                  className="h-10 text-sm"
                   required
                 />
-                <p className="text-xs text-muted-foreground">يظهر هذا الاسم للجميع في الدردشة. لا يمكن تغييره لاحقاً.</p>
               </div>
             )}
-            <div className="space-y-1.5">
-              <Label htmlFor="email">البريد الإلكتروني</Label>
+            <div className="space-y-1">
+              <Label htmlFor="email" className="text-xs">البريد الإلكتروني</Label>
               <Input
                 id="email"
                 type="email"
@@ -146,11 +163,12 @@ const Auth = () => {
                 placeholder="you@example.com"
                 autoComplete="email"
                 dir="ltr"
+                className="h-10 text-sm"
                 required
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password">كلمة السر</Label>
+            <div className="space-y-1">
+              <Label htmlFor="password" className="text-xs">كلمة السر</Label>
               <Input
                 id="password"
                 type="password"
@@ -159,21 +177,32 @@ const Auth = () => {
                 placeholder="••••••••"
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 dir="ltr"
+                className="h-10 text-sm"
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (mode === "signup" ? "إنشاء حساب" : "دخول")}
+
+            <div className="flex-1" />
+
+            <Button type="submit" className="w-full h-11 rounded-xl font-semibold" disabled={submitting}>
+              {submitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : mode === "signup" ? (
+                "إنشاء حساب"
+              ) : (
+                "دخول"
+              )}
             </Button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+            >
+              متابعة كزائر (قراءة فقط)
+            </button>
           </form>
         </div>
-
-        <button
-          onClick={() => navigate("/")}
-          className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
-        >
-          متابعة كزائر (قراءة فقط)
-        </button>
       </div>
     </div>
   );
