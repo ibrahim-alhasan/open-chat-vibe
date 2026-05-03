@@ -1,4 +1,4 @@
-import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Trophy, Medal, Award, Paperclip, Download, Pin } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Trophy, Medal, Award, Paperclip, Download, Pin, Image as ImageIcon, Play } from "lucide-react";
 import LinkifiedText from "@/components/LinkifiedText";
 import PollMessage from "@/components/PollMessage";
 import { formatDistanceToNow } from "date-fns";
@@ -174,42 +174,76 @@ const SignedFileAttachment = ({
   isOwn: boolean;
   onOpenMedia?: (url: string, type: string, name?: string) => void;
 }) => {
-  const signedUrl = useSignedUrl("public_chat_files", fileUrl);
+  // For images/videos: do NOT fetch signed URL until user explicitly opens.
+  // This saves bandwidth and reduces server load.
+  const isImage = fileType?.startsWith("image/");
+  const isVideo = fileType?.startsWith("video/");
+  const isMedia = isImage || isVideo;
 
-  const handleClick = (e: React.MouseEvent) => {
+  // For non-media files (documents) we still fetch a signed URL so download works on click.
+  const signedUrl = useSignedUrl("public_chat_files", isMedia ? "" : fileUrl);
+
+  const handleOpen = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (signedUrl && onOpenMedia) {
-      onOpenMedia(signedUrl, fileType || "image/*", fileName || "media");
+    if (!onOpenMedia) return;
+    if (isMedia) {
+      // Lazy: fetch signed URL on demand
+      const { getSignedStorageUrl } = await import("@/lib/signedUrl");
+      const url = await getSignedStorageUrl("public_chat_files", fileUrl);
+      if (url) onOpenMedia(url, fileType || "image/*", fileName || "media");
+    } else if (signedUrl) {
+      onOpenMedia(signedUrl, fileType || "application/octet-stream", fileName || "file");
     }
   };
 
-  if (!signedUrl) {
-    return (
-      <div className={`w-full ${isOwn ? "flex justify-end" : "flex justify-start"}`}>
-        <div className="w-[250px] h-[120px] rounded-xl animate-pulse" style={{ background: "hsl(var(--secondary))" }} />
-      </div>
-    );
-  }
-
   return (
     <div className={`w-full ${isOwn ? "flex justify-end" : "flex justify-start"}`}>
-      {fileType?.startsWith("image/") ? (
-        <div className="rounded-xl overflow-hidden cursor-pointer max-w-[250px] transition-all hover:scale-[1.02] hover:opacity-90 active:scale-95" onClick={handleClick}>
-          <img src={signedUrl} alt={fileName || "صورة"} className="w-full h-auto max-h-[300px] object-cover" loading="lazy" />
-        </div>
-      ) : fileType?.startsWith("video/") ? (
-        <div className="relative rounded-xl overflow-hidden cursor-pointer max-w-[250px] transition-all hover:scale-[1.02] hover:opacity-90 active:scale-95 group/video" onClick={handleClick}>
-          <video src={signedUrl} className="w-full h-auto max-h-[200px] object-cover" preload="metadata" />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover/video:bg-black/40 transition-colors">
-            <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </div>
+      {isImage ? (
+        <button
+          onClick={handleOpen}
+          className="flex items-center gap-2 px-3 py-2.5 rounded-xl max-w-[250px] cursor-pointer transition-all hover:opacity-90 active:scale-95"
+          style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
+        >
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: "hsl(var(--primary) / 0.15)" }}
+          >
+            <ImageIcon className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
           </div>
-        </div>
+          <div className="flex flex-col items-start min-w-0">
+            <span className="text-[12px] font-medium truncate max-w-[160px]" style={{ color: "hsl(var(--foreground))" }}>
+              {fileName || "صورة"}
+            </span>
+            <span className="text-[10px]" style={{ color: "hsl(var(--primary))" }}>اضغط لفتح الصورة</span>
+          </div>
+        </button>
+      ) : isVideo ? (
+        <button
+          onClick={handleOpen}
+          className="flex items-center gap-2 px-3 py-2.5 rounded-xl max-w-[250px] cursor-pointer transition-all hover:opacity-90 active:scale-95"
+          style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
+        >
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: "hsl(var(--primary) / 0.15)" }}
+          >
+            <Play className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
+          </div>
+          <div className="flex flex-col items-start min-w-0">
+            <span className="text-[12px] font-medium truncate max-w-[160px]" style={{ color: "hsl(var(--foreground))" }}>
+              {fileName || "فيديو"}
+            </span>
+            <span className="text-[10px]" style={{ color: "hsl(var(--primary))" }}>اضغط لتشغيل الفيديو</span>
+          </div>
+        </button>
+      ) : !signedUrl ? (
+        <div className="w-[200px] h-[44px] rounded-xl animate-pulse" style={{ background: "hsl(var(--secondary))" }} />
       ) : (
-        <div onClick={handleClick} className="flex items-center gap-2 px-3 py-2 rounded-xl max-w-[250px] cursor-pointer transition-all hover:opacity-80 active:scale-98" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
+        <div
+          onClick={handleOpen}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl max-w-[250px] cursor-pointer transition-all hover:opacity-80 active:scale-98"
+          style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
+        >
           <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
           <span className="text-xs truncate flex-1" style={{ color: "hsl(var(--foreground))" }}>{fileName || "ملف"}</span>
           <Download className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
