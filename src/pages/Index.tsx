@@ -69,7 +69,6 @@ const Index = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
-  const [messagePage, setMessagePage] = useState(0);
   const [sending, setSending] = useState(false);
   const [onlineCount, setOnlineCount] = useState(0);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
@@ -257,7 +256,6 @@ const Index = () => {
           .select("*", { count: 'exact', head: true });
     
         setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
-        setMessagePage(0);
      
         const msgIds = sortedMessages.map(m => m.id);
         if (msgIds.length > 0) {
@@ -354,7 +352,7 @@ const Index = () => {
       setShowScrollButton(!isNearBottom);
       if (isNearBottom) setHasNewMessages(false);
   
-      if (scrollTop < 200 && hasMoreMessages && !isLoadingMoreRef.current && !loading) loadMoreMessages();
+      if (scrollTop < 300 && hasMoreMessages && !isLoadingMoreRef.current && !loading) loadMoreMessages();
     };
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
@@ -488,23 +486,52 @@ const Index = () => {
     fetchInitialData();
   }, []);
 
+  // ==================== دالة تحميل المزيد من الرسائل المحسنة ====================
   const loadMoreMessages = useCallback(async () => {
-    if (loadingMore || !hasMoreMessages || isLoadingMoreRef.current) return;
+    // منع التحميل إذا كان هناك تحميل جارٍ أو لا توجد رسائل أقدم
+    if (loadingMore || !hasMoreMessages || isLoadingMoreRef.current || messages.length === 0) return;
+    
     isLoadingMoreRef.current = true;
     setLoadingMore(true);
-    const nextPage = messagePage + 1;
+    
+    // احصل على أقدم رسالة حالية (أول عنصر في المصفوفة لأنها مرتبة تصاعديًا)
     const oldestMessage = messages[0];
+    if (!oldestMessage) {
+      isLoadingMoreRef.current = false;
+      setLoadingMore(false);
+      return;
+    }
+
     const container = messagesContainerRef.current;
     const prevScrollHeight = container?.scrollHeight || 0;
     const prevScrollTop = container?.scrollTop || 0;
-    try {
-      const { data, error } = await supabase.from("messages").select("*").order("created_at", { ascending: false }).lt("created_at", oldestMessage.created_at).limit(MESSAGES_PER_PAGE);
-      if (!error && data && data.length > 0) {
-        const olderMessages = data as Message[];
 
+    try {
+      // استعلام لجلب 100 رسالة أقدم من أقدم رسالة موجودة
+      // نستخدم created_at و id معًا لضمان عدم تكرار النتائج
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .order("created_at", { ascending: false }) // نجلب بترتيب تنازلي
+        .order("id", { ascending: false })         // تأكيد الترتيب الفريد
+        .lt("created_at", oldestMessage.created_at) // رسائل أقدم من هذه النقطة الزمنية
+        .limit(MESSAGES_PER_PAGE);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        // الرسائل التي تم جلبها هي الأحدث بين الرسائل الأقدم، لذا نحتاج ترتيبها تصاعديًا للإضافة
+        const olderMessages = (data as Message[]).sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+
+        // جلب التفاعلات الخاصة بالرسائل الجديدة
         const olderIds = olderMessages.map(m => m.id);
         if (olderIds.length > 0) {
-          const { data: reactionsData } = await supabase.from("reactions").select("*").in("message_id", olderIds);
+          const { data: reactionsData } = await supabase
+            .from("reactions")
+            .select("*")
+            .in("message_id", olderIds);
           if (reactionsData && reactionsData.length > 0) {
             setReactions(prev => {
               const existing = new Set(prev.map(r => r.id));
@@ -514,9 +541,16 @@ const Index = () => {
           }
         }
 
-        const pollMsgIds = olderMessages.filter(m => m.content && m.content.startsWith("poll:")).map(m => m.content.replace("poll:", ""));
+        // جلب بيانات الاستطلاعات (polls) للرسائل الجديدة
+        const pollMsgIds = olderMessages
+          .filter(m => m.content && m.content.startsWith("poll:"))
+          .map(m => m.content.replace("poll:", ""));
+          
         if (pollMsgIds.length > 0) {
-          const { data: pollsData } = await supabase.from("polls").select("*").in("id", pollMsgIds);
+          const { data: pollsData } = await supabase
+            .from("polls")
+            .select("*")
+            .in("id", pollMsgIds);
           if (pollsData) {
             const newPolls: Record<string, { question: string; options: string[]; is_active: boolean }> = {};
             pollsData.forEach((p: any) => {
@@ -526,26 +560,29 @@ const Index = () => {
             setPolls(prev => ({ ...prev, ...newPolls }));
           }
         }
-        
+
+        // دمج الرسائل القديمة مع الجديدة، مع تجنب التكرار
         setMessages(prev => {
           const existingIds = new Set(prev.map(m => m.id));
           const uniqueOlder = olderMessages.filter(m => !existingIds.has(m.id));
           if (uniqueOlder.length === 0) return prev;
-          const allMessages = [...uniqueOlder, ...prev];
-          return allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          // أضف الرسائل الأقدم في البداية ثم الرسائل الموجودة
+          return [...uniqueOlder, ...prev];
         });
-        setMessagePage(nextPage);
+        
+        // التحقق من وجود المزيد من الرسائل الأقدم
         setHasMoreMessages(data.length === MESSAGES_PER_PAGE);
+        
+        // الحفاظ على موضع التمرير
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (container) {
-              const newScrollHeight = container.scrollHeight;
-              const diff = newScrollHeight - prevScrollHeight;
-              container.scrollTop = prevScrollTop + diff;
-            }
-          });
+          if (container) {
+            const newScrollHeight = container.scrollHeight;
+            const diff = newScrollHeight - prevScrollHeight;
+            container.scrollTop = prevScrollTop + diff;
+          }
         });
       } else {
+        // لا توجد رسائل أقدم
         setHasMoreMessages(false);
       }
     } catch (error) {
@@ -554,7 +591,7 @@ const Index = () => {
       setLoadingMore(false);
       setTimeout(() => { isLoadingMoreRef.current = false; }, 300);
     }
-  }, [loadingMore, hasMoreMessages, messagePage, messages]);
+  }, [loadingMore, hasMoreMessages, messages]);
 
   // Realtime listener for messages
   useEffect(() => {
