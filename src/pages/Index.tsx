@@ -528,7 +528,10 @@ const Index = () => {
         }
         
         setMessages(prev => {
-          const allMessages = [...olderMessages, ...prev];
+          const existingIds = new Set(prev.map(m => m.id));
+          const uniqueOlder = olderMessages.filter(m => !existingIds.has(m.id));
+          if (uniqueOlder.length === 0) return prev;
+          const allMessages = [...uniqueOlder, ...prev];
           return allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
         });
         setMessagePage(nextPage);
