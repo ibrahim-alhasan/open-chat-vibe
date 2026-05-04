@@ -594,6 +594,12 @@ const Index = () => {
     }
   }, [loadingMore, hasMoreMessages, messages]);
 
+  // Keep the ref always pointing at the latest loadMoreMessages so the
+  // scroll handler (bound once) always invokes the freshest version.
+  useEffect(() => {
+    loadMoreMessagesRef.current = loadMoreMessages;
+  }, [loadMoreMessages]);
+
   // Realtime listener for messages
   useEffect(() => {
     if (realtimeChannelRef.current) {
