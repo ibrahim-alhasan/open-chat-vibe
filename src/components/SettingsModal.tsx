@@ -143,6 +143,43 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
               </>
             )}
 
+            {/* Bio (description) - يظهر فقط للمستخدمين المسجلين */}
+            {isAuthenticated && (
+              <div className="relative">
+                <div className="absolute right-3 top-3">
+                  <FileText className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+                </div>
+                <textarea
+                  value={bio}
+                  onChange={(e) => { setBio(e.target.value); setError(""); }}
+                  placeholder="نبذة عنك..."
+                  maxLength={200}
+                  rows={2}
+                  className="w-full py-2.5 pr-9 pl-4 rounded-xl text-sm outline-none transition-all duration-200 text-right resize-none"
+                  style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}
+                />
+                <p className="text-[10px] mt-1 text-left" style={{ color: "hsl(var(--muted-foreground))" }}>{bio.length}/200</p>
+              </div>
+            )}
+
+            {/* Study stage - يظهر فقط للمستخدمين المسجلين */}
+            {isAuthenticated && (
+              <div className="relative">
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <GraduationCap className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+                </div>
+                <input
+                  type="text"
+                  value={studyStage}
+                  onChange={(e) => { setStudyStage(e.target.value); setError(""); }}
+                  placeholder="المرحلة الدراسية..."
+                  maxLength={50}
+                  className="w-full py-2.5 pr-9 pl-4 rounded-xl text-sm outline-none transition-all duration-200 text-right"
+                  style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}
+                />
+              </div>
+            )}
+
             {/* DM Privacy Toggle - يظهر فقط للمستخدمين المسجلين */}
             {isAuthenticated && (
               <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
