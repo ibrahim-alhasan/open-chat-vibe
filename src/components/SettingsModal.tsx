@@ -47,6 +47,20 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
     if (userId) fetchProfile();
   }, [userId]);
 
+  // دالة لضمان أن cursor يذهب إلى نهاية النص عند التغيير
+  const handleRTLInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, setter: (value: string) => void) => {
+    const newValue = e.target.value;
+    setter(newValue);
+    // نضمن أن cursor يبقى في النهاية بعد التحديث
+    setTimeout(() => {
+      const input = e.target;
+      if (input && 'setSelectionRange' in input) {
+        const length = input.value.length;
+        input.setSelectionRange(length, length);
+      }
+    }, 0);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -111,8 +125,8 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
           </div>
 
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            <form onSubmit={handleSave} className="space-y-3">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <form onSubmit={handleSave} className="space-y-4">
               {/* Avatar - للمستخدمين المسجلين */}
               {isAuthenticated && (
                 <div className="flex justify-center">
@@ -127,104 +141,159 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
 
               {/* Username input */}
               {isAuthenticated && (
-                <div className="relative">
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <User className="w-3.5 h-3.5" style={{ color: "hsl(var(--muted-foreground))" }} />
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                    <User className="w-3 h-3" />
+                    الاسم
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      value={username} 
+                      dir="rtl"
+                      onChange={(e) => { setUsername(e.target.value); setError(""); }}
+                      onFocus={(e) => {
+                        const length = e.target.value.length;
+                        e.target.setSelectionRange(length, length);
+                      }}
+                      placeholder="اسمك..." 
+                      maxLength={20}
+                      className="w-full py-2 px-3 rounded-lg text-sm outline-none transition-all duration-200 text-right"
+                      style={{ 
+                        background: "hsl(var(--input))", 
+                        border: error ? "1px solid hsl(var(--destructive))" : "1px solid hsl(var(--border))", 
+                        color: "hsl(var(--foreground))",
+                        direction: "rtl"
+                      }}
+                    />
+                    {error && <p className="text-[10px] text-right mt-0.5" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
                   </div>
-                  <input type="text" value={username} onChange={(e) => { setUsername(e.target.value); setError(""); }}
-                    placeholder="اسمك..." maxLength={20}
-                    className="w-full py-2 pr-8 pl-3 rounded-lg text-sm outline-none transition-all duration-200 text-right"
-                    style={{ background: "hsl(var(--input))", border: error ? "1px solid hsl(var(--destructive))" : "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}
-                  />
-                  {error && <p className="text-[10px] text-right mt-0.5" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
                 </div>
               )}
 
               {/* Bio */}
               {isAuthenticated && (
-                <div className="relative">
-                  <div className="absolute right-3 top-2">
-                    <FileText className="w-3.5 h-3.5" style={{ color: "hsl(var(--muted-foreground))" }} />
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                    <FileText className="w-3 h-3" />
+                    الوصف
+                  </label>
+                  <div className="relative">
+                    <textarea
+                      value={bio}
+                      dir="rtl"
+                      onChange={(e) => handleRTLInput(e, setBio)}
+                      onFocus={(e) => {
+                        const length = e.target.value.length;
+                        e.target.setSelectionRange(length, length);
+                      }}
+                      placeholder="نبذة عنك..."
+                      maxLength={200}
+                      rows={2}
+                      className="w-full py-2 px-3 rounded-lg text-sm outline-none transition-all duration-200 text-right resize-none"
+                      style={{ 
+                        background: "hsl(var(--input))", 
+                        border: "1px solid hsl(var(--border))", 
+                        color: "hsl(var(--foreground))",
+                        direction: "rtl"
+                      }}
+                    />
+                    <p className="text-[9px] mt-0.5 text-left" style={{ color: "hsl(var(--muted-foreground))" }}>{bio.length}/200</p>
                   </div>
-                  <textarea
-                    value={bio}
-                    onChange={(e) => { setBio(e.target.value); setError(""); }}
-                    placeholder="نبذة عنك..."
-                    maxLength={200}
-                    rows={1}
-                    className="w-full py-2 pr-8 pl-3 rounded-lg text-sm outline-none transition-all duration-200 text-right resize-none"
-                    style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}
-                  />
-                  <p className="text-[9px] mt-0.5 text-left" style={{ color: "hsl(var(--muted-foreground))" }}>{bio.length}/200</p>
                 </div>
               )}
 
               {/* Study stage */}
               {isAuthenticated && (
-                <div className="relative">
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <GraduationCap className="w-3.5 h-3.5" style={{ color: "hsl(var(--muted-foreground))" }} />
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                    <GraduationCap className="w-3 h-3" />
+                    المرحلة الدراسية
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={studyStage}
+                      dir="rtl"
+                      onChange={(e) => handleRTLInput(e, setStudyStage)}
+                      onFocus={(e) => {
+                        const length = e.target.value.length;
+                        e.target.setSelectionRange(length, length);
+                      }}
+                      placeholder="المرحلة الدراسية..."
+                      maxLength={50}
+                      className="w-full py-2 px-3 rounded-lg text-sm outline-none transition-all duration-200 text-right"
+                      style={{ 
+                        background: "hsl(var(--input))", 
+                        border: "1px solid hsl(var(--border))", 
+                        color: "hsl(var(--foreground))",
+                        direction: "rtl"
+                      }}
+                    />
                   </div>
-                  <input
-                    type="text"
-                    value={studyStage}
-                    onChange={(e) => { setStudyStage(e.target.value); setError(""); }}
-                    placeholder="المرحلة الدراسية..."
-                    maxLength={50}
-                    className="w-full py-2 pr-8 pl-3 rounded-lg text-sm outline-none transition-all duration-200 text-right"
-                    style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}
-                  />
                 </div>
               )}
 
               {/* DM Privacy Toggle */}
               {isAuthenticated && (
-                <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
-                  <div className="flex items-center gap-1.5">
-                    {allowDms ? <MessageSquare className="w-3.5 h-3.5" style={{ color: "hsl(var(--chat-online))" }} /> : <MessageSquareOff className="w-3.5 h-3.5" style={{ color: "hsl(var(--destructive))" }} />}
-                    <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>الرسائل الخاصة</span>
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                    {allowDms ? <MessageSquare className="w-3 h-3" /> : <MessageSquareOff className="w-3 h-3" />}
+                     الخصوصية
+                  </label>
+                  <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>الرسائل الخاصة</span>
+                    </div>
+                    <button type="button" onClick={() => setAllowDms(!allowDms)}
+                      className="w-9 h-5 rounded-full relative transition-colors duration-200"
+                      style={{ background: allowDms ? "hsl(var(--chat-online))" : "hsl(var(--muted))" }}>
+                      <span className="absolute top-0.5 w-4 h-4 rounded-full shadow transition-transform duration-200"
+                        style={{ background: "hsl(var(--foreground))", left: allowDms ? "calc(100% - 18px)" : "2px" }} />
+                    </button>
                   </div>
-                  <button type="button" onClick={() => setAllowDms(!allowDms)}
-                    className="w-9 h-5 rounded-full relative transition-colors duration-200"
-                    style={{ background: allowDms ? "hsl(var(--chat-online))" : "hsl(var(--muted))" }}>
-                    <span className="absolute top-0.5 w-4 h-4 rounded-full shadow transition-transform duration-200"
-                      style={{ background: "hsl(var(--foreground))", left: allowDms ? "calc(100% - 18px)" : "2px" }} />
-                  </button>
                 </div>
               )}
 
               {/* Sound Toggle */}
-              <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
-                <div className="flex items-center gap-1.5">
-                  {soundEnabled ? <Volume2 className="w-3.5 h-3.5" style={{ color: "hsl(var(--chat-online))" }} /> : <VolumeX className="w-3.5 h-3.5" style={{ color: "hsl(var(--destructive))" }} />}
-                  <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>أصوات الإرسال</span>
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                  {soundEnabled ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
+                  الأصوات
+                </label>
+                <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>أصوات الإرسال</span>
+                  </div>
+                  <button type="button" onClick={() => { const v = !soundEnabled; setSoundEnabledState(v); setSoundEnabled(v); }}
+                    className="w-9 h-5 rounded-full relative transition-colors duration-200"
+                    style={{ background: soundEnabled ? "hsl(var(--chat-online))" : "hsl(var(--muted))" }}>
+                    <span className="absolute top-0.5 w-4 h-4 rounded-full shadow transition-transform duration-200"
+                      style={{ background: "hsl(var(--foreground))", left: soundEnabled ? "calc(100% - 18px)" : "2px" }} />
+                  </button>
                 </div>
-                <button type="button" onClick={() => { const v = !soundEnabled; setSoundEnabledState(v); setSoundEnabled(v); }}
-                  className="w-9 h-5 rounded-full relative transition-colors duration-200"
-                  style={{ background: soundEnabled ? "hsl(var(--chat-online))" : "hsl(var(--muted))" }}>
-                  <span className="absolute top-0.5 w-4 h-4 rounded-full shadow transition-transform duration-200"
-                    style={{ background: "hsl(var(--foreground))", left: soundEnabled ? "calc(100% - 18px)" : "2px" }} />
-                </button>
               </div>
 
               {/* Chat Background */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
-                  <div className="flex items-center gap-1.5">
-                    <Image className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} />
-                    <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>خلفية الدردشة</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {chatBg && (
-                      <button type="button" onClick={() => onChatBgChange(null)} className="p-1 rounded-lg hover:opacity-70 transition-colors" style={{ color: "hsl(var(--destructive))" }}>
-                        <Trash2 className="w-3 h-3" />
+                <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
+                  <Image className="w-3 h-3" />
+                  خلفية الدردشة
+                </label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
+                    <div className="flex items-center gap-2">
+                      {chatBg && (
+                        <button type="button" onClick={() => onChatBgChange(null)} className="p-1 rounded-lg hover:opacity-70 transition-colors" style={{ color: "hsl(var(--destructive))" }}>
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                      <button type="button" onClick={() => bgInputRef.current?.click()}
+                        className="px-2.5 py-0.5 rounded-lg text-[10px] font-medium transition-all active:scale-95"
+                        style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}>
+                        {chatBg ? "تغيير" : "اختيار"}
                       </button>
-                    )}
-                    <button type="button" onClick={() => bgInputRef.current?.click()}
-                      className="px-2.5 py-0.5 rounded-lg text-[10px] font-medium transition-all active:scale-95"
-                      style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}>
-                      {chatBg ? "تغيير" : "اختيار"}
-                    </button>
+                    </div>
                   </div>
                   <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -233,19 +302,19 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
                     reader.onload = (ev) => onChatBgChange(ev.target?.result as string);
                     reader.readAsDataURL(file);
                   }} />
+                  {chatBg && (
+                    <div className="w-full h-12 rounded-lg overflow-hidden" style={{ border: "1px solid hsl(var(--border))" }}>
+                      <img src={chatBg} alt="خلفية" className="w-full h-full object-cover" />
+                    </div>
+                  )}
                 </div>
-                {chatBg && (
-                  <div className="w-full h-12 rounded-lg overflow-hidden" style={{ border: "1px solid hsl(var(--border))" }}>
-                    <img src={chatBg} alt="خلفية" className="w-full h-full object-cover" />
-                  </div>
-                )}
               </div>
 
               {/* Buttons */}
               {isAuthenticated && (
                 <>
                   <button type="submit" disabled={saving}
-                    className="w-full py-2 rounded-lg font-semibold text-sm transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60"
+                    className="w-full py-2 rounded-lg font-semibold text-sm transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 mt-2"
                     style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}>
                     {saving ? (
                       <>
