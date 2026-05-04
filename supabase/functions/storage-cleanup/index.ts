@@ -7,6 +7,43 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Authorization: allow either (a) cron/internal callers using a shared
+    // CLEANUP_SECRET, or (b) an admin user via JWT.
+    const cleanupSecret = Deno.env.get("CLEANUP_SECRET");
+    const providedSecret = req.headers.get("x-cleanup-secret");
+    const authHeader = req.headers.get("Authorization") ?? "";
+
+    const isCronAuthorized =
+      !!cleanupSecret && providedSecret === cleanupSecret;
+
+    let isAdminAuthorized = false;
+    if (!isCronAuthorized && authHeader.startsWith("Bearer ")) {
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData } = await userClient.auth.getClaims(token);
+      const userId = claimsData?.claims?.sub;
+      if (userId) {
+        const { data: roleRow } = await userClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .eq("role", "admin")
+          .maybeSingle();
+        isAdminAuthorized = !!roleRow;
+      }
+    }
+
+    if (!isCronAuthorized && !isAdminAuthorized) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
