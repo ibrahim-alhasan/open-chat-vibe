@@ -166,13 +166,14 @@ const MentionText = ({ text, profilesMap, onUsernameClick }: { text: string; pro
 };
 
 const SignedFileAttachment = ({
-  fileUrl, fileType, fileName, isOwn, onOpenMedia,
+  fileUrl, fileType, fileName, isOwn, onOpenMedia, onCardClick,
 }: {
   fileUrl: string;
   fileType: string | null | undefined;
   fileName: string | null | undefined;
   isOwn: boolean;
   onOpenMedia?: (url: string, type: string, name?: string) => void;
+  onCardClick?: (e: React.MouseEvent) => void;
 }) => {
   // For images/videos: do NOT fetch signed URL until user explicitly opens.
   // This saves bandwidth and reduces server load.
@@ -199,14 +200,16 @@ const SignedFileAttachment = ({
   return (
     <div className={`w-full ${isOwn ? "flex justify-end" : "flex justify-start"}`}>
       {isImage ? (
-        <button
-          onClick={handleOpen}
-          className="flex items-center gap-2 px-3 py-2.5 rounded-xl max-w-[250px] cursor-pointer transition-all hover:opacity-90 active:scale-95"
+        <div
+          onClick={onCardClick}
+          className="flex items-center gap-2 px-3 py-2.5 rounded-xl max-w-[250px] cursor-pointer transition-all hover:opacity-90 active:scale-[0.98]"
           style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
         >
           <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+            onClick={handleOpen}
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
             style={{ background: "hsl(var(--primary) / 0.15)" }}
+            title="فتح الصورة"
           >
             <ImageIcon className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
           </div>
@@ -214,18 +217,20 @@ const SignedFileAttachment = ({
             <span className="text-[12px] font-medium truncate max-w-[160px]" style={{ color: "hsl(var(--foreground))" }}>
               {fileName || "صورة"}
             </span>
-            <span className="text-[10px]" style={{ color: "hsl(var(--primary))" }}>اضغط لفتح الصورة</span>
+            <span className="text-[10px]" style={{ color: "hsl(var(--primary))" }} onClick={handleOpen}>اضغط على الأيقونة لفتح الصورة</span>
           </div>
-        </button>
+        </div>
       ) : isVideo ? (
-        <button
-          onClick={handleOpen}
-          className="flex items-center gap-2 px-3 py-2.5 rounded-xl max-w-[250px] cursor-pointer transition-all hover:opacity-90 active:scale-95"
+        <div
+          onClick={onCardClick}
+          className="flex items-center gap-2 px-3 py-2.5 rounded-xl max-w-[250px] cursor-pointer transition-all hover:opacity-90 active:scale-[0.98]"
           style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
         >
           <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+            onClick={handleOpen}
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
             style={{ background: "hsl(var(--primary) / 0.15)" }}
+            title="تشغيل الفيديو"
           >
             <Play className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
           </div>
@@ -233,20 +238,27 @@ const SignedFileAttachment = ({
             <span className="text-[12px] font-medium truncate max-w-[160px]" style={{ color: "hsl(var(--foreground))" }}>
               {fileName || "فيديو"}
             </span>
-            <span className="text-[10px]" style={{ color: "hsl(var(--primary))" }}>اضغط لتشغيل الفيديو</span>
+            <span className="text-[10px]" style={{ color: "hsl(var(--primary))" }} onClick={handleOpen}>اضغط على الأيقونة لتشغيل الفيديو</span>
           </div>
-        </button>
+        </div>
       ) : !signedUrl ? (
         <div className="w-[200px] h-[44px] rounded-xl animate-pulse" style={{ background: "hsl(var(--secondary))" }} />
       ) : (
         <div
-          onClick={handleOpen}
+          onClick={onCardClick}
           className="flex items-center gap-2 px-3 py-2 rounded-xl max-w-[250px] cursor-pointer transition-all hover:opacity-80 active:scale-98"
           style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}
         >
-          <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
+          <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} onClick={handleOpen} />
           <span className="text-xs truncate flex-1" style={{ color: "hsl(var(--foreground))" }}>{fileName || "ملف"}</span>
-          <Download className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "hsl(var(--muted-foreground))" }} />
+          <button
+            onClick={handleOpen}
+            className="p-1 rounded-md hover:scale-110 active:scale-90 transition-transform"
+            style={{ background: "hsl(var(--primary) / 0.12)" }}
+            title="تحميل الملف"
+          >
+            <Download className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} />
+          </button>
         </div>
       )}
     </div>
@@ -476,6 +488,7 @@ const ChatMessage = memo(({
             fileName={message.file_name}
             isOwn={isOwn}
             onOpenMedia={onOpenMedia}
+            onCardClick={handleBubbleClick}
           />
         )}
 
