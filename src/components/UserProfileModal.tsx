@@ -81,8 +81,13 @@ const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline
     if (!iso) return null;
     try {
       const d = new Date(iso);
-      return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-    } catch { return null; }
+      const day = d.getDate();
+      const month = d.getMonth() + 1;
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch { 
+      return null; 
+    }
   };
   const joinedDate = formatJoinedDate(profileDetails.created_at);
 
@@ -135,7 +140,7 @@ const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline
           {joinedDate && (
             <div className="mt-2 flex items-center gap-1.5 text-[11px]" style={{ color: "hsl(var(--muted-foreground))", direction: "ltr" }}>
               <Calendar className="w-3 h-3" />
-              <span>Joined {joinedDate}</span>
+              <span>تاريخ الانضمام: {joinedDate}</span>
             </div>
           )}
 
