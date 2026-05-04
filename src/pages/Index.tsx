@@ -117,6 +117,7 @@ const Index = () => {
   const lastScrollTopRef = useRef(0);
   const isUserScrollingUpRef = useRef(false);
   const shouldScrollAfterRefresh = useRef(false);
+  const loadMoreMessagesRef = useRef<() => void>(() => {});
 
   const messageCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -352,7 +353,7 @@ const Index = () => {
       setShowScrollButton(!isNearBottom);
       if (isNearBottom) setHasNewMessages(false);
   
-      if (scrollTop < 300 && hasMoreMessages && !isLoadingMoreRef.current && !loading) loadMoreMessages();
+      if (scrollTop < 300 && hasMoreMessages && !isLoadingMoreRef.current && !loading) loadMoreMessagesRef.current();
     };
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
