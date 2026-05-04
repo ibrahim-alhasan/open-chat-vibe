@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Camera, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogOut, LogIn } from "lucide-react";
+import { X, Camera, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogOut, LogIn, FileText, GraduationCap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getIsSoundEnabled, setSoundEnabled } from "@/lib/sounds";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,10 +16,12 @@ interface SettingsModalProps {
 }
 
 const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onSave, chatBg, onChatBgChange }: SettingsModalProps) => {
-  const { signOut, user } = useAuth(); // أضفنا user من useAuth
+  const { signOut, user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState(currentUsername);
   const [allowDms, setAllowDms] = useState(true);
+  const [bio, setBio] = useState("");
+  const [studyStage, setStudyStage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [soundEnabled, setSoundEnabledState] = useState(getIsSoundEnabled());
@@ -36,10 +38,14 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data } = await supabase.from("profiles").select("allow_dms").eq("user_id", userId).single();
-      if (data) setAllowDms(data.allow_dms ?? true);
+      const { data } = await supabase.from("profiles").select("allow_dms, bio, study_stage").eq("user_id", userId).single();
+      if (data) {
+        setAllowDms(data.allow_dms ?? true);
+        setBio((data as any).bio ?? "");
+        setStudyStage((data as any).study_stage ?? "");
+      }
     };
-    fetchProfile();
+    if (userId) fetchProfile();
   }, [userId]);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -55,6 +61,10 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
     if (!trimmed) { setError("الرجاء إدخال اسمك"); return; }
     if (trimmed.length < 2) { setError("الاسم يجب أن يكون حرفين على الأقل"); return; }
     if (trimmed.length > 20) { setError("الاسم يجب أن لا يتجاوز 20 حرفاً"); return; }
+    const trimmedBio = bio.trim();
+    if (trimmedBio.length > 200) { setError("الوصف يجب أن لا يتجاوز 200 حرف"); return; }
+    const trimmedStage = studyStage.trim();
+    if (trimmedStage.length > 50) { setError("المرحلة الدراسية طويلة جداً"); return; }
 
     setSaving(true);
 
@@ -62,7 +72,15 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
     const avatarUrl = null;
 
     await supabase.from("profiles").upsert(
-      { user_id: userId, username: trimmed, avatar_url: avatarUrl, allow_dms: allowDms, updated_at: new Date().toISOString() },
+      {
+        user_id: userId,
+        username: trimmed,
+        avatar_url: avatarUrl,
+        allow_dms: allowDms,
+        bio: trimmedBio || null,
+        study_stage: trimmedStage || null,
+        updated_at: new Date().toISOString(),
+      },
       { onConflict: "user_id" }
     );
 
@@ -70,6 +88,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
     localStorage.removeItem("chat_avatar_url");
 
     setSaving(false);
+    await refreshProfile();
     onSave(trimmed, avatarUrl);
     onClose();
   };
@@ -122,6 +141,43 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
 
                 {error && <p className="text-xs text-right" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
               </>
+            )}
+
+            {/* Bio (description) - يظهر فقط للمستخدمين المسجلين */}
+            {isAuthenticated && (
+              <div className="relative">
+                <div className="absolute right-3 top-3">
+                  <FileText className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+                </div>
+                <textarea
+                  value={bio}
+                  onChange={(e) => { setBio(e.target.value); setError(""); }}
+                  placeholder="نبذة عنك..."
+                  maxLength={200}
+                  rows={2}
+                  className="w-full py-2.5 pr-9 pl-4 rounded-xl text-sm outline-none transition-all duration-200 text-right resize-none"
+                  style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}
+                />
+                <p className="text-[10px] mt-1 text-left" style={{ color: "hsl(var(--muted-foreground))" }}>{bio.length}/200</p>
+              </div>
+            )}
+
+            {/* Study stage - يظهر فقط للمستخدمين المسجلين */}
+            {isAuthenticated && (
+              <div className="relative">
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <GraduationCap className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
+                </div>
+                <input
+                  type="text"
+                  value={studyStage}
+                  onChange={(e) => { setStudyStage(e.target.value); setError(""); }}
+                  placeholder="المرحلة الدراسية..."
+                  maxLength={50}
+                  className="w-full py-2.5 pr-9 pl-4 rounded-xl text-sm outline-none transition-all duration-200 text-right"
+                  style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))", color: "hsl(var(--foreground))" }}
+                />
+              </div>
             )}
 
             {/* DM Privacy Toggle - يظهر فقط للمستخدمين المسجلين */}

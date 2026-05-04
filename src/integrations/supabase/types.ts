@@ -396,7 +396,9 @@ export type Database = {
         Row: {
           allow_dms: boolean
           avatar_url: string | null
+          bio: string | null
           created_at: string
+          study_stage: string | null
           updated_at: string
           user_id: string
           username: string
@@ -404,7 +406,9 @@ export type Database = {
         Insert: {
           allow_dms?: boolean
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          study_stage?: string | null
           updated_at?: string
           user_id: string
           username: string
@@ -412,7 +416,9 @@ export type Database = {
         Update: {
           allow_dms?: boolean
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          study_stage?: string | null
           updated_at?: string
           user_id?: string
           username?: string
