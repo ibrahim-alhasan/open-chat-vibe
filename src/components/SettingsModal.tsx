@@ -108,6 +108,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
       className="fixed inset-0 flex items-center justify-center z-50"
       style={{ background: "hsl(220 16% 5% / 0.8)", backdropFilter: "blur(8px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      dir="rtl"
     >
       <div className="w-full max-w-sm mx-4 h-[90vh] flex flex-col">
         <div className="rounded-2xl flex flex-col h-full" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "var(--shadow-card)" }}>
@@ -125,8 +126,8 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
           </div>
 
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <form onSubmit={handleSave} className="space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <form onSubmit={handleSave} className="space-y-3">
               {/* Avatar - للمستخدمين المسجلين */}
               {isAuthenticated && (
                 <div className="flex justify-center">
@@ -144,7 +145,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
                     <User className="w-3 h-3" />
-                    الاسم
+                    <span>الاسم</span>
                   </label>
                   <div className="relative">
                     <input 
@@ -176,7 +177,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
                     <FileText className="w-3 h-3" />
-                    الوصف
+                    <span>الوصف</span>
                   </label>
                   <div className="relative">
                     <textarea
@@ -208,7 +209,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
                     <GraduationCap className="w-3 h-3" />
-                    المرحلة الدراسية
+                    <span>المرحلة الدراسية</span>
                   </label>
                   <div className="relative">
                     <input
@@ -236,64 +237,52 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
 
               {/* DM Privacy Toggle */}
               {isAuthenticated && (
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
-                    {allowDms ? <MessageSquare className="w-3 h-3" /> : <MessageSquareOff className="w-3 h-3" />}
-                     الخصوصية
-                  </label>
-                  <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>الرسائل الخاصة</span>
-                    </div>
-                    <button type="button" onClick={() => setAllowDms(!allowDms)}
-                      className="w-9 h-5 rounded-full relative transition-colors duration-200"
-                      style={{ background: allowDms ? "hsl(var(--chat-online))" : "hsl(var(--muted))" }}>
-                      <span className="absolute top-0.5 w-4 h-4 rounded-full shadow transition-transform duration-200"
-                        style={{ background: "hsl(var(--foreground))", left: allowDms ? "calc(100% - 18px)" : "2px" }} />
-                    </button>
+                <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
+                  <div className="flex items-center gap-1.5">
+                    {allowDms ? <MessageSquare className="w-3.5 h-3.5" style={{ color: "hsl(var(--chat-online))" }} /> : <MessageSquareOff className="w-3.5 h-3.5" style={{ color: "hsl(var(--destructive))" }} />}
+                    <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>الرسائل الخاصة</span>
                   </div>
+                  <button type="button" onClick={() => setAllowDms(!allowDms)}
+                    className="w-9 h-5 rounded-full relative transition-colors duration-200"
+                    style={{ background: allowDms ? "hsl(var(--chat-online))" : "hsl(var(--muted))" }}>
+                    <span className="absolute top-0.5 w-4 h-4 rounded-full shadow transition-transform duration-200"
+                      style={{ background: "hsl(var(--foreground))", left: allowDms ? "calc(100% - 18px)" : "2px" }} />
+                  </button>
                 </div>
               )}
 
               {/* Sound Toggle */}
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
-                  {soundEnabled ? <Volume2 className="w-3 h-3" /> : <VolumeX className="w-3 h-3" />}
-                  الأصوات
-                </label>
-                <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>أصوات الإرسال</span>
-                  </div>
-                  <button type="button" onClick={() => { const v = !soundEnabled; setSoundEnabledState(v); setSoundEnabled(v); }}
-                    className="w-9 h-5 rounded-full relative transition-colors duration-200"
-                    style={{ background: soundEnabled ? "hsl(var(--chat-online))" : "hsl(var(--muted))" }}>
-                    <span className="absolute top-0.5 w-4 h-4 rounded-full shadow transition-transform duration-200"
-                      style={{ background: "hsl(var(--foreground))", left: soundEnabled ? "calc(100% - 18px)" : "2px" }} />
-                  </button>
+              <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
+                <div className="flex items-center gap-1.5">
+                  {soundEnabled ? <Volume2 className="w-3.5 h-3.5" style={{ color: "hsl(var(--chat-online))" }} /> : <VolumeX className="w-3.5 h-3.5" style={{ color: "hsl(var(--destructive))" }} />}
+                  <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>أصوات الإرسال</span>
                 </div>
+                <button type="button" onClick={() => { const v = !soundEnabled; setSoundEnabledState(v); setSoundEnabled(v); }}
+                  className="w-9 h-5 rounded-full relative transition-colors duration-200"
+                  style={{ background: soundEnabled ? "hsl(var(--chat-online))" : "hsl(var(--muted))" }}>
+                  <span className="absolute top-0.5 w-4 h-4 rounded-full shadow transition-transform duration-200"
+                    style={{ background: "hsl(var(--foreground))", left: soundEnabled ? "calc(100% - 18px)" : "2px" }} />
+                </button>
               </div>
 
               {/* Chat Background */}
               <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
-                  <Image className="w-3 h-3" />
-                  خلفية الدردشة
-                </label>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
-                    <div className="flex items-center gap-2">
-                      {chatBg && (
-                        <button type="button" onClick={() => onChatBgChange(null)} className="p-1 rounded-lg hover:opacity-70 transition-colors" style={{ color: "hsl(var(--destructive))" }}>
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
-                      <button type="button" onClick={() => bgInputRef.current?.click()}
-                        className="px-2.5 py-0.5 rounded-lg text-[10px] font-medium transition-all active:scale-95"
-                        style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}>
-                        {chatBg ? "تغيير" : "اختيار"}
+                <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
+                  <div className="flex items-center gap-1.5">
+                    <Image className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} />
+                    <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>خلفية الدردشة</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {chatBg && (
+                      <button type="button" onClick={() => onChatBgChange(null)} className="p-1 rounded-lg hover:opacity-70 transition-colors" style={{ color: "hsl(var(--destructive))" }}>
+                        <Trash2 className="w-3 h-3" />
                       </button>
-                    </div>
+                    )}
+                    <button type="button" onClick={() => bgInputRef.current?.click()}
+                      className="px-2.5 py-0.5 rounded-lg text-[10px] font-medium transition-all active:scale-95"
+                      style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}>
+                      {chatBg ? "تغيير" : "اختيار"}
+                    </button>
                   </div>
                   <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -302,19 +291,19 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
                     reader.onload = (ev) => onChatBgChange(ev.target?.result as string);
                     reader.readAsDataURL(file);
                   }} />
-                  {chatBg && (
-                    <div className="w-full h-12 rounded-lg overflow-hidden" style={{ border: "1px solid hsl(var(--border))" }}>
-                      <img src={chatBg} alt="خلفية" className="w-full h-full object-cover" />
-                    </div>
-                  )}
                 </div>
+                {chatBg && (
+                  <div className="w-full h-12 rounded-lg overflow-hidden" style={{ border: "1px solid hsl(var(--border))" }}>
+                    <img src={chatBg} alt="خلفية" className="w-full h-full object-cover" />
+                  </div>
+                )}
               </div>
 
               {/* Buttons */}
               {isAuthenticated && (
                 <>
                   <button type="submit" disabled={saving}
-                    className="w-full py-2 rounded-lg font-semibold text-sm transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 mt-2"
+                    className="w-full py-2 rounded-lg font-semibold text-sm transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60"
                     style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}>
                     {saving ? (
                       <>
