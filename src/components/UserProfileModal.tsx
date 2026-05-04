@@ -34,6 +34,18 @@ const VerifiedBadge = ({ size = 20 }: { size?: number }) => (
   </svg>
 );
 
+// Skeleton loading component
+const SkeletonLine = ({ width = "100%", height = "12px", className = "" }) => (
+  <div 
+    className={`animate-pulse rounded ${className}`}
+    style={{ 
+      width, 
+      height, 
+      background: "hsl(var(--muted))",
+    }}
+  />
+);
+
 const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline, isAdmin, isCurrentUserAdmin, allowDms = true, onClose, onStartDM }: UserProfileModalProps) => {
   const userColor = isAdmin ? "#1D9BF0" : getUserColor(username);
   const isOwnProfile = userId === currentUserId;
@@ -42,9 +54,11 @@ const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline
   const [isBannedFromChat, setIsBannedFromChat] = useState(false);
   const [loadingBan, setLoadingBan] = useState(false);
   const [profileDetails, setProfileDetails] = useState<{ bio: string | null; study_stage: string | null; created_at: string | null }>({ bio: null, study_stage: null, created_at: null });
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       const [blockedRes, bannedRes, profileRes] = await Promise.all([
         supabase.from("blocked_users").select("id").eq("blocker_user_id", currentUserId).eq("blocked_user_id", userId).maybeSingle(),
         supabase.from("banned_users").select("id").eq("user_id", userId).maybeSingle(),
@@ -61,6 +75,7 @@ const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline
           created_at: (profileRes.data as any).created_at ?? null,
         });
       }
+      setIsLoading(false);
     };
     fetchData();
   }, [currentUserId, userId, isOwnProfile]);
@@ -148,26 +163,43 @@ const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline
             {isOwnProfile ? "هذا أنت" : isOnline ? "متصل الآن" : "غير متصل"}
           </p>
 
-          {/* Info cards: bio + study stage */}
+          {/* Info cards: bio + study stage - with RTL and Skeleton loading */}
           <div className="w-full mt-4 space-y-2">
-            {profileDetails.bio && (
-              <div className="w-full p-3 rounded-2xl flex items-start gap-2" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
-                <FileText className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold mb-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>الوصف</p>
-                  <p className="text-[12px] leading-snug whitespace-pre-wrap break-words" style={{ color: "hsl(var(--foreground))" }}>{profileDetails.bio}</p>
-                </div>
+            {/* Bio section */}
+            <div className="w-full p-3 rounded-2xl flex items-start gap-2" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
+              <FileText className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
+              <div className="flex-1 min-w-0" style={{ direction: "rtl", textAlign: "right" }}>
+                <p className="text-[10px] font-semibold mb-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>الوصف</p>
+                {isLoading ? (
+                  <div className="space-y-1.5">
+                    <SkeletonLine width="100%" height="10px" />
+                    <SkeletonLine width="85%" height="10px" />
+                  </div>
+                ) : (
+                  <p className="text-[12px] leading-snug whitespace-pre-wrap break-words" style={{ color: "hsl(var(--foreground))" }}>
+                    {profileDetails.bio || "لا يوجد وصف"}
+                  </p>
+                )}
               </div>
-            )}
-            {profileDetails.study_stage && (
-              <div className="w-full p-3 rounded-2xl flex items-start gap-2" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
-                <GraduationCap className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold mb-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>المرحلة الدراسية</p>
-                  <p className="text-[12px]" style={{ color: "hsl(var(--foreground))" }}>{profileDetails.study_stage}</p>
-                </div>
+            </div>
+
+            {/* Study stage section */}
+            <div className="w-full p-3 rounded-2xl flex items-start gap-2" style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))" }}>
+              <GraduationCap className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
+              <div className="flex-1 min-w-0" style={{ direction: "rtl", textAlign: "right" }}>
+                <p className="text-[10px] font-semibold mb-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>المرحلة الدراسية</p>
+                {isLoading ? (
+                  <div className="space-y-1.5">
+                    <SkeletonLine width="70%" height="10px" />
+                    <SkeletonLine width="50%" height="10px" />
+                  </div>
+                ) : (
+                  <p className="text-[12px]" style={{ color: "hsl(var(--foreground))" }}>
+                    {profileDetails.study_stage || "غير محدد"}
+                  </p>
+                )}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Actions */}
