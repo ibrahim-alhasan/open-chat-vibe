@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Camera, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogOut, LogIn } from "lucide-react";
+import { X, Camera, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogOut, LogIn, FileText, GraduationCap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getIsSoundEnabled, setSoundEnabled } from "@/lib/sounds";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,10 +16,12 @@ interface SettingsModalProps {
 }
 
 const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onSave, chatBg, onChatBgChange }: SettingsModalProps) => {
-  const { signOut, user } = useAuth(); // أضفنا user من useAuth
+  const { signOut, user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState(currentUsername);
   const [allowDms, setAllowDms] = useState(true);
+  const [bio, setBio] = useState("");
+  const [studyStage, setStudyStage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [soundEnabled, setSoundEnabledState] = useState(getIsSoundEnabled());
@@ -36,10 +38,14 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data } = await supabase.from("profiles").select("allow_dms").eq("user_id", userId).single();
-      if (data) setAllowDms(data.allow_dms ?? true);
+      const { data } = await supabase.from("profiles").select("allow_dms, bio, study_stage").eq("user_id", userId).single();
+      if (data) {
+        setAllowDms(data.allow_dms ?? true);
+        setBio((data as any).bio ?? "");
+        setStudyStage((data as any).study_stage ?? "");
+      }
     };
-    fetchProfile();
+    if (userId) fetchProfile();
   }, [userId]);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -55,6 +61,10 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
     if (!trimmed) { setError("الرجاء إدخال اسمك"); return; }
     if (trimmed.length < 2) { setError("الاسم يجب أن يكون حرفين على الأقل"); return; }
     if (trimmed.length > 20) { setError("الاسم يجب أن لا يتجاوز 20 حرفاً"); return; }
+    const trimmedBio = bio.trim();
+    if (trimmedBio.length > 200) { setError("الوصف يجب أن لا يتجاوز 200 حرف"); return; }
+    const trimmedStage = studyStage.trim();
+    if (trimmedStage.length > 50) { setError("المرحلة الدراسية طويلة جداً"); return; }
 
     setSaving(true);
 
@@ -62,7 +72,15 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
     const avatarUrl = null;
 
     await supabase.from("profiles").upsert(
-      { user_id: userId, username: trimmed, avatar_url: avatarUrl, allow_dms: allowDms, updated_at: new Date().toISOString() },
+      {
+        user_id: userId,
+        username: trimmed,
+        avatar_url: avatarUrl,
+        allow_dms: allowDms,
+        bio: trimmedBio || null,
+        study_stage: trimmedStage || null,
+        updated_at: new Date().toISOString(),
+      },
       { onConflict: "user_id" }
     );
 
@@ -70,6 +88,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
     localStorage.removeItem("chat_avatar_url");
 
     setSaving(false);
+    await refreshProfile();
     onSave(trimmed, avatarUrl);
     onClose();
   };
