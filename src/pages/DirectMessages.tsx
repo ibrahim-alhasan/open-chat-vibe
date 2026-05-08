@@ -1,17 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile, Gamepad2, Trash2, Settings } from "lucide-react";
+import { Send, Reply, CornerUpLeft, X, Camera, Trash2, Settings, Copy, ChevronUp, Smile, Ban } from "lucide-react";
 import { playSound } from "@/lib/sounds";
 import LinkifiedText from "@/components/LinkifiedText";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
-import TicTacToe from "@/components/TicTacToe";
-import RockPaperScissors from "@/components/RockPaperScissors";
-import ConnectFour from "@/components/ConnectFour";
-import NumberBattle from "@/components/NumberBattle";
-import CoinFlip from "@/components/CoinFlip";
-import ColorGuess from "@/components/ColorGuess";
-import MathChallenge from "@/components/MathChallenge";
+import UserProfileModal from "@/components/UserProfileModal";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -123,7 +117,6 @@ const DirectMessages = ({
   const [loading, setLoading] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [hoveredMsg, setHoveredMsg] = useState<string | null>(null);
-  const [emojiPickerMsg, setEmojiPickerMsg] = useState<string | null>(null);
   const [blockedByMe, setBlockedByMe] = useState<Set<string>>(new Set());
   const [blockedMe, setBlockedMe] = useState<Set<string>>(new Set());
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -132,12 +125,14 @@ const DirectMessages = ({
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [showActionsForMsg, setShowActionsForMsg] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const [showGameMenu, setShowGameMenu] = useState(false);
   const [typingUser, setTypingUser] = useState(false);
   const [showConvoSettings, setShowConvoSettings] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
   const [showAdminAlert, setShowAdminAlert] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
 
   // Swipe state
   const [swipeState, setSwipeState] = useState<{ 
@@ -167,7 +162,6 @@ const DirectMessages = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target as Node)) {
         setShowActionsForMsg(null);
-        setEmojiPickerMsg(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -269,19 +263,59 @@ const DirectMessages = ({
       .from("direct_messages")
       .select("*")
       .or(`and(sender_user_id.eq.${currentUserId},receiver_user_id.eq.${otherUserId}),and(sender_user_id.eq.${otherUserId},receiver_user_id.eq.${currentUserId})`)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .limit(100);
 
-    setConversationMessages(data as DirectMessage[] || []);
-    
+    const ordered = ((data as DirectMessage[]) || []).slice().reverse();
+    setConversationMessages(ordered);
+    setHasMoreMessages((data?.length || 0) === 100);
+
     // Load reactions for these messages
-    if (data && data.length > 0) {
-      const msgIds = data.map((m: any) => m.id);
+    if (ordered.length > 0) {
+      const msgIds = ordered.map((m) => m.id);
       const { data: reactionsData } = await supabase.from("dm_reactions").select("*").in("dm_id", msgIds);
       if (reactionsData) setDmReactions(reactionsData as DmReaction[]);
     }
     
     setLoadingMessages(false);
     setTimeout(() => scrollToBottom(), 100);
+  };
+
+  const loadOlderMessages = async () => {
+    if (!activeConversation || loadingOlder || !hasMoreMessages || conversationMessages.length === 0) return;
+    setLoadingOlder(true);
+    const oldest = conversationMessages[0];
+    const { data } = await supabase
+      .from("direct_messages")
+      .select("*")
+      .or(`and(sender_user_id.eq.${currentUserId},receiver_user_id.eq.${activeConversation}),and(sender_user_id.eq.${activeConversation},receiver_user_id.eq.${currentUserId})`)
+      .lt("created_at", oldest.created_at)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    const older = ((data as DirectMessage[]) || []).slice().reverse();
+    setConversationMessages((prev) => {
+      const ids = new Set(prev.map((m) => m.id));
+      return [...older.filter((m) => !ids.has(m.id)), ...prev];
+    });
+    setHasMoreMessages((data?.length || 0) === 100);
+    if (older.length > 0) {
+      const msgIds = older.map((m) => m.id);
+      const { data: reactionsData } = await supabase.from("dm_reactions").select("*").in("dm_id", msgIds);
+      if (reactionsData) setDmReactions((prev) => {
+        const ids = new Set(prev.map((r) => r.id));
+        return [...prev, ...(reactionsData as DmReaction[]).filter((r) => !ids.has(r.id))];
+      });
+    }
+    setLoadingOlder(false);
+  };
+
+  const scrollToMessage = (msgId: string) => {
+    const el = messageRefs.current.get(msgId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightedMsgId(msgId);
+      setTimeout(() => setHighlightedMsgId(null), 1500);
+    }
   };
 
   // When active conversation changes, load its messages
@@ -552,7 +586,6 @@ const DirectMessages = ({
   };
 
   const handleDmReaction = async (dmId: string, emoji: string) => {
-    setEmojiPickerMsg(null);
     setShowActionsForMsg(null);
     const existing = dmReactions.find((r) => r.dm_id === dmId && r.emoji === emoji && r.user_id === currentUserId);
     if (existing) {
@@ -571,31 +604,8 @@ const DirectMessages = ({
     }
   };
 
-  const handleSendGameInvite = async (gameType: string) => {
-    if (!activeConversation) return;
-    setShowGameMenu(false);
-    let initialBoard = "---------";
-    if (gameType === "rps" || gameType === "numberbattle") initialBoard = "-:-";
-    else if (gameType === "coinflip") initialBoard = "-:-:-";
-    else if (gameType === "colorguess") initialBoard = "-:-";
-    else if (gameType === "mathchallenge") initialBoard = "pending";
-    else if (gameType === "connect4") initialBoard = "-".repeat(42);
-    
-    const { data: game } = await supabase.from("games").insert({
-      game_type: gameType, player_x: currentUserId, current_turn: currentUserId, status: "pending", board: initialBoard,
-    }).select().single();
-
-    if (!game) return;
-    const receiverProfile = getProfile(activeConversation);
-    await supabase.from("direct_messages").insert({
-      sender_username: currentUsername, receiver_username: receiverProfile.username,
-      sender_user_id: currentUserId, receiver_user_id: activeConversation,
-      content: `🎮 GAME:${gameType}:${game.id}`,
-    });
-  };
-
   const handleTouchStart = (msgId: string, e: React.TouchEvent) => {
-    if (showActionsForMsg || emojiPickerMsg) return;
+    if (showActionsForMsg) return;
     const touch = e.touches[0];
     setSwipeState({ msgId, offset: 0, startX: touch.clientX, startTime: Date.now(), isSwiping: true });
   };
@@ -631,19 +641,15 @@ const DirectMessages = ({
     setSwipeState(null);
   };
 
-  const handleTouchStartLongPress = (msgId: string) => {
-    if (swipeState?.isSwiping) return;
-    const timer = setTimeout(() => { setShowActionsForMsg(showActionsForMsg === msgId ? null : msgId); }, 500);
-    setLongPressTimer(timer);
-  };
-
-  const handleTouchEndLongPress = () => {
-    if (longPressTimer) { clearTimeout(longPressTimer); setLongPressTimer(null); }
-  };
-
   const handleMessageClick = (msgId: string) => {
-    if (emojiPickerMsg === msgId) { setEmojiPickerMsg(null); setShowActionsForMsg(null); }
-    else { setEmojiPickerMsg(msgId); setShowActionsForMsg(null); }
+    setShowActionsForMsg((prev) => (prev === msgId ? null : msgId));
+  };
+
+  const handleCopyMessage = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+    } catch {}
+    setShowActionsForMsg(null);
   };
 
   const activeProfile = activeConversation ? getProfile(activeConversation) : null;
@@ -668,7 +674,7 @@ const DirectMessages = ({
         style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
         {activeConversation && activeProfile ? (
           <div className="flex items-center justify-between flex-1">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button onClick={() => setShowProfileModal(true)} className="flex items-center gap-2 sm:gap-3 min-w-0 hover:opacity-80 transition-opacity active:scale-95">
               <div className="relative flex-shrink-0">
                 {activeProfile.avatar_url ? (
                   <img src={activeProfile.avatar_url} alt="" className="w-8 sm:w-9 h-8 sm:h-9 rounded-full object-cover" style={{ border: `2px solid ${getUserColor(activeProfile.username)}55` }} />
@@ -679,23 +685,14 @@ const DirectMessages = ({
                 )}
                 {isActiveOnline && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full border-2" style={{ background: "hsl(var(--chat-online))", borderColor: "hsl(var(--chat-header))" }} />}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 text-right">
                 <h2 className="font-bold text-xs sm:text-sm truncate" style={{ color: "hsl(var(--foreground))" }}>{activeProfile.username}</h2>
                 <p className="text-xs" style={{ color: typingUser ? "hsl(var(--primary))" : isActiveOnline ? "hsl(var(--chat-online))" : "hsl(var(--muted-foreground))" }}>
                   {typingUser ? "يكتب..." : isActiveOnline ? "متصل" : "غير متصل"}
                 </p>
               </div>
-            </div>
-            
-            <button onClick={handleBlockUser}
-              className={`p-2 rounded-lg transition-all active:scale-90 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm ${blockedByMe.has(activeConversation) ? 'opacity-70' : ''}`}
-              style={{ 
-                background: blockedByMe.has(activeConversation) ? "hsl(var(--destructive) / 0.1)" : "hsl(var(--secondary))",
-                color: blockedByMe.has(activeConversation) ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))"
-              }}>
-              <Ban className="w-3 sm:w-4 h-3 sm:h-4" />
-              <span className="hidden sm:inline">{blockedByMe.has(activeConversation) ? "إلغاء الحظر" : "حظر"}</span>
             </button>
+
             <button onClick={() => setShowConvoSettings(!showConvoSettings)}
               className="p-2 rounded-lg transition-all active:scale-90"
               style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
@@ -793,7 +790,22 @@ const DirectMessages = ({
                  <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
               </div>
             ) : (
-              conversationMessages.map((msg) => {
+              <>
+                {hasMoreMessages && (
+                  <div className="flex justify-center pb-2">
+                    <button onClick={loadOlderMessages} disabled={loadingOlder}
+                      className="flex items-center gap-2 px-4 py-2 rounded-full text-xs transition-all active:scale-95 disabled:opacity-50"
+                      style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                      {loadingOlder ? (
+                        <div className="w-3 h-3 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
+                      ) : (
+                        <ChevronUp className="w-3 h-3" />
+                      )}
+                      <span>تحميل رسائل أقدم</span>
+                    </button>
+                  </div>
+                )}
+                {conversationMessages.map((msg) => {
                 const isOwn = msg.sender_user_id === currentUserId;
                 const senderProfile = msg.sender_user_id ? getProfile(msg.sender_user_id) : { username: msg.sender_username, avatar_url: null, is_admin: false };
                 const msgReactions = dmReactions.filter(r => r.dm_id === msg.id);
@@ -806,12 +818,11 @@ const DirectMessages = ({
                 return (
                   <div key={msg.id}
                     ref={(el) => { if (el) messageRefs.current.set(msg.id, el); else messageRefs.current.delete(msg.id); }}
-                    className={`flex gap-1 sm:gap-2 animate-fade-in transition-colors duration-200 ${isOwn ? "flex-row-reverse" : "flex-row"}`}
+                    className={`flex gap-1 sm:gap-2 animate-fade-in transition-colors duration-300 rounded-xl ${isOwn ? "flex-row-reverse" : "flex-row"} ${highlightedMsgId === msg.id ? "ring-2 ring-primary/50" : ""}`}
                     onClick={() => handleMessageClick(msg.id)}
-                    onTouchStart={(e) => { handleTouchStartLongPress(msg.id); handleTouchStart(msg.id, e); }}
+                    onTouchStart={(e) => { handleTouchStart(msg.id, e); }}
                     onTouchMove={handleTouchMove}
-                    onTouchEnd={() => { handleTouchEndLongPress(); handleTouchEnd(); }}
-                    onTouchCancel={handleTouchEndLongPress}
+                    onTouchEnd={handleTouchEnd}
                     style={{ transform: swipeState?.msgId === msg.id ? `translateX(${swipeState.offset}px)` : 'none', transition: swipeState?.isSwiping ? 'none' : 'transform 0.2s ease' }}>
                     
                     <div className="flex-shrink-0 mt-1 hidden xs:block">
@@ -827,7 +838,10 @@ const DirectMessages = ({
                     <div className="relative max-w-[85vw] sm:max-w-[70vw]">
                       <div className={`space-y-1 flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
                         {msg.reply_to_content && (
-                          <div className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs max-w-full" style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: isOwn ? "2px solid hsl(var(--primary))" : undefined, borderLeft: !isOwn ? "2px solid hsl(var(--primary))" : undefined }}>
+                          <div
+                            onClick={(e) => { e.stopPropagation(); if (msg.reply_to_id) scrollToMessage(msg.reply_to_id); }}
+                            className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs max-w-full cursor-pointer hover:opacity-80 transition-opacity"
+                            style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: isOwn ? "2px solid hsl(var(--primary))" : undefined, borderLeft: !isOwn ? "2px solid hsl(var(--primary))" : undefined }}>
                              <p className="truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{msg.reply_to_content}</p>
                           </div>
                         )}
@@ -841,34 +855,11 @@ const DirectMessages = ({
                             />
                           )}
 
-                          {msg.content && msg.content.startsWith("🎮 GAME:") ? (
-                            (() => {
-                              const parts = msg.content.split(":");
-                              const gameType = parts[1];
-                              const gameId = parts[2];
-                              const gameProps = { gameId, currentUserId, profilesMap };
-                              let GameComponent: React.ComponentType<typeof gameProps> = TicTacToe;
-                              if (gameType === "rps") GameComponent = RockPaperScissors;
-                              else if (gameType === "connect4") GameComponent = ConnectFour;
-                              else if (gameType === "numberbattle") GameComponent = NumberBattle;
-                              else if (gameType === "coinflip") GameComponent = CoinFlip;
-                              else if (gameType === "colorguess") GameComponent = ColorGuess;
-                               else if (gameType === "mathchallenge") GameComponent = MathChallenge;
-                              return (
-                                <div className={`${isOwn ? "flex justify-end" : "flex justify-start"}`} onClick={(e) => e.stopPropagation()}>
-                                  <GameComponent {...gameProps} />
-                                </div>
-                               );
-                            })()
-                          ) : (
-                            <>
-                              {msg.content && msg.content !== "📷 صورة" && (
-                                 <div className={`px-3 sm:px-3 py-2 rounded-2xl text-sm break-words select-none ${isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"}`}
-                                  style={{ direction: "rtl", textAlign: "right", maxWidth: "100%" }}>
-                                  <LinkifiedText text={msg.content} />
-                                </div>
-                              )}
-                             </>
+                          {msg.content && msg.content !== "📷 صورة" && !msg.content.startsWith("🎮 GAME:") && (
+                            <div className={`px-3 sm:px-3 py-2 rounded-2xl text-sm break-words select-none ${isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"}`}
+                              style={{ direction: "rtl", textAlign: "right", maxWidth: "100%" }}>
+                              <LinkifiedText text={msg.content} />
+                            </div>
                           )}
 
                           {Object.keys(reactionGroups).length > 0 && (
@@ -902,49 +893,49 @@ const DirectMessages = ({
 
                        {showActionsForMsg === msg.id && (
                         <div ref={actionsMenuRef}
-                          className="fixed sm:absolute bottom-20 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-2 p-2 rounded-xl shadow-lg"
-                           style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 16px hsl(220 16% 4% / 0.6)", width: "auto", maxWidth: "90vw" }}
-                          onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => { setEmojiPickerMsg(msg.id); setShowActionsForMsg(null); }}
-                            className="p-2 rounded-lg flex items-center justify-center gap-1"
-                            style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-                            <Smile className="w-4 h-4" /><span className="text-xs">تفاعل</span>
-                          </button>
-                          <button onClick={() => { setReplyTo(msg); setShowActionsForMsg(null); }}
-                            className="p-2 rounded-lg flex items-center justify-center gap-1"
-                            style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-                            <Reply className="w-4 h-4" /><span className="text-xs">رد</span>
-                          </button>
-                          {isOwn && (
-                            <button onClick={() => handleDeleteMessage(msg.id)}
-                               className="p-2 rounded-lg flex items-center justify-center gap-1"
-                              style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}>
-                              <Trash2 className="w-4 h-4" /><span className="text-xs">حذف</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {emojiPickerMsg === msg.id && (
-                        <div className="fixed sm:absolute bottom-20 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-1 p-2 rounded-xl shadow-lg"
+                          className={`absolute z-50 flex flex-col gap-2 p-2 rounded-2xl shadow-lg animate-fade-in ${isOwn ? "right-0" : "left-0"} top-full mt-1`}
                           style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 16px hsl(220 16% 4% / 0.6)", width: "auto", maxWidth: "90vw" }}
                           onClick={(e) => e.stopPropagation()}>
-                          {EMOJIS.map((emoji) => {
-                            const myReaction = msgReactions.find((r) => r.emoji === emoji && r.user_id === currentUserId);
-                            return (
-                              <button key={emoji} onClick={() => handleDmReaction(msg.id, emoji)}
-                                className="w-8 h-8 flex items-center justify-center rounded-lg text-lg transition-all hover:scale-125 active:scale-90"
-                                 style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent" }}>
-                                {emoji}
+                          <div className="flex gap-1">
+                            {EMOJIS.map((emoji) => {
+                              const myReaction = msgReactions.find((r) => r.emoji === emoji && r.user_id === currentUserId);
+                              return (
+                                <button key={emoji} onClick={() => handleDmReaction(msg.id, emoji)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg text-lg transition-all hover:scale-125 active:scale-90"
+                                  style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent" }}>
+                                  {emoji}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="flex gap-2 border-t pt-2" style={{ borderColor: "hsl(var(--border))" }}>
+                            <button onClick={() => { setReplyTo(msg); setShowActionsForMsg(null); }}
+                              className="flex-1 p-2 rounded-lg flex items-center justify-center gap-1"
+                              style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                              <Reply className="w-4 h-4" /><span className="text-xs">رد</span>
+                            </button>
+                            {msg.content && msg.content !== "📷 صورة" && (
+                              <button onClick={() => handleCopyMessage(msg.content)}
+                                className="flex-1 p-2 rounded-lg flex items-center justify-center gap-1"
+                                style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                                <Copy className="w-4 h-4" /><span className="text-xs">نسخ</span>
                               </button>
-                             );
-                          })}
+                            )}
+                            {isOwn && (
+                              <button onClick={() => handleDeleteMessage(msg.id)}
+                                className="flex-1 p-2 rounded-lg flex items-center justify-center gap-1"
+                                style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}>
+                                <Trash2 className="w-4 h-4" /><span className="text-xs">حذف</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
                   </div>
                 );
-              })
+                })}
+              </>
             )}
             <div ref={bottomRef} />
           </div>
@@ -1015,37 +1006,6 @@ const DirectMessages = ({
                   <Camera className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
                 </button>
 
-                {/* Game button */}
-                <div className="relative">
-                  <button onClick={() => setShowGameMenu(!showGameMenu)}
-                    className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90"
-                    style={{ background: showGameMenu ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))" }}>
-                    <Gamepad2 className="w-4 h-4" style={{ color: showGameMenu ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }} />
-                  </button>
-                  
-                  {showGameMenu && (
-                    <div className="absolute bottom-12 left-0 z-50 p-2 rounded-xl animate-fade-in min-w-[160px]"
-                      style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
-                      {[
-                        { type: "tictactoe", icon: "⭕", name: "XO لعبة" },
-                        { type: "rps", icon: "✊", name: "حجر ورقة مقص" },
-                        { type: "connect4", icon: "🔴", name: "صل أربعة" },
-                        { type: "numberbattle", icon: "🔢", name: "معركة الأرقام" },
-                        { type: "coinflip", icon: "🪙", name: "رمي العملة" },
-                        { type: "colorguess", icon: "🎨", name: "تخمين اللون" },
-                        { type: "mathchallenge", icon: "📐", name: "تحدي الرياضيات" },
-                      ].map((game) => (
-                         <button key={game.type} onClick={() => handleSendGameInvite(game.type)}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-right hover:opacity-80 transition-opacity"
-                          style={{ color: "hsl(var(--foreground))" }}>
-                           <span className="text-base">{game.icon}</span>
-                          <span className="text-xs font-medium">{game.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 <textarea ref={inputRef} value={input}
                   onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; handleDmTyping(); }}
                   placeholder="اكتب رسالتك..."
@@ -1112,6 +1072,21 @@ const DirectMessages = ({
             </button>
           </div>
         </div>
+      )}
+
+      {showProfileModal && activeConversation && activeProfile && (
+        <UserProfileModal
+          userId={activeConversation}
+          username={activeProfile.username}
+          avatarUrl={activeProfile.avatar_url}
+          currentUserId={currentUserId}
+          isOnline={isActiveOnline}
+          isAdmin={(activeProfile as any).is_admin}
+          isCurrentUserAdmin={isAdmin}
+          allowDms={(activeProfile as any).allow_dms !== false}
+          onClose={() => setShowProfileModal(false)}
+          onStartDM={() => setShowProfileModal(false)}
+        />
       )}
     </div>
   );
