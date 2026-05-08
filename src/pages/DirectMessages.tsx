@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, Reply, CornerUpLeft, X, Camera, Trash2, Settings, Copy, ChevronUp } from "lucide-react";
+import { Send, Reply, CornerUpLeft, X, Camera, Trash2, Settings, Copy, ChevronUp, Smile, Ban } from "lucide-react";
 import { playSound } from "@/lib/sounds";
 import LinkifiedText from "@/components/LinkifiedText";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
@@ -803,12 +803,11 @@ const DirectMessages = ({
                 return (
                   <div key={msg.id}
                     ref={(el) => { if (el) messageRefs.current.set(msg.id, el); else messageRefs.current.delete(msg.id); }}
-                    className={`flex gap-1 sm:gap-2 animate-fade-in transition-colors duration-200 ${isOwn ? "flex-row-reverse" : "flex-row"}`}
+                    className={`flex gap-1 sm:gap-2 animate-fade-in transition-colors duration-300 rounded-xl ${isOwn ? "flex-row-reverse" : "flex-row"} ${highlightedMsgId === msg.id ? "ring-2 ring-primary/50" : ""}`}
                     onClick={() => handleMessageClick(msg.id)}
-                    onTouchStart={(e) => { handleTouchStartLongPress(msg.id); handleTouchStart(msg.id, e); }}
+                    onTouchStart={(e) => { handleTouchStart(msg.id, e); }}
                     onTouchMove={handleTouchMove}
-                    onTouchEnd={() => { handleTouchEndLongPress(); handleTouchEnd(); }}
-                    onTouchCancel={handleTouchEndLongPress}
+                    onTouchEnd={handleTouchEnd}
                     style={{ transform: swipeState?.msgId === msg.id ? `translateX(${swipeState.offset}px)` : 'none', transition: swipeState?.isSwiping ? 'none' : 'transform 0.2s ease' }}>
                     
                     <div className="flex-shrink-0 mt-1 hidden xs:block">
@@ -824,7 +823,10 @@ const DirectMessages = ({
                     <div className="relative max-w-[85vw] sm:max-w-[70vw]">
                       <div className={`space-y-1 flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
                         {msg.reply_to_content && (
-                          <div className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs max-w-full" style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: isOwn ? "2px solid hsl(var(--primary))" : undefined, borderLeft: !isOwn ? "2px solid hsl(var(--primary))" : undefined }}>
+                          <div
+                            onClick={(e) => { e.stopPropagation(); if (msg.reply_to_id) scrollToMessage(msg.reply_to_id); }}
+                            className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs max-w-full cursor-pointer hover:opacity-80 transition-opacity"
+                            style={{ background: "hsl(var(--chat-reply-bg))", border: "1px solid hsl(var(--border))", borderRight: isOwn ? "2px solid hsl(var(--primary))" : undefined, borderLeft: !isOwn ? "2px solid hsl(var(--primary))" : undefined }}>
                              <p className="truncate" style={{ color: "hsl(var(--muted-foreground))" }}>{msg.reply_to_content}</p>
                           </div>
                         )}
@@ -838,34 +840,11 @@ const DirectMessages = ({
                             />
                           )}
 
-                          {msg.content && msg.content.startsWith("🎮 GAME:") ? (
-                            (() => {
-                              const parts = msg.content.split(":");
-                              const gameType = parts[1];
-                              const gameId = parts[2];
-                              const gameProps = { gameId, currentUserId, profilesMap };
-                              let GameComponent: React.ComponentType<typeof gameProps> = TicTacToe;
-                              if (gameType === "rps") GameComponent = RockPaperScissors;
-                              else if (gameType === "connect4") GameComponent = ConnectFour;
-                              else if (gameType === "numberbattle") GameComponent = NumberBattle;
-                              else if (gameType === "coinflip") GameComponent = CoinFlip;
-                              else if (gameType === "colorguess") GameComponent = ColorGuess;
-                               else if (gameType === "mathchallenge") GameComponent = MathChallenge;
-                              return (
-                                <div className={`${isOwn ? "flex justify-end" : "flex justify-start"}`} onClick={(e) => e.stopPropagation()}>
-                                  <GameComponent {...gameProps} />
-                                </div>
-                               );
-                            })()
-                          ) : (
-                            <>
-                              {msg.content && msg.content !== "📷 صورة" && (
-                                 <div className={`px-3 sm:px-3 py-2 rounded-2xl text-sm break-words select-none ${isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"}`}
-                                  style={{ direction: "rtl", textAlign: "right", maxWidth: "100%" }}>
-                                  <LinkifiedText text={msg.content} />
-                                </div>
-                              )}
-                             </>
+                          {msg.content && msg.content !== "📷 صورة" && !msg.content.startsWith("🎮 GAME:") && (
+                            <div className={`px-3 sm:px-3 py-2 rounded-2xl text-sm break-words select-none ${isOwn ? "rounded-tr-sm chat-bubble-own" : "rounded-tl-sm chat-bubble-other"}`}
+                              style={{ direction: "rtl", textAlign: "right", maxWidth: "100%" }}>
+                              <LinkifiedText text={msg.content} />
+                            </div>
                           )}
 
                           {Object.keys(reactionGroups).length > 0 && (
@@ -899,43 +878,42 @@ const DirectMessages = ({
 
                        {showActionsForMsg === msg.id && (
                         <div ref={actionsMenuRef}
-                          className="fixed sm:absolute bottom-20 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-2 p-2 rounded-xl shadow-lg"
-                           style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 16px hsl(220 16% 4% / 0.6)", width: "auto", maxWidth: "90vw" }}
-                          onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => { setEmojiPickerMsg(msg.id); setShowActionsForMsg(null); }}
-                            className="p-2 rounded-lg flex items-center justify-center gap-1"
-                            style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-                            <Smile className="w-4 h-4" /><span className="text-xs">تفاعل</span>
-                          </button>
-                          <button onClick={() => { setReplyTo(msg); setShowActionsForMsg(null); }}
-                            className="p-2 rounded-lg flex items-center justify-center gap-1"
-                            style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
-                            <Reply className="w-4 h-4" /><span className="text-xs">رد</span>
-                          </button>
-                          {isOwn && (
-                            <button onClick={() => handleDeleteMessage(msg.id)}
-                               className="p-2 rounded-lg flex items-center justify-center gap-1"
-                              style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}>
-                              <Trash2 className="w-4 h-4" /><span className="text-xs">حذف</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {emojiPickerMsg === msg.id && (
-                        <div className="fixed sm:absolute bottom-20 sm:bottom-auto left-1/2 sm:left-auto transform -translate-x-1/2 sm:translate-x-0 z-50 flex gap-1 p-2 rounded-xl shadow-lg"
+                          className={`absolute z-50 flex flex-col gap-2 p-2 rounded-2xl shadow-lg animate-fade-in ${isOwn ? "right-0" : "left-0"} top-full mt-1`}
                           style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 16px hsl(220 16% 4% / 0.6)", width: "auto", maxWidth: "90vw" }}
                           onClick={(e) => e.stopPropagation()}>
-                          {EMOJIS.map((emoji) => {
-                            const myReaction = msgReactions.find((r) => r.emoji === emoji && r.user_id === currentUserId);
-                            return (
-                              <button key={emoji} onClick={() => handleDmReaction(msg.id, emoji)}
-                                className="w-8 h-8 flex items-center justify-center rounded-lg text-lg transition-all hover:scale-125 active:scale-90"
-                                 style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent" }}>
-                                {emoji}
+                          <div className="flex gap-1">
+                            {EMOJIS.map((emoji) => {
+                              const myReaction = msgReactions.find((r) => r.emoji === emoji && r.user_id === currentUserId);
+                              return (
+                                <button key={emoji} onClick={() => handleDmReaction(msg.id, emoji)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg text-lg transition-all hover:scale-125 active:scale-90"
+                                  style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "transparent", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid transparent" }}>
+                                  {emoji}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="flex gap-2 border-t pt-2" style={{ borderColor: "hsl(var(--border))" }}>
+                            <button onClick={() => { setReplyTo(msg); setShowActionsForMsg(null); }}
+                              className="flex-1 p-2 rounded-lg flex items-center justify-center gap-1"
+                              style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                              <Reply className="w-4 h-4" /><span className="text-xs">رد</span>
+                            </button>
+                            {msg.content && msg.content !== "📷 صورة" && (
+                              <button onClick={() => handleCopyMessage(msg.content)}
+                                className="flex-1 p-2 rounded-lg flex items-center justify-center gap-1"
+                                style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                                <Copy className="w-4 h-4" /><span className="text-xs">نسخ</span>
                               </button>
-                             );
-                          })}
+                            )}
+                            {isOwn && (
+                              <button onClick={() => handleDeleteMessage(msg.id)}
+                                className="flex-1 p-2 rounded-lg flex items-center justify-center gap-1"
+                                style={{ background: "hsl(var(--destructive) / 0.1)", border: "1px solid hsl(var(--destructive) / 0.3)", color: "hsl(var(--destructive))" }}>
+                                <Trash2 className="w-4 h-4" /><span className="text-xs">حذف</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
