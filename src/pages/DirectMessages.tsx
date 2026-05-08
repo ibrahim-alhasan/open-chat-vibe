@@ -1073,6 +1073,21 @@ const DirectMessages = ({
           </div>
         </div>
       )}
+
+      {showProfileModal && activeConversation && activeProfile && (
+        <UserProfileModal
+          userId={activeConversation}
+          username={activeProfile.username}
+          avatarUrl={activeProfile.avatar_url}
+          currentUserId={currentUserId}
+          isOnline={isActiveOnline}
+          isAdmin={(activeProfile as any).is_admin}
+          isCurrentUserAdmin={isAdmin}
+          allowDms={(activeProfile as any).allow_dms !== false}
+          onClose={() => setShowProfileModal(false)}
+          onStartDM={() => setShowProfileModal(false)}
+        />
+      )}
     </div>
   );
 };
