@@ -586,7 +586,6 @@ const DirectMessages = ({
   };
 
   const handleDmReaction = async (dmId: string, emoji: string) => {
-    setEmojiPickerMsg(null);
     setShowActionsForMsg(null);
     const existing = dmReactions.find((r) => r.dm_id === dmId && r.emoji === emoji && r.user_id === currentUserId);
     if (existing) {
