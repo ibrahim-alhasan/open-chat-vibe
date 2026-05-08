@@ -990,37 +990,6 @@ const DirectMessages = ({
                   <Camera className="w-4 h-4" style={{ color: "hsl(var(--muted-foreground))" }} />
                 </button>
 
-                {/* Game button */}
-                <div className="relative">
-                  <button onClick={() => setShowGameMenu(!showGameMenu)}
-                    className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90"
-                    style={{ background: showGameMenu ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))" }}>
-                    <Gamepad2 className="w-4 h-4" style={{ color: showGameMenu ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }} />
-                  </button>
-                  
-                  {showGameMenu && (
-                    <div className="absolute bottom-12 left-0 z-50 p-2 rounded-xl animate-fade-in min-w-[160px]"
-                      style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>
-                      {[
-                        { type: "tictactoe", icon: "⭕", name: "XO لعبة" },
-                        { type: "rps", icon: "✊", name: "حجر ورقة مقص" },
-                        { type: "connect4", icon: "🔴", name: "صل أربعة" },
-                        { type: "numberbattle", icon: "🔢", name: "معركة الأرقام" },
-                        { type: "coinflip", icon: "🪙", name: "رمي العملة" },
-                        { type: "colorguess", icon: "🎨", name: "تخمين اللون" },
-                        { type: "mathchallenge", icon: "📐", name: "تحدي الرياضيات" },
-                      ].map((game) => (
-                         <button key={game.type} onClick={() => handleSendGameInvite(game.type)}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-right hover:opacity-80 transition-opacity"
-                          style={{ color: "hsl(var(--foreground))" }}>
-                           <span className="text-base">{game.icon}</span>
-                          <span className="text-xs font-medium">{game.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 <textarea ref={inputRef} value={input}
                   onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; handleDmTyping(); }}
                   placeholder="اكتب رسالتك..."
