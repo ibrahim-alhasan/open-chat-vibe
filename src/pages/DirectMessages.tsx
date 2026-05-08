@@ -1,17 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, ChevronLeft, Reply, CornerUpLeft, X, Ban, Camera, Smile, Gamepad2, Trash2, Settings } from "lucide-react";
+import { Send, Reply, CornerUpLeft, X, Camera, Trash2, Settings, Copy, ChevronUp } from "lucide-react";
 import { playSound } from "@/lib/sounds";
 import LinkifiedText from "@/components/LinkifiedText";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
-import TicTacToe from "@/components/TicTacToe";
-import RockPaperScissors from "@/components/RockPaperScissors";
-import ConnectFour from "@/components/ConnectFour";
-import NumberBattle from "@/components/NumberBattle";
-import CoinFlip from "@/components/CoinFlip";
-import ColorGuess from "@/components/ColorGuess";
-import MathChallenge from "@/components/MathChallenge";
+import UserProfileModal from "@/components/UserProfileModal";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 
@@ -123,7 +117,6 @@ const DirectMessages = ({
   const [loading, setLoading] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [hoveredMsg, setHoveredMsg] = useState<string | null>(null);
-  const [emojiPickerMsg, setEmojiPickerMsg] = useState<string | null>(null);
   const [blockedByMe, setBlockedByMe] = useState<Set<string>>(new Set());
   const [blockedMe, setBlockedMe] = useState<Set<string>>(new Set());
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -132,12 +125,14 @@ const DirectMessages = ({
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [showActionsForMsg, setShowActionsForMsg] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const [showGameMenu, setShowGameMenu] = useState(false);
   const [typingUser, setTypingUser] = useState(false);
   const [showConvoSettings, setShowConvoSettings] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
   const [showAdminAlert, setShowAdminAlert] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
 
   // Swipe state
   const [swipeState, setSwipeState] = useState<{ 
@@ -167,7 +162,6 @@ const DirectMessages = ({
     const handleClickOutside = (event: MouseEvent) => {
       if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target as Node)) {
         setShowActionsForMsg(null);
-        setEmojiPickerMsg(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -269,19 +263,59 @@ const DirectMessages = ({
       .from("direct_messages")
       .select("*")
       .or(`and(sender_user_id.eq.${currentUserId},receiver_user_id.eq.${otherUserId}),and(sender_user_id.eq.${otherUserId},receiver_user_id.eq.${currentUserId})`)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .limit(100);
 
-    setConversationMessages(data as DirectMessage[] || []);
-    
+    const ordered = ((data as DirectMessage[]) || []).slice().reverse();
+    setConversationMessages(ordered);
+    setHasMoreMessages((data?.length || 0) === 100);
+
     // Load reactions for these messages
-    if (data && data.length > 0) {
-      const msgIds = data.map((m: any) => m.id);
+    if (ordered.length > 0) {
+      const msgIds = ordered.map((m) => m.id);
       const { data: reactionsData } = await supabase.from("dm_reactions").select("*").in("dm_id", msgIds);
       if (reactionsData) setDmReactions(reactionsData as DmReaction[]);
     }
     
     setLoadingMessages(false);
     setTimeout(() => scrollToBottom(), 100);
+  };
+
+  const loadOlderMessages = async () => {
+    if (!activeConversation || loadingOlder || !hasMoreMessages || conversationMessages.length === 0) return;
+    setLoadingOlder(true);
+    const oldest = conversationMessages[0];
+    const { data } = await supabase
+      .from("direct_messages")
+      .select("*")
+      .or(`and(sender_user_id.eq.${currentUserId},receiver_user_id.eq.${activeConversation}),and(sender_user_id.eq.${activeConversation},receiver_user_id.eq.${currentUserId})`)
+      .lt("created_at", oldest.created_at)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    const older = ((data as DirectMessage[]) || []).slice().reverse();
+    setConversationMessages((prev) => {
+      const ids = new Set(prev.map((m) => m.id));
+      return [...older.filter((m) => !ids.has(m.id)), ...prev];
+    });
+    setHasMoreMessages((data?.length || 0) === 100);
+    if (older.length > 0) {
+      const msgIds = older.map((m) => m.id);
+      const { data: reactionsData } = await supabase.from("dm_reactions").select("*").in("dm_id", msgIds);
+      if (reactionsData) setDmReactions((prev) => {
+        const ids = new Set(prev.map((r) => r.id));
+        return [...prev, ...(reactionsData as DmReaction[]).filter((r) => !ids.has(r.id))];
+      });
+    }
+    setLoadingOlder(false);
+  };
+
+  const scrollToMessage = (msgId: string) => {
+    const el = messageRefs.current.get(msgId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightedMsgId(msgId);
+      setTimeout(() => setHighlightedMsgId(null), 1500);
+    }
   };
 
   // When active conversation changes, load its messages
@@ -571,31 +605,8 @@ const DirectMessages = ({
     }
   };
 
-  const handleSendGameInvite = async (gameType: string) => {
-    if (!activeConversation) return;
-    setShowGameMenu(false);
-    let initialBoard = "---------";
-    if (gameType === "rps" || gameType === "numberbattle") initialBoard = "-:-";
-    else if (gameType === "coinflip") initialBoard = "-:-:-";
-    else if (gameType === "colorguess") initialBoard = "-:-";
-    else if (gameType === "mathchallenge") initialBoard = "pending";
-    else if (gameType === "connect4") initialBoard = "-".repeat(42);
-    
-    const { data: game } = await supabase.from("games").insert({
-      game_type: gameType, player_x: currentUserId, current_turn: currentUserId, status: "pending", board: initialBoard,
-    }).select().single();
-
-    if (!game) return;
-    const receiverProfile = getProfile(activeConversation);
-    await supabase.from("direct_messages").insert({
-      sender_username: currentUsername, receiver_username: receiverProfile.username,
-      sender_user_id: currentUserId, receiver_user_id: activeConversation,
-      content: `🎮 GAME:${gameType}:${game.id}`,
-    });
-  };
-
   const handleTouchStart = (msgId: string, e: React.TouchEvent) => {
-    if (showActionsForMsg || emojiPickerMsg) return;
+    if (showActionsForMsg) return;
     const touch = e.touches[0];
     setSwipeState({ msgId, offset: 0, startX: touch.clientX, startTime: Date.now(), isSwiping: true });
   };
@@ -631,19 +642,15 @@ const DirectMessages = ({
     setSwipeState(null);
   };
 
-  const handleTouchStartLongPress = (msgId: string) => {
-    if (swipeState?.isSwiping) return;
-    const timer = setTimeout(() => { setShowActionsForMsg(showActionsForMsg === msgId ? null : msgId); }, 500);
-    setLongPressTimer(timer);
-  };
-
-  const handleTouchEndLongPress = () => {
-    if (longPressTimer) { clearTimeout(longPressTimer); setLongPressTimer(null); }
-  };
-
   const handleMessageClick = (msgId: string) => {
-    if (emojiPickerMsg === msgId) { setEmojiPickerMsg(null); setShowActionsForMsg(null); }
-    else { setEmojiPickerMsg(msgId); setShowActionsForMsg(null); }
+    setShowActionsForMsg((prev) => (prev === msgId ? null : msgId));
+  };
+
+  const handleCopyMessage = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+    } catch {}
+    setShowActionsForMsg(null);
   };
 
   const activeProfile = activeConversation ? getProfile(activeConversation) : null;
