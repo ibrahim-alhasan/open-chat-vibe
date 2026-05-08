@@ -674,7 +674,7 @@ const DirectMessages = ({
         style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
         {activeConversation && activeProfile ? (
           <div className="flex items-center justify-between flex-1">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button onClick={() => setShowProfileModal(true)} className="flex items-center gap-2 sm:gap-3 min-w-0 hover:opacity-80 transition-opacity active:scale-95">
               <div className="relative flex-shrink-0">
                 {activeProfile.avatar_url ? (
                   <img src={activeProfile.avatar_url} alt="" className="w-8 sm:w-9 h-8 sm:h-9 rounded-full object-cover" style={{ border: `2px solid ${getUserColor(activeProfile.username)}55` }} />
@@ -685,23 +685,14 @@ const DirectMessages = ({
                 )}
                 {isActiveOnline && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 sm:w-3 h-2.5 sm:h-3 rounded-full border-2" style={{ background: "hsl(var(--chat-online))", borderColor: "hsl(var(--chat-header))" }} />}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 text-right">
                 <h2 className="font-bold text-xs sm:text-sm truncate" style={{ color: "hsl(var(--foreground))" }}>{activeProfile.username}</h2>
                 <p className="text-xs" style={{ color: typingUser ? "hsl(var(--primary))" : isActiveOnline ? "hsl(var(--chat-online))" : "hsl(var(--muted-foreground))" }}>
                   {typingUser ? "يكتب..." : isActiveOnline ? "متصل" : "غير متصل"}
                 </p>
               </div>
-            </div>
-            
-            <button onClick={handleBlockUser}
-              className={`p-2 rounded-lg transition-all active:scale-90 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm ${blockedByMe.has(activeConversation) ? 'opacity-70' : ''}`}
-              style={{ 
-                background: blockedByMe.has(activeConversation) ? "hsl(var(--destructive) / 0.1)" : "hsl(var(--secondary))",
-                color: blockedByMe.has(activeConversation) ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))"
-              }}>
-              <Ban className="w-3 sm:w-4 h-3 sm:h-4" />
-              <span className="hidden sm:inline">{blockedByMe.has(activeConversation) ? "إلغاء الحظر" : "حظر"}</span>
             </button>
+
             <button onClick={() => setShowConvoSettings(!showConvoSettings)}
               className="p-2 rounded-lg transition-all active:scale-90"
               style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
