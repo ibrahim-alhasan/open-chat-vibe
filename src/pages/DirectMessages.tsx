@@ -790,7 +790,22 @@ const DirectMessages = ({
                  <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
               </div>
             ) : (
-              conversationMessages.map((msg) => {
+              <>
+                {hasMoreMessages && (
+                  <div className="flex justify-center pb-2">
+                    <button onClick={loadOlderMessages} disabled={loadingOlder}
+                      className="flex items-center gap-2 px-4 py-2 rounded-full text-xs transition-all active:scale-95 disabled:opacity-50"
+                      style={{ background: "hsl(var(--secondary))", border: "1px solid hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                      {loadingOlder ? (
+                        <div className="w-3 h-3 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
+                      ) : (
+                        <ChevronUp className="w-3 h-3" />
+                      )}
+                      <span>تحميل رسائل أقدم</span>
+                    </button>
+                  </div>
+                )}
+                {conversationMessages.map((msg) => {
                 const isOwn = msg.sender_user_id === currentUserId;
                 const senderProfile = msg.sender_user_id ? getProfile(msg.sender_user_id) : { username: msg.sender_username, avatar_url: null, is_admin: false };
                 const msgReactions = dmReactions.filter(r => r.dm_id === msg.id);
@@ -919,7 +934,8 @@ const DirectMessages = ({
                     </div>
                   </div>
                 );
-              })
+                })}
+              </>
             )}
             <div ref={bottomRef} />
           </div>
