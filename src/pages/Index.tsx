@@ -808,7 +808,7 @@ const Index = () => {
   const uploadPublicFile = async (file: File): Promise<{ url: string; name: string; type: string } | null> => {
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${userId}_${Date.now()}.${fileExt}`;
+      const fileName = `${userId}/${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from('public_chat_files').upload(fileName, file);
       if (uploadError) return null;
       return { url: fileName, name: file.name, type: file.type };
