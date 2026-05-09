@@ -477,7 +477,7 @@ const DirectMessages = ({
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${currentUserId}_${Date.now()}.${fileExt}`;
+      const fileName = `${currentUserId}/${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from('direct_message_images').upload(fileName, file);
       if (uploadError) return null;
       return fileName;
