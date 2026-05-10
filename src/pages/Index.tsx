@@ -807,12 +807,26 @@ const Index = () => {
 
   const uploadPublicFile = async (file: File): Promise<{ url: string; name: string; type: string } | null> => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${userId}/${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('public_chat_files').upload(fileName, file);
-      if (uploadError) return null;
+      const mimeExt = file.type && file.type.includes("/") ? file.type.split("/")[1].split("+")[0] : "";
+      const nameParts = file.name.split(".");
+      const nameExt = nameParts.length > 1 ? nameParts.pop()!.toLowerCase() : "";
+      const ext = (nameExt || mimeExt || "bin").replace(/[^a-z0-9]/gi, "").slice(0, 8) || "bin";
+      const fileName = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('public_chat_files')
+        .upload(fileName, file, {
+          contentType: file.type || undefined,
+          upsert: false,
+        });
+      if (uploadError) {
+        console.error("Public file upload failed:", uploadError);
+        return null;
+      }
       return { url: fileName, name: file.name, type: file.type };
-    } catch { return null; }
+    } catch (err) {
+      console.error("Public file upload exception:", err);
+      return null;
+    }
   };
 
   const handleSend = async () => {

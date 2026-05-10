@@ -476,12 +476,27 @@ const DirectMessages = ({
 
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${currentUserId}/${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('direct_message_images').upload(fileName, file);
-      if (uploadError) return null;
+      // Derive a safe extension: prefer MIME type, fall back to file name
+      const mimeExt = file.type && file.type.includes("/") ? file.type.split("/")[1].split("+")[0] : "";
+      const nameParts = file.name.split(".");
+      const nameExt = nameParts.length > 1 ? nameParts.pop()!.toLowerCase() : "";
+      const ext = (nameExt || mimeExt || "jpg").replace(/[^a-z0-9]/gi, "").slice(0, 8) || "jpg";
+      const fileName = `${currentUserId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('direct_message_images')
+        .upload(fileName, file, {
+          contentType: file.type || `image/${ext}`,
+          upsert: false,
+        });
+      if (uploadError) {
+        console.error("DM image upload failed:", uploadError);
+        return null;
+      }
       return fileName;
-    } catch { return null; }
+    } catch (err) {
+      console.error("DM image upload exception:", err);
+      return null;
+    }
   };
 
   const handleSend = async () => {
@@ -504,6 +519,16 @@ const DirectMessages = ({
     
     if (selectedImage) {
       imageUrl = await uploadImage(selectedImage);
+      if (!imageUrl) {
+        // Upload failed — do NOT insert a message with a broken image reference
+        alert("تعذر رفع الصورة. تحقق من اتصالك بالإنترنت أو حجم الصورة وأعد المحاولة.");
+        setSending(false);
+        setUploadingImage(false);
+        // Restore the text the user typed so they don't lose it
+        if (content) setInput(content);
+        if (currentReply) setReplyTo(currentReply);
+        return;
+      }
       imageName = selectedImage.name;
       setSelectedImage(null);
       setImagePreview(null);
