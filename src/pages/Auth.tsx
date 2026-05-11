@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, MessageCircle, Shield, Save } from "lucide-react";
+import { Loader2, MessageCircle, Shield, Save, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 
 const signUpSchema = z.object({
@@ -30,6 +30,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user) navigate("/", { replace: true });
@@ -74,11 +75,22 @@ const Auth = () => {
         if (error) throw error;
       }
     } catch (err: any) {
-      const msg = err?.message?.includes("Invalid login")
-        ? "البريد أو كلمة السر غير صحيحة"
-        : err?.message?.includes("already registered")
-          ? "هذا البريد مسجل مسبقاً"
-          : err?.message || "حدث خطأ";
+      console.error("Auth error:", err);
+      const raw = (err?.message || "").toLowerCase();
+      let msg = err?.message || "حدث خطأ";
+      if (raw.includes("invalid login") || raw.includes("invalid credentials")) {
+        msg = "البريد أو كلمة السر غير صحيحة";
+      } else if (raw.includes("email not confirmed") || raw.includes("not confirmed")) {
+        msg = "يجب تأكيد البريد الإلكتروني أولاً. تحقق من بريدك.";
+      } else if (raw.includes("already registered") || raw.includes("user already")) {
+        msg = "هذا البريد مسجل مسبقاً";
+      } else if (raw.includes("rate limit") || raw.includes("too many")) {
+        msg = "محاولات كثيرة، حاول لاحقاً";
+      } else if (raw.includes("password") && raw.includes("short")) {
+        msg = "كلمة السر قصيرة جداً";
+      } else if (raw.includes("network") || raw.includes("fetch")) {
+        msg = "تعذر الاتصال بالخادم، تحقق من الإنترنت";
+      }
       toast({ title: "تعذر إتمام العملية", description: msg, variant: "destructive" });
     } finally {
       setSubmitting(false);
@@ -169,17 +181,28 @@ const Auth = () => {
             </div>
             <div className="space-y-1">
               <Label htmlFor="password" className="text-xs">كلمة السر</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                dir="ltr"
-                className="h-10 text-sm"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  dir="ltr"
+                  className="h-10 text-sm pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                  aria-label={showPassword ? "إخفاء كلمة السر" : "إظهار كلمة السر"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <div className="flex-1" />
