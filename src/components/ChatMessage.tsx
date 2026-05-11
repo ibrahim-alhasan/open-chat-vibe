@@ -290,6 +290,7 @@ const ChatMessage = memo(({
   
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [reactorsPopup, setReactorsPopup] = useState<string | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const [showReplyIndicator, setShowReplyIndicator] = useState(false);
@@ -312,9 +313,18 @@ const ChatMessage = memo(({
     setShowEmojiPicker(false);
     setShowActionsMenu(false);
     if (!currentUserId) return;
-    const existing = reactions.find((r) => r.emoji === emoji && (r as any).user_id === currentUserId);
-    if (existing) await supabase.from("reactions").delete().eq("id", existing.id);
-    else await supabase.from("reactions").insert({ message_id: message.id, user_id: currentUserId, username: currentUsername || "", emoji });
+    // Find any existing reaction by this user on this message (only one allowed)
+    const myExisting = reactions.find((r) => (r as any).user_id === currentUserId);
+    if (myExisting && myExisting.emoji === emoji) {
+      // Same emoji tapped → remove
+      await supabase.from("reactions").delete().eq("id", myExisting.id);
+      return;
+    }
+    if (myExisting) {
+      // Different emoji → replace
+      await supabase.from("reactions").delete().eq("id", myExisting.id);
+    }
+    await supabase.from("reactions").insert({ message_id: message.id, user_id: currentUserId, username: currentUsername || "", emoji });
   };
 
   const handleDelete = async () => {
@@ -341,6 +351,17 @@ const ChatMessage = memo(({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!reactorsPopup) return;
+    const close = (e: MouseEvent) => {
+      if (messageRef.current && !messageRef.current.contains(e.target as Node)) {
+        setReactorsPopup(null);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [reactorsPopup]);
 
   useEffect(() => {
     if (!isSwiping && swipeOffset > 0) {
@@ -572,17 +593,46 @@ const ChatMessage = memo(({
 
         {/* Reactions */}
         {Object.keys(reactionGroups).length > 0 && (
-          <div className={`flex flex-wrap gap-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+          <div className={`flex flex-wrap gap-1 relative ${isOwn ? "justify-end" : "justify-start"}`}>
             {Object.entries(reactionGroups).map(([emoji, group]) => {
               const myReaction = group.find((r) => (r as any).user_id === currentUserId);
               return (
-                <button key={emoji} onClick={(e) => { e.stopPropagation(); handleReaction(emoji); }}
+                <button key={emoji} onClick={(e) => { e.stopPropagation(); setReactorsPopup(reactorsPopup === emoji ? null : emoji); }}
                   className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] hover:scale-105 active:scale-95"
                   style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid hsl(var(--border))" }}>
                   <span>{emoji}</span><span style={{ color: "hsl(var(--foreground))" }}>{group.length}</span>
                 </button>
               );
             })}
+            {reactorsPopup && reactionGroups[reactorsPopup] && (
+              <div className={`absolute z-[9999] top-full mt-1 ${isOwn ? "right-0" : "left-0"} animate-fade-in`}
+                style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "10px", boxShadow: "0 4px 20px rgba(0,0,0,0.4)", minWidth: "160px", maxWidth: "240px" }}
+                onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-2.5 py-1.5 border-b" style={{ borderColor: "hsl(var(--border))" }}>
+                  <span className="text-sm">{reactorsPopup}</span>
+                  <span className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    {reactionGroups[reactorsPopup].length} تفاعل
+                  </span>
+                </div>
+                <div className="max-h-44 overflow-y-auto py-1">
+                  {reactionGroups[reactorsPopup].map((r) => {
+                    const uid = (r as any).user_id as string | undefined;
+                    const name = (uid && profilesMap[uid]?.username) || r.username || "مستخدم";
+                    const isMe = uid === currentUserId;
+                    return (
+                      <div key={r.id} className="flex items-center gap-2 px-2.5 py-1.5 text-[12px]"
+                        style={{ color: "hsl(var(--foreground))" }}>
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0"
+                          style={{ background: `${getUserColor(name)}25`, color: getUserColor(name) }}>
+                          {getInitials(name)}
+                        </div>
+                        <span className="truncate flex-1">{isMe ? "أنت" : name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
