@@ -590,51 +590,93 @@ const ChatMessage = memo(({
             </div>
           )}
         </div>
-
-        {/* Reactions */}
-        {Object.keys(reactionGroups).length > 0 && (
-          <div className={`flex flex-wrap gap-1 relative ${isOwn ? "justify-end" : "justify-start"}`}>
-            {Object.entries(reactionGroups).map(([emoji, group]) => {
-              const myReaction = group.find((r) => (r as any).user_id === currentUserId);
+{/* Reactions */}
+{Object.keys(reactionGroups).length > 0 && (
+  <div className={`flex flex-wrap gap-1 relative ${isOwn ? "justify-end" : "justify-start"}`}>
+    {Object.entries(reactionGroups).map(([emoji, group]) => {
+      const myReaction = group.find((r) => (r as any).user_id === currentUserId);
+      return (
+        <button key={emoji} onClick={(e) => { e.stopPropagation(); setReactorsPopup(reactorsPopup === emoji ? null : emoji); }}
+          className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] hover:scale-105 active:scale-95"
+          style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid hsl(var(--border))" }}>
+          <span>{emoji}</span><span style={{ color: "hsl(var(--foreground))" }}>{group.length}</span>
+        </button>
+      );
+    })}
+    {reactorsPopup && reactionGroups[reactorsPopup] && (
+      <div 
+        className="fixed inset-0 z-[99999] flex items-center justify-center animate-fade-in"
+        style={{ 
+          background: "rgba(0, 0, 0, 0.5)",
+          backdropFilter: "blur(4px)"
+        }}
+        onClick={(e) => { e.stopPropagation(); setReactorsPopup(null); }}
+      >
+        <div 
+          className="relative w-[280px] max-w-[90vw] animate-scale-in"
+          style={{ 
+            background: "hsl(var(--card))", 
+            border: "1px solid hsl(var(--border))", 
+            borderRadius: "20px", 
+            boxShadow: "0 20px 35px -10px rgba(0,0,0,0.5)",
+            overflow: "hidden"
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header with emoji and count */}
+          <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "hsl(var(--border))" }}>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">{reactorsPopup}</span>
+              <span className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                التفاعلات
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
+                {reactionGroups[reactorsPopup].length}
+              </span>
+            </div>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setReactorsPopup(null); }}
+              className="w-7 h-7 flex items-center justify-center rounded-full hover:opacity-70 transition-opacity"
+              style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}
+            >
+              ✕
+            </button>
+          </div>
+          
+          {/* List of reactors - show 5 then scroll */}
+          <div className="py-2 max-h-[350px] overflow-y-auto">
+            {reactionGroups[reactorsPopup].map((r, index) => {
+              const uid = (r as any).user_id as string | undefined;
+              const name = (uid && profilesMap[uid]?.username) || r.username || "مستخدم";
+              const isMe = uid === currentUserId;
               return (
-                <button key={emoji} onClick={(e) => { e.stopPropagation(); setReactorsPopup(reactorsPopup === emoji ? null : emoji); }}
-                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] hover:scale-105 active:scale-95"
-                  style={{ background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))", border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid hsl(var(--border))" }}>
-                  <span>{emoji}</span><span style={{ color: "hsl(var(--foreground))" }}>{group.length}</span>
-                </button>
+                <div 
+                  key={r.id} 
+                  className="flex items-center gap-3 px-4 py-2.5 hover:opacity-80 transition-opacity"
+                  style={{ color: "hsl(var(--foreground))" }}
+                >
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                    style={{ background: `${getUserColor(name)}20`, color: getUserColor(name) }}>
+                    {getInitials(name)}
+                  </div>
+                  <span className="flex-1 text-sm font-medium">{isMe ? "أنت" : name}</span>
+                  {index === 0 && <span className="text-lg">🥇</span>}
+                  {index === 1 && <span className="text-lg">🥈</span>}
+                  {index === 2 && <span className="text-lg">🥉</span>}
+                </div>
               );
             })}
-            {reactorsPopup && reactionGroups[reactorsPopup] && (
-              <div className={`absolute z-[9999] top-full mt-1 ${isOwn ? "right-0" : "left-0"} animate-fade-in`}
-                style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "10px", boxShadow: "0 4px 20px rgba(0,0,0,0.4)", minWidth: "160px", maxWidth: "240px" }}
-                onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between px-2.5 py-1.5 border-b" style={{ borderColor: "hsl(var(--border))" }}>
-                  <span className="text-sm">{reactorsPopup}</span>
-                  <span className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>
-                    {reactionGroups[reactorsPopup].length} تفاعل
-                  </span>
-                </div>
-                <div className="max-h-44 overflow-y-auto py-1">
-                  {reactionGroups[reactorsPopup].map((r) => {
-                    const uid = (r as any).user_id as string | undefined;
-                    const name = (uid && profilesMap[uid]?.username) || r.username || "مستخدم";
-                    const isMe = uid === currentUserId;
-                    return (
-                      <div key={r.id} className="flex items-center gap-2 px-2.5 py-1.5 text-[12px]"
-                        style={{ color: "hsl(var(--foreground))" }}>
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0"
-                          style={{ background: `${getUserColor(name)}25`, color: getUserColor(name) }}>
-                          {getInitials(name)}
-                        </div>
-                        <span className="truncate flex-1">{isMe ? "أنت" : name}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
-        )}
+          
+          {/* Footer with note */}
+          <div className="px-4 py-2 border-t text-center" style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+            <span className="text-[10px]">{reactionGroups[reactorsPopup].length} {reactionGroups[reactorsPopup].length === 1 ? 'شخص تفاعل' : 'شخص تفاعلوا'}</span>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+)}
       </div>
     </div>
   );
