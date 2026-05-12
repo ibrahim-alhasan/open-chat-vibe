@@ -1,5 +1,5 @@
+// ChatMessage.tsx - الملف الكامل
 import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Trophy, Medal, Award, Paperclip, Download, Pin, Image as ImageIcon, Play } from "lucide-react";
-import LinkifiedText from "@/components/LinkifiedText";
 import PollMessage from "@/components/PollMessage";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -46,12 +46,12 @@ interface ChatMessageProps {
   onDelete?: (messageId: string) => void;
   onPin?: (message: Message) => void;
   onScrollToOriginalMessage?: (messageId: string) => void;
-  onOpenMedia?: (url: string, type: string, name?: string) => void; // إضافة دالة عرض الوسائط
+  onOpenMedia?: (url: string, type: string, name?: string) => void;
 }
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
 
-// Animated admin stickers with CSS animations
+// Animated admin stickers
 const ADMIN_ANIMATED_STICKERS: { emoji: string; label: string; animation: string }[] = [
   { emoji: "🔥", label: "نار", animation: "animate-bounce" },
   { emoji: "⭐", label: "نجمة", animation: "animate-spin-slow" },
@@ -103,69 +103,164 @@ const ActivityBadge = ({ rank }: { rank: number }) => {
   return null;
 };
 
-// Render text with @mentions highlighted - supports names with spaces
-const MentionText = ({ text, profilesMap, onUsernameClick }: { text: string; profilesMap: Record<string, { username: string; avatar_url: string | null }>; onUsernameClick?: (userId: string) => void }) => {
-  // Build a list of known usernames sorted by length (longest first to match greedily)
+// ============================================
+// مكون LinkifiedText مدمج - بدون أي تأثيرات تغبيش
+// ============================================
+interface LinkifiedTextProps {
+  text: string;
+  onUsernameClick?: (userId: string) => void;
+  profilesMap: Record<string, { username: string; avatar_url: string | null }>;
+}
+
+const LinkifiedText = memo(({ text, onUsernameClick, profilesMap }: LinkifiedTextProps) => {
+  // نمط الرابط الأساسي - بدون أي تأثيرات ضبابية
+  const linkStyle: React.CSSProperties = {
+    color: "hsl(var(--primary))",
+    textDecoration: "none",
+    display: "inline",
+    backgroundColor: "transparent",
+    filter: "none",
+    backdropFilter: "none",
+    WebkitBackdropFilter: "none",
+  };
+
+  // دالة آمنة لفتح الرابط
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // تحويل النص إلى روابط
+  const convertToLinks = (inputText: string): React.ReactNode[] => {
+    if (!inputText) return [inputText];
+
+    // نمط مطابقة الروابط
+    const urlPattern = /(https?:\/\/[^\s\u0600-\u06FF]+(?:[\w\-._~:/?#[\]@!$&'()*+,;=]|%[0-9A-Fa-f]{2})*)/gi;
+    
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = urlPattern.exec(inputText)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(
+          <span key={`text-${lastIndex}`} style={{ display: 'inline' }}>
+            {inputText.substring(lastIndex, match.index)}
+          </span>
+        );
+      }
+
+      const url = match[0];
+      parts.push(
+        <a
+          key={`link-${match.index}`}
+          href={url}
+          onClick={(e) => handleLinkClick(e, url)}
+          style={linkStyle}
+          className="hover:underline"
+          target="_blank"
+          rel="noopener noreferrer"
+          title={url}
+        >
+          {url}
+        </a>
+      );
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < inputText.length) {
+      parts.push(
+        <span key={`text-end`} style={{ display: 'inline' }}>
+          {inputText.substring(lastIndex)}
+        </span>
+      );
+    }
+
+    return parts.length > 0 ? parts : [inputText];
+  };
+
+  // بناء قائمة المستخدمين للمنشنات
   const knownUsers = Object.entries(profilesMap)
     .map(([uid, p]) => ({ uid, username: p.username }))
     .sort((a, b) => b.username.length - a.username.length);
 
-  const parts: (string | { mention: string; userId: string | null })[] = [];
-  let remaining = text;
+  // تحويل المنشنات إلى عناصر قابلة للنقر
+  const convertMentions = (inputText: string): React.ReactNode[] => {
+    const parts: (string | { mention: string; userId: string | null })[] = [];
+    let remaining = inputText;
 
-  while (remaining.length > 0) {
-    const atIndex = remaining.indexOf('@');
-    if (atIndex === -1) {
-      parts.push(remaining);
-      break;
-    }
-    if (atIndex > 0) parts.push(remaining.slice(0, atIndex));
-    
-    const afterAt = remaining.slice(atIndex + 1);
-    // Try matching against known usernames (longest first)
-    let matched = false;
-    for (const user of knownUsers) {
-      if (afterAt.toLowerCase().startsWith(user.username.toLowerCase())) {
-        const nextCharIndex = user.username.length;
-        const nextChar = afterAt[nextCharIndex];
-        // Ensure mention ends at word boundary or end of string
-        if (!nextChar || /[\s,،.!?؟]/.test(nextChar)) {
-          parts.push({ mention: user.username, userId: user.uid });
-          remaining = afterAt.slice(user.username.length);
-          matched = true;
-          break;
+    while (remaining.length > 0) {
+      const atIndex = remaining.indexOf('@');
+      if (atIndex === -1) {
+        parts.push(remaining);
+        break;
+      }
+      if (atIndex > 0) parts.push(remaining.slice(0, atIndex));
+      
+      const afterAt = remaining.slice(atIndex + 1);
+      let matched = false;
+      for (const user of knownUsers) {
+        if (afterAt.toLowerCase().startsWith(user.username.toLowerCase())) {
+          const nextCharIndex = user.username.length;
+          const nextChar = afterAt[nextCharIndex];
+          if (!nextChar || /[\s,،.!?؟]/.test(nextChar)) {
+            parts.push({ mention: user.username, userId: user.uid });
+            remaining = afterAt.slice(user.username.length);
+            matched = true;
+            break;
+          }
         }
       }
+      if (!matched) {
+        const spaceIndex = afterAt.search(/\s/);
+        const word = spaceIndex === -1 ? afterAt : afterAt.slice(0, spaceIndex);
+        parts.push(`@${word}`);
+        remaining = spaceIndex === -1 ? '' : afterAt.slice(spaceIndex);
+      }
     }
-    if (!matched) {
-      // No known user matched, treat as plain @ and text
-      const spaceIndex = afterAt.search(/\s/);
-      const word = spaceIndex === -1 ? afterAt : afterAt.slice(0, spaceIndex);
-      parts.push(`@${word}`);
-      remaining = spaceIndex === -1 ? '' : afterAt.slice(spaceIndex);
-    }
-  }
 
-  if (parts.length === 0 || (parts.length === 1 && typeof parts[0] === "string")) {
-    return <LinkifiedText text={text} />;
-  }
+    return parts.map((part, i) => {
+      if (typeof part === "string") {
+        // النص العادي - نحوله إلى روابط
+        return <React.Fragment key={i}>{convertToLinks(part)}</React.Fragment>;
+      }
+      return (
+        <span 
+          key={i} 
+          className="font-semibold cursor-pointer hover:underline px-0.5 rounded"
+          style={{ color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.1)" }}
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            if (part.userId && onUsernameClick) onUsernameClick(part.userId); 
+          }}
+        >
+          @{part.mention}
+        </span>
+      );
+    });
+  };
 
   return (
-    <span>
-      {parts.map((part, i) => {
-        if (typeof part === "string") return <LinkifiedText key={i} text={part} />;
-        return (
-          <span key={i} className="font-semibold cursor-pointer hover:underline px-0.5 rounded"
-            style={{ color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.1)" }}
-            onClick={(e) => { e.stopPropagation(); if (part.userId && onUsernameClick) onUsernameClick(part.userId); }}>
-            @{part.mention}
-          </span>
-        );
-      })}
+    <span 
+      style={{
+        display: 'inline',
+        direction: 'rtl',
+        wordBreak: 'break-word',
+        whiteSpace: 'pre-wrap',
+      }}
+    >
+      {convertMentions(text)}
     </span>
   );
-};
+});
 
+LinkifiedText.displayName = 'LinkifiedText';
+
+// ============================================
+// SignedFileAttachment Component
+// ============================================
 const SignedFileAttachment = ({
   fileUrl, fileType, fileName, isOwn, onOpenMedia, onCardClick,
 }: {
@@ -176,20 +271,16 @@ const SignedFileAttachment = ({
   onOpenMedia?: (url: string, type: string, name?: string) => void;
   onCardClick?: (e: React.MouseEvent) => void;
 }) => {
-  // For images/videos: do NOT fetch signed URL until user explicitly opens.
-  // This saves bandwidth and reduces server load.
   const isImage = fileType?.startsWith("image/");
   const isVideo = fileType?.startsWith("video/");
   const isMedia = isImage || isVideo;
 
-  // For non-media files (documents) we still fetch a signed URL so download works on click.
   const signedUrl = useSignedUrl("public_chat_files", isMedia ? "" : fileUrl);
 
   const handleOpen = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!onOpenMedia) return;
     if (isMedia) {
-      // Lazy: fetch signed URL on demand
       const { getSignedStorageUrl } = await import("@/lib/signedUrl");
       const url = await getSignedStorageUrl("public_chat_files", fileUrl);
       if (url) onOpenMedia(url, fileType || "image/*", fileName || "media");
@@ -266,6 +357,9 @@ const SignedFileAttachment = ({
   );
 };
 
+// ============================================
+// ChatMessage Component الرئيسي
+// ============================================
 const ChatMessage = memo(({
   message, currentUserId, currentUsername, currentAvatarUrl, reactions, profilesMap,
   isOnline, isAdmin, isCurrentUserAdmin, messageCounts, onReply, onUsernameClick, onDelete, onPin, onScrollToOriginalMessage, onOpenMedia,
@@ -281,7 +375,7 @@ const ChatMessage = memo(({
   const isPoll = message.content.startsWith("poll:");
   const stickerAnimation = isSticker ? ADMIN_ANIMATED_STICKERS.find(s => s.emoji === stickerEmoji)?.animation || "" : "";
 
-  // Get activity rank for this user
+  // Get activity rank
   const userRank = (() => {
     if (!messageCounts || !message.user_id) return 0;
     const sorted = Object.entries(messageCounts).sort(([, a], [, b]) => b - a);
@@ -291,7 +385,7 @@ const ChatMessage = memo(({
   
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
-  const [reactorsPopup, setReactorsPopup] = useState(false);
+  const [reactorsPopup, setReactorsPopup] = useState<any>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const [showReplyIndicator, setShowReplyIndicator] = useState(false);
@@ -314,15 +408,12 @@ const ChatMessage = memo(({
     setShowEmojiPicker(false);
     setShowActionsMenu(false);
     if (!currentUserId) return;
-    // Find any existing reaction by this user on this message (only one allowed)
     const myExisting = reactions.find((r) => (r as any).user_id === currentUserId);
     if (myExisting && myExisting.emoji === emoji) {
-      // Same emoji tapped → remove
       await supabase.from("reactions").delete().eq("id", myExisting.id);
       return;
     }
     if (myExisting) {
-      // Different emoji → replace
       await supabase.from("reactions").delete().eq("id", myExisting.id);
     }
     await supabase.from("reactions").insert({ message_id: message.id, user_id: currentUserId, username: currentUsername || "", emoji });
@@ -334,13 +425,11 @@ const ChatMessage = memo(({
     onDelete(message.id);
   };
 
-  // Handle clicking on the original message reference
   const handleOriginalMessageClick = () => {
     if (message.reply_to && onScrollToOriginalMessage) {
       onScrollToOriginalMessage(message.reply_to);
     }
   };
-
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -438,15 +527,15 @@ const ChatMessage = memo(({
   return (
     <div id={`message-${message.id}`} ref={messageRef} className={`flex gap-2 group animate-fade-in relative ${isOwn ? "flex-row-reverse" : "flex-row"}`} onMouseLeave={handleMouseLeave}>
       
-      {/* Avatar - Show only initials, no images */}
-<div className="relative flex-shrink-0">
-  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${!isOwn ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`} 
-    style={{ background: isAdmin ? "#1D9BF018" : `${userColor}18`, color: isAdmin ? "#1D9BF0" : userColor, border: isAdmin ? "2px solid #1D9BF0" : undefined }} 
-    onClick={handleAvatarClick}>
-    {getInitials(displayName)}
-  </div>
-  {isOnline && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-[1.5px]" style={{ background: "hsl(var(--chat-online))", borderColor: "hsl(var(--chat-bg))" }} />}
-</div>
+      {/* Avatar */}
+      <div className="relative flex-shrink-0">
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${!isOwn ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`} 
+          style={{ background: isAdmin ? "#1D9BF018" : `${userColor}18`, color: isAdmin ? "#1D9BF0" : userColor, border: isAdmin ? "2px solid #1D9BF0" : undefined }} 
+          onClick={handleAvatarClick}>
+          {getInitials(displayName)}
+        </div>
+        {isOnline && <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-[1.5px]" style={{ background: "hsl(var(--chat-online))", borderColor: "hsl(var(--chat-bg))" }} />}
+      </div>
 
       {/* Message content */}
       <div className={`max-w-[75%] space-y-0.5 ${isOwn ? "items-end" : "items-start"} flex flex-col relative`}
@@ -476,7 +565,7 @@ const ChatMessage = memo(({
           <span className="text-[10px]" style={{ color: "hsl(var(--chat-timestamp))" }}>{timeAgo}</span>
         </div>
 
-        {/* Reply preview - WhatsApp style inline WITH CLICKABLE ORIGINAL MESSAGE */}
+        {/* Reply preview */}
         {message.reply_to && message.reply_to_username && (
           <div 
             className={`px-2.5 py-1.5 rounded-lg text-[11px] flex items-start gap-1.5 ${isOwn ? "flex-row-reverse" : "flex-row"} w-full cursor-pointer transition-all hover:opacity-80`}
@@ -491,7 +580,6 @@ const ChatMessage = memo(({
               <p className="font-semibold mb-0.5" style={{ color: getUserColor(message.reply_to_username) }}>
                 {message.reply_to_username}
               </p>
-              {/* Show up to 2 lines of the original message content */}
               <p className="line-clamp-2" style={{ color: "hsl(var(--muted-foreground))" }}>
                 {message.reply_to_content && message.reply_to_content.length > 80 
                   ? message.reply_to_content.slice(0, 80) + '...' 
@@ -502,7 +590,7 @@ const ChatMessage = memo(({
           </div>
         )}
 
-        {/* File attachment - uses signed URL for private bucket access */}
+        {/* File attachment */}
         {message.file_url && (
           <SignedFileAttachment
             fileUrl={message.file_url}
@@ -514,22 +602,36 @@ const ChatMessage = memo(({
           />
         )}
 
-        {/* Message bubble */}
+        {/* Message bubble - مع استخدام LinkifiedText المدمج */}
         <div className="relative w-full">
           {isSticker ? (
             <div className={`text-[56px] leading-none py-1 ${isOwn ? "text-right" : "text-left"} cursor-pointer active:scale-95 transition-transform ${stickerAnimation}`} onClick={handleBubbleClick}>
               {stickerEmoji}
             </div>
+          ) : isPoll ? (
+            <PollMessage pollData={JSON.parse(message.content.replace("poll:", ""))} />
           ) : message.content && !message.content.startsWith('📎 ') ? (
-            <div className={`px-3 py-2 rounded-lg text-[14px] leading-[1.4] break-words select-none ${isOwn ? "rounded-tr-none chat-bubble-own" : "rounded-tl-none chat-bubble-other"} ${isSwiping ? 'opacity-80' : ''} cursor-pointer active:brightness-90 transition-all`}
+            <div 
+              className={`px-3 py-2 rounded-lg text-[14px] leading-[1.4] break-words select-none ${isOwn ? "rounded-tr-none chat-bubble-own" : "rounded-tl-none chat-bubble-other"} ${isSwiping ? 'opacity-80' : ''} cursor-pointer active:brightness-90 transition-all`}
               style={{ 
-                direction: "rtl", textAlign: "right",
+                direction: "rtl", 
+                textAlign: "right",
+                backgroundColor: "transparent",
+                filter: "none",
+                backdropFilter: "none",
+                WebkitBackdropFilter: "none",
                 ...(isAdmin && !isOwn ? { 
                   background: "linear-gradient(135deg, hsl(207, 90%, 54%, 0.12), hsl(207, 90%, 54%, 0.05))",
                   border: "1px solid hsl(207, 90%, 54%, 0.2)",
                 } : {})
-              }} onClick={handleBubbleClick}>
-              <MentionText text={message.content} profilesMap={profilesMap} onUsernameClick={onUsernameClick} />
+              }} 
+              onClick={handleBubbleClick}
+            >
+              <LinkifiedText 
+                text={message.content} 
+                profilesMap={profilesMap} 
+                onUsernameClick={onUsernameClick}
+              />
             </div>
           ) : null}
 
@@ -591,181 +693,176 @@ const ChatMessage = memo(({
             </div>
           )}
         </div>
-{/* Reactions */}
-{Object.keys(reactionGroups).length > 0 && (
-  <div className={`flex flex-wrap gap-1 relative ${isOwn ? "justify-end" : "justify-start"}`}>
-    {Object.entries(reactionGroups).map(([emoji, group]) => {
-      const myReaction = group.find((r) => (r as any).user_id === currentUserId);
-      return (
-        <button key={emoji} onClick={(e) => { e.stopPropagation(); setReactorsPopup(true); }}
-          className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full hover:scale-105 active:scale-95"
-          style={{
-            fontSize: "clamp(9px, 2.5vw, 11px)",
-            background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))",
-            border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid hsl(var(--border))"
-          }}>
-          <span>{emoji}</span>
-          <span style={{ color: "hsl(var(--foreground))" }}>{group.length}</span>
-        </button>
-      );
-    })}
-    {reactorsPopup && createPortal(
-      <div
-        className="fixed inset-0 z-[99999] flex items-center justify-center animate-fade-in"
-        style={{ background: "rgba(0,0,0,0.60)", backdropFilter: "blur(6px)" }}
-        onClick={(e) => { e.stopPropagation(); setReactorsPopup(false); }}
-      >
-        <div
-          className="animate-scale-in"
-          style={{
-            width: "300px",
-            maxWidth: "92vw",
-            background: "hsl(var(--card))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: "22px",
-            boxShadow: "0 24px 48px -8px rgba(0,0,0,0.7)",
-            overflow: "hidden",
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div
-            className="flex items-center justify-between px-4"
-            style={{ height: "52px", borderBottom: "1px solid hsl(var(--border))" }}
-          >
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1">
-                {Object.keys(reactionGroups).map((e) => (
-                  <span key={e} style={{ fontSize: "18px" }}>{e}</span>
-                ))}
-              </div>
-              <span style={{ fontSize: "13px", fontWeight: 600, color: "hsl(var(--foreground))" }}>التفاعلات</span>
-              <span
-                style={{
-                  fontSize: "11px",
-                  padding: "1px 8px",
-                  borderRadius: "9999px",
-                  background: "hsl(var(--secondary))",
-                  color: "hsl(var(--muted-foreground))",
-                }}
-              >{reactions.length}</span>
-            </div>
-            <button
-              onClick={(e) => { e.stopPropagation(); setReactorsPopup(false); }}
-              style={{
-                width: "28px",
-                height: "28px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: "9999px",
-                background: "hsl(var(--secondary))",
-                color: "hsl(var(--muted-foreground))",
-                fontSize: "13px",
-                flexShrink: 0,
-              }}
-            >✕</button>
-          </div>
 
-          {/* Unified list */}
-          <div style={{ maxHeight: "380px", overflowY: "auto", padding: "8px 0" }}>
-            {reactions.map((r) => {
-              const uid = (r as any).user_id as string | undefined;
-              const name = (uid && profilesMap[uid]?.username) || r.username || "مستخدم";
-              const isMe = uid === currentUserId;
+        {/* Reactions */}
+        {Object.keys(reactionGroups).length > 0 && (
+          <div className={`flex flex-wrap gap-1 relative ${isOwn ? "justify-end" : "justify-start"}`}>
+            {Object.entries(reactionGroups).map(([emoji, group]) => {
+              const myReaction = group.find((r) => (r as any).user_id === currentUserId);
               return (
-                <div
-                  key={r.id}
+                <button key={emoji} onClick={(e) => { e.stopPropagation(); setReactorsPopup(true); }}
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full hover:scale-105 active:scale-95"
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    padding: "10px 16px",
-                    minHeight: "56px",
-                    boxSizing: "border-box",
+                    fontSize: "clamp(9px, 2.5vw, 11px)",
+                    background: myReaction ? "hsl(var(--primary) / 0.2)" : "hsl(var(--secondary))",
+                    border: myReaction ? "1px solid hsl(var(--primary) / 0.4)" : "1px solid hsl(var(--border))"
+                  }}>
+                  <span>{emoji}</span>
+                  <span style={{ color: "hsl(var(--foreground))" }}>{group.length}</span>
+                </button>
+              );
+            })}
+            {reactorsPopup && createPortal(
+              <div
+                className="fixed inset-0 z-[99999] flex items-center justify-center animate-fade-in"
+                style={{ background: "rgba(0,0,0,0.60)", backdropFilter: "blur(6px)" }}
+                onClick={(e) => { e.stopPropagation(); setReactorsPopup(false); }}
+              >
+                <div
+                  className="animate-scale-in"
+                  style={{
+                    width: "300px",
+                    maxWidth: "92vw",
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "22px",
+                    boxShadow: "0 24px 48px -8px rgba(0,0,0,0.7)",
+                    overflow: "hidden",
                   }}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  {/* Avatar */}
-                  {uid && profilesMap[uid]?.avatar_url ? (
-                    <img
-                      src={profilesMap[uid].avatar_url!}
-                      alt=""
+                  <div
+                    className="flex items-center justify-between px-4"
+                    style={{ height: "52px", borderBottom: "1px solid hsl(var(--border))" }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        {Object.keys(reactionGroups).map((e) => (
+                          <span key={e} style={{ fontSize: "18px" }}>{e}</span>
+                        ))}
+                      </div>
+                      <span style={{ fontSize: "13px", fontWeight: 600, color: "hsl(var(--foreground))" }}>التفاعلات</span>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          padding: "1px 8px",
+                          borderRadius: "9999px",
+                          background: "hsl(var(--secondary))",
+                          color: "hsl(var(--muted-foreground))",
+                        }}
+                      >{reactions.length}</span>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setReactorsPopup(false); }}
                       style={{
-                        width: "36px",
-                        height: "36px",
-                        borderRadius: "9999px",
-                        objectFit: "cover",
-                        flexShrink: 0,
-                        border: "2px solid hsl(var(--border))",
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: "36px",
-                        height: "36px",
-                        borderRadius: "9999px",
+                        width: "28px",
+                        height: "28px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: "11px",
-                        fontWeight: 700,
+                        borderRadius: "9999px",
+                        background: "hsl(var(--secondary))",
+                        color: "hsl(var(--muted-foreground))",
+                        fontSize: "13px",
                         flexShrink: 0,
-                        background: `${getUserColor(name)}25`,
-                        color: getUserColor(name),
                       }}
-                    >{getInitials(name)}</div>
-                  )}
-                  {/* Name — fixed min-width so short names don't collapse row */}
-                  <span
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "hsl(var(--foreground))",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >{isMe ? "أنت" : name}</span>
-                  {/* Emoji badge — always fixed size */}
+                    >✕</button>
+                  </div>
+
+                  <div style={{ maxHeight: "380px", overflowY: "auto", padding: "8px 0" }}>
+                    {reactions.map((r) => {
+                      const uid = (r as any).user_id as string | undefined;
+                      const name = (uid && profilesMap[uid]?.username) || r.username || "مستخدم";
+                      const isMe = uid === currentUserId;
+                      return (
+                        <div
+                          key={r.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            padding: "10px 16px",
+                            minHeight: "56px",
+                            boxSizing: "border-box",
+                          }}
+                        >
+                          {uid && profilesMap[uid]?.avatar_url ? (
+                            <img
+                              src={profilesMap[uid].avatar_url!}
+                              alt=""
+                              style={{
+                                width: "36px",
+                                height: "36px",
+                                borderRadius: "9999px",
+                                objectFit: "cover",
+                                flexShrink: 0,
+                                border: "2px solid hsl(var(--border))",
+                              }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: "36px",
+                                height: "36px",
+                                borderRadius: "9999px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                flexShrink: 0,
+                                background: `${getUserColor(name)}25`,
+                                color: getUserColor(name),
+                              }}
+                            >{getInitials(name)}</div>
+                          )}
+                          <span
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                              fontSize: "13px",
+                              fontWeight: 500,
+                              color: "hsl(var(--foreground))",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >{isMe ? "أنت" : name}</span>
+                          <div
+                            style={{
+                              width: "36px",
+                              height: "36px",
+                              borderRadius: "9999px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "18px",
+                              flexShrink: 0,
+                              background: "hsl(var(--secondary))",
+                            }}
+                          >{r.emoji}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
                   <div
                     style={{
-                      width: "36px",
-                      height: "36px",
-                      borderRadius: "9999px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "18px",
-                      flexShrink: 0,
-                      background: "hsl(var(--secondary))",
+                      padding: "8px 16px",
+                      textAlign: "center",
+                      borderTop: "1px solid hsl(var(--border))",
+                      color: "hsl(var(--muted-foreground))",
+                      fontSize: "11px",
                     }}
-                  >{r.emoji}</div>
+                  >
+                    {reactions.length} {reactions.length === 1 ? "شخص تفاعل" : "شخص تفاعلوا"}
+                  </div>
                 </div>
-              );
-            })}
+              </div>,
+              document.body
+            )}
           </div>
-
-          {/* Footer */}
-          <div
-            style={{
-              padding: "8px 16px",
-              textAlign: "center",
-              borderTop: "1px solid hsl(var(--border))",
-              color: "hsl(var(--muted-foreground))",
-              fontSize: "11px",
-            }}
-          >
-            {reactions.length} {reactions.length === 1 ? "شخص تفاعل" : "شخص تفاعلوا"}
-          </div>
-        </div>
-      </div>,
-      document.body
-    )}
-  </div>
-)}
+        )}
       </div>
     </div>
   );
