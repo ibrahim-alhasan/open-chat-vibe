@@ -1,6 +1,6 @@
-// ChatMessage.tsx - الملف الكامل
+// ChatMessage.tsx - الملف الكامل مع روابط كزر منفصل
 import React from 'react';
-import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Paperclip, Download, Pin, Image as ImageIcon, Play } from "lucide-react";
+import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Paperclip, Download, Pin, Image as ImageIcon, Play, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useState, useEffect, useRef, memo } from "react";
@@ -105,159 +105,136 @@ const ActivityBadge = ({ rank }: { rank: number }) => {
 };
 
 // ============================================
-// مكون LinkifiedText مدمج - بدون أي تأثيرات تغبيش
+// مكون استخراج وعرض الروابط كأزرار منفصلة
 // ============================================
-interface LinkifiedTextProps {
-  text: string;
-  onUsernameClick?: (userId: string) => void;
-  profilesMap: Record<string, { username: string; avatar_url: string | null }>;
-}
+const extractUrls = (text: string): string[] => {
+  const urlPattern = /(https?:\/\/[^\s\u0600-\u06FF]+(?:[\w\-._~:/?#[\]@!$&'()*+,;=]|%[0-9A-Fa-f]{2})*)/gi;
+  const urls: string[] = [];
+  let match;
+  while ((match = urlPattern.exec(text)) !== null) {
+    urls.push(match[0]);
+  }
+  return urls;
+};
 
-const LinkifiedText = memo(({ text, onUsernameClick, profilesMap }: LinkifiedTextProps) => {
-  // نمط الرابط الأساسي - بدون أي تأثيرات ضبابية
-  const linkStyle: React.CSSProperties = {
-    color: "hsl(var(--primary))",
-    textDecoration: "none",
-    display: "inline",
-    backgroundColor: "transparent",
-    filter: "none",
-    backdropFilter: "none",
-    WebkitBackdropFilter: "none",
-  };
+const removeUrlsFromText = (text: string): string => {
+  const urlPattern = /(https?:\/\/[^\s\u0600-\u06FF]+(?:[\w\-._~:/?#[\]@!$&'()*+,;=]|%[0-9A-Fa-f]{2})*)/gi;
+  return text.replace(urlPattern, '');
+};
 
-  // دالة آمنة لفتح الرابط
-  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
-    e.preventDefault();
+// مكون زر فتح الرابط
+const UrlButton = ({ url, onOpen }: { url: string; onOpen?: (url: string) => void }) => {
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
-    window.open(url, '_blank', 'noopener,noreferrer');
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
-
-  // تحويل النص إلى روابط
-  const convertToLinks = (inputText: string): React.ReactNode[] => {
-    if (!inputText) return [inputText];
-
-    // نمط مطابقة الروابط
-    const urlPattern = /(https?:\/\/[^\s\u0600-\u06FF]+(?:[\w\-._~:/?#[\]@!$&'()*+,;=]|%[0-9A-Fa-f]{2})*)/gi;
-    
-    const parts: React.ReactNode[] = [];
-    let lastIndex = 0;
-    let match;
-
-    while ((match = urlPattern.exec(inputText)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push(
-          <span key={`text-${lastIndex}`} style={{ display: 'inline' }}>
-            {inputText.substring(lastIndex, match.index)}
-          </span>
-        );
-      }
-
-      const url = match[0];
-      parts.push(
-        <a
-          key={`link-${match.index}`}
-          href={url}
-          onClick={(e) => handleLinkClick(e, url)}
-          style={linkStyle}
-          className="hover:underline"
-          target="_blank"
-          rel="noopener noreferrer"
-          title={url}
-        >
-          {url}
-        </a>
-      );
-
-      lastIndex = match.index + match[0].length;
+  
+  const handleOpen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onOpen) {
+      onOpen(url);
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
-
-    if (lastIndex < inputText.length) {
-      parts.push(
-        <span key={`text-end`} style={{ display: 'inline' }}>
-          {inputText.substring(lastIndex)}
-        </span>
-      );
-    }
-
-    return parts.length > 0 ? parts : [inputText];
   };
+  
+  return (
+    <div className="flex items-center gap-2 p-2 rounded-lg mt-1" style={{ 
+      background: "hsl(var(--secondary))", 
+      border: "1px solid hsl(var(--border))",
+      direction: "ltr"
+    }}>
+      <div className="flex-1 min-w-0">
+        <div className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>🔗 رابط</div>
+        <div className="text-[11px] truncate" style={{ color: "hsl(var(--foreground))" }}>{url}</div>
+      </div>
+      <button
+        onClick={handleCopy}
+        className="p-1.5 rounded-md transition-all hover:scale-105 active:scale-95"
+        style={{ background: "hsl(var(--primary) / 0.1)" }}
+        title="نسخ الرابط"
+      >
+        {copied ? <Check className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} /> : <Copy className="w-3.5 h-3.5" style={{ color: "hsl(var(--muted-foreground))" }} />}
+      </button>
+      <button
+        onClick={handleOpen}
+        className="p-1.5 rounded-md transition-all hover:scale-105 active:scale-95"
+        style={{ background: "hsl(var(--primary) / 0.15)" }}
+        title="فتح الرابط"
+      >
+        <ExternalLink className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} />
+      </button>
+    </div>
+  );
+};
 
+// مكون عرض النص مع المنشنات فقط (بدون روابط تلقائية)
+const TextWithMentions = ({ text, profilesMap, onUsernameClick }: { text: string; profilesMap: Record<string, { username: string; avatar_url: string | null }>; onUsernameClick?: (userId: string) => void }) => {
   // بناء قائمة المستخدمين للمنشنات
   const knownUsers = Object.entries(profilesMap)
     .map(([uid, p]) => ({ uid, username: p.username }))
     .sort((a, b) => b.username.length - a.username.length);
 
-  // تحويل المنشنات إلى عناصر قابلة للنقر
-  const convertMentions = (inputText: string): React.ReactNode[] => {
-    const parts: (string | { mention: string; userId: string | null })[] = [];
-    let remaining = inputText;
+  const parts: (string | { mention: string; userId: string | null })[] = [];
+  let remaining = text;
 
-    while (remaining.length > 0) {
-      const atIndex = remaining.indexOf('@');
-      if (atIndex === -1) {
-        parts.push(remaining);
-        break;
-      }
-      if (atIndex > 0) parts.push(remaining.slice(0, atIndex));
-      
-      const afterAt = remaining.slice(atIndex + 1);
-      let matched = false;
-      for (const user of knownUsers) {
-        if (afterAt.toLowerCase().startsWith(user.username.toLowerCase())) {
-          const nextCharIndex = user.username.length;
-          const nextChar = afterAt[nextCharIndex];
-          if (!nextChar || /[\s,،.!?؟]/.test(nextChar)) {
-            parts.push({ mention: user.username, userId: user.uid });
-            remaining = afterAt.slice(user.username.length);
-            matched = true;
-            break;
-          }
+  while (remaining.length > 0) {
+    const atIndex = remaining.indexOf('@');
+    if (atIndex === -1) {
+      parts.push(remaining);
+      break;
+    }
+    if (atIndex > 0) parts.push(remaining.slice(0, atIndex));
+    
+    const afterAt = remaining.slice(atIndex + 1);
+    let matched = false;
+    for (const user of knownUsers) {
+      if (afterAt.toLowerCase().startsWith(user.username.toLowerCase())) {
+        const nextCharIndex = user.username.length;
+        const nextChar = afterAt[nextCharIndex];
+        if (!nextChar || /[\s,،.!?؟]/.test(nextChar)) {
+          parts.push({ mention: user.username, userId: user.uid });
+          remaining = afterAt.slice(user.username.length);
+          matched = true;
+          break;
         }
       }
-      if (!matched) {
-        const spaceIndex = afterAt.search(/\s/);
-        const word = spaceIndex === -1 ? afterAt : afterAt.slice(0, spaceIndex);
-        parts.push(`@${word}`);
-        remaining = spaceIndex === -1 ? '' : afterAt.slice(spaceIndex);
-      }
     }
-
-    return parts.map((part, i) => {
-      if (typeof part === "string") {
-        // النص العادي - نحوله إلى روابط
-        return <React.Fragment key={i}>{convertToLinks(part)}</React.Fragment>;
-      }
-      return (
-        <span 
-          key={i} 
-          className="font-semibold cursor-pointer hover:underline px-0.5 rounded"
-          style={{ color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.1)" }}
-          onClick={(e) => { 
-            e.stopPropagation(); 
-            if (part.userId && onUsernameClick) onUsernameClick(part.userId); 
-          }}
-        >
-          @{part.mention}
-        </span>
-      );
-    });
-  };
+    if (!matched) {
+      const spaceIndex = afterAt.search(/\s/);
+      const word = spaceIndex === -1 ? afterAt : afterAt.slice(0, spaceIndex);
+      parts.push(`@${word}`);
+      remaining = spaceIndex === -1 ? '' : afterAt.slice(spaceIndex);
+    }
+  }
 
   return (
-    <span 
-      style={{
-        display: 'inline',
-        direction: 'rtl',
-        wordBreak: 'break-word',
-        whiteSpace: 'pre-wrap',
-      }}
-    >
-      {convertMentions(text)}
+    <span>
+      {parts.map((part, i) => {
+        if (typeof part === "string") {
+          return <span key={i}>{part}</span>;
+        }
+        return (
+          <span 
+            key={i} 
+            className="font-semibold cursor-pointer hover:underline px-0.5 rounded"
+            style={{ color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.1)" }}
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              if (part.userId && onUsernameClick) onUsernameClick(part.userId); 
+            }}
+          >
+            @{part.mention}
+          </span>
+        );
+      })}
     </span>
   );
-});
-
-LinkifiedText.displayName = 'LinkifiedText';
+};
 
 // ============================================
 // SignedFileAttachment Component
@@ -368,13 +345,17 @@ const ChatMessage = memo(({
   const isOwn = message.user_id === currentUserId;
   const profile = message.user_id && profilesMap[message.user_id];
   const displayName = profile ? profile.username : message.username;
-  const avatarUrl = isOwn ? currentAvatarUrl : (profile ? profile.avatar_url : null);
   const userColor = isAdmin ? "#1D9BF0" : getUserColor(displayName);
   
   const isSticker = message.content.startsWith("sticker:");
   const stickerEmoji = isSticker ? message.content.replace("sticker:", "") : null;
   const isPoll = message.content.startsWith("poll:");
   const stickerAnimation = isSticker ? ADMIN_ANIMATED_STICKERS.find(s => s.emoji === stickerEmoji)?.animation || "" : "";
+
+  // استخراج الروابط من النص
+  const urls = !isSticker && !isPoll ? extractUrls(message.content) : [];
+  // إزالة الروابط من النص للعرض
+  const cleanText = !isSticker && !isPoll ? removeUrlsFromText(message.content).trim() : message.content;
 
   // Get activity rank
   const userRank = (() => {
@@ -603,7 +584,7 @@ const ChatMessage = memo(({
           />
         )}
 
-        {/* Message bubble - مع استخدام LinkifiedText المدمج */}
+        {/* Message bubble - مع إخفاء الروابط من النص وعرضها كأزرار منفصلة */}
         <div className="relative w-full">
           {isSticker ? (
             <div className={`text-[56px] leading-none py-1 ${isOwn ? "text-right" : "text-left"} cursor-pointer active:scale-95 transition-transform ${stickerAnimation}`} onClick={handleBubbleClick}>
@@ -611,29 +592,35 @@ const ChatMessage = memo(({
             </div>
           ) : isPoll ? (
             <PollMessage pollData={JSON.parse(message.content.replace("poll:", ""))} />
-          ) : message.content && !message.content.startsWith('📎 ') ? (
-            <div 
-              className={`px-3 py-2 rounded-lg text-[14px] leading-[1.4] break-words select-none ${isOwn ? "rounded-tr-none chat-bubble-own" : "rounded-tl-none chat-bubble-other"} ${isSwiping ? 'opacity-80' : ''} cursor-pointer active:brightness-90 transition-all`}
-              style={{ 
-                direction: "rtl", 
-                textAlign: "right",
-                backgroundColor: "transparent",
-                filter: "none",
-                backdropFilter: "none",
-                WebkitBackdropFilter: "none",
-                ...(isAdmin && !isOwn ? { 
-                  background: "linear-gradient(135deg, hsl(207, 90%, 54%, 0.12), hsl(207, 90%, 54%, 0.05))",
-                  border: "1px solid hsl(207, 90%, 54%, 0.2)",
-                } : {})
-              }} 
-              onClick={handleBubbleClick}
-            >
-              <LinkifiedText 
-                text={message.content} 
-                profilesMap={profilesMap} 
-                onUsernameClick={onUsernameClick}
-              />
-            </div>
+          ) : (cleanText || urls.length > 0) ? (
+            <>
+              {/* النص النظيف بدون روابط */}
+              {cleanText && (
+                <div 
+                  className={`px-3 py-2 rounded-lg text-[14px] leading-[1.4] break-words select-none ${isOwn ? "rounded-tr-none chat-bubble-own" : "rounded-tl-none chat-bubble-other"} ${isSwiping ? 'opacity-80' : ''} cursor-pointer active:brightness-90 transition-all`}
+                  style={{ 
+                    direction: "rtl", 
+                    textAlign: "right",
+                    ...(isAdmin && !isOwn ? { 
+                      background: "linear-gradient(135deg, hsl(207, 90%, 54%, 0.12), hsl(207, 90%, 54%, 0.05))",
+                      border: "1px solid hsl(207, 90%, 54%, 0.2)",
+                    } : {})
+                  }} 
+                  onClick={handleBubbleClick}
+                >
+                  <TextWithMentions 
+                    text={cleanText} 
+                    profilesMap={profilesMap} 
+                    onUsernameClick={onUsernameClick}
+                  />
+                </div>
+              )}
+              
+              {/* أزرار الروابط المنفصلة أسفل النص */}
+              {urls.map((url, index) => (
+                <UrlButton key={index} url={url} />
+              ))}
+            </>
           ) : null}
 
           {/* Actions popup */}
