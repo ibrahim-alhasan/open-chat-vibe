@@ -150,3 +150,14 @@
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(0.85); }
 }
+.chat-bubble-own,
+.chat-bubble-other {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
