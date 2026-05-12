@@ -523,7 +523,30 @@ const ChatMessage = memo(({
       <div className={`max-w-[75%] space-y-0.5 ${isOwn ? "items-end" : "items-start"} flex flex-col relative`}
         onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
-        style={{ transform: `translateX(${swipeOffset}px)`, transition: isSwiping ? 'none' : 'transform 0.2s ease', cursor: isSwiping ? 'grabbing' : 'pointer' }}>
+        style={{
+          transform: swipeOffset
+            ? `translate3d(${swipeOffset}px,0,0)`
+            : "translate3d(0,0,0)",
+
+          WebkitTransform: swipeOffset
+            ? `translate3d(${swipeOffset}px,0,0)`
+            : "translate3d(0,0,0)",
+
+          transition: isSwiping
+            ? "none"
+            : "transform 0.18s ease-out",
+
+          cursor: isSwiping ? "grabbing" : "pointer",
+
+          willChange: swipeOffset ? "transform" : "auto",
+
+          backfaceVisibility: "hidden",
+          WebkitBackfaceVisibility: "hidden",
+
+          transformStyle: "preserve-3d",
+
+          contain: "layout paint style",
+        }}>
         
         {showReplyIndicator && (
           <div className="absolute -right-10 top-1/2 transform -translate-y-1/2 flex items-center gap-1 animate-pulse" style={{ color: "hsl(var(--primary))", direction: 'ltr' }}>
@@ -703,7 +726,7 @@ const ChatMessage = memo(({
             {reactorsPopup && createPortal(
               <div
                 className="fixed inset-0 z-[99999] flex items-center justify-center animate-fade-in"
-                style={{ background: "rgba(0,0,0,0.60)", backdropFilter: "blur(6px)" }}
+                style={{ background: "rgba(0,0,0,0.82)",  }}
                 onClick={(e) => { e.stopPropagation(); setReactorsPopup(false); }}
               >
                 <div
@@ -857,3 +880,23 @@ const ChatMessage = memo(({
 });
 
 export default ChatMessage;
+
+
+/*
+========================================
+GPU Rendering Optimization
+ضع هذا داخل index.css أو app.css
+========================================
+
+.chat-bubble-own,
+.chat-bubble-other {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+*/
