@@ -543,9 +543,9 @@ const ChatMessage = memo(({
           backfaceVisibility: "hidden",
           WebkitBackfaceVisibility: "hidden",
 
-          transformStyle: "preserve-3d",
+          transformStyle: "flat",
 
-          contain: "layout paint style",
+          overflow: "visible",
         }}>
         
         {showReplyIndicator && (
@@ -608,7 +608,13 @@ const ChatMessage = memo(({
         )}
 
         {/* Message bubble - مع إخفاء الروابط من النص وعرضها كأزرار منفصلة */}
-        <div className="relative w-full">
+        <div
+            className="relative w-full"
+            style={{
+              overflow: "visible",
+              zIndex: showActionsMenu || showEmojiPicker ? 999999 : "auto",
+            }}
+          >
           {isSticker ? (
             <div className={`text-[56px] leading-none py-1 ${isOwn ? "text-right" : "text-left"} cursor-pointer active:scale-95 transition-transform ${stickerAnimation}`} onClick={handleBubbleClick}>
               {stickerEmoji}
@@ -648,7 +654,13 @@ const ChatMessage = memo(({
 
           {/* Actions popup */}
           {showActionsMenu && (
-            <div className="absolute left-0 right-0 z-[9999] animate-fade-in pointer-events-none" style={{ bottom: "calc(100% + 6px)" }}>
+            <div
+              className="absolute left-0 right-0 animate-fade-in pointer-events-none"
+              style={{
+                bottom: "calc(100% + 10px)",
+                zIndex: 999999,
+              }}
+            >
               <div className="flex justify-center">
                 <div className="flex items-center gap-1 px-1.5 py-1 rounded-xl pointer-events-auto" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 20px rgba(0,0,0,0.4)" }}>
                   {EMOJIS.slice(0, 4).map((emoji) => {
@@ -688,7 +700,14 @@ const ChatMessage = memo(({
 
           {/* Full Emoji picker */}
           {showEmojiPicker && (
-            <div className="absolute left-0 right-0 z-[9999] animate-fade-in pointer-events-none" style={{ bottom: "calc(100% + 6px)" }} onClick={(e) => e.stopPropagation()}>
+            <div
+              className="absolute left-0 right-0 animate-fade-in pointer-events-none"
+              style={{
+                bottom: "calc(100% + 10px)",
+                zIndex: 999999,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex justify-center">
                 <div className="flex flex-wrap gap-1 p-2 rounded-xl pointer-events-auto" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 20px rgba(0,0,0,0.4)", maxWidth: "200px" }}>
                   {EMOJIS.map((emoji) => {
