@@ -1,12 +1,13 @@
 // ChatMessage.tsx - الملف الكامل
-import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Trophy, Medal, Award, Paperclip, Download, Pin, Image as ImageIcon, Play } from "lucide-react";
-import PollMessage from "@/components/PollMessage";
+import React from 'react';
+import { Reply, CornerUpLeft, Trash2, Copy, Check, ShieldCheck, Paperclip, Download, Pin, Image as ImageIcon, Play } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useState, useEffect, useRef, memo } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
+import PollMessage from "@/components/PollMessage";
 
 export interface Message {
   id: string;
