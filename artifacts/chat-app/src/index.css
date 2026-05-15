@@ -184,7 +184,8 @@
     animation: pulseDot 2s ease-in-out infinite;
   }
 }
-#lovable-badge{
+
+#lovable-badge {
   display: none;
 }
 
@@ -202,6 +203,7 @@
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(0.85); }
 }
+
 .chat-bubble-own,
 .chat-bubble-other {
   transform: translateZ(0);

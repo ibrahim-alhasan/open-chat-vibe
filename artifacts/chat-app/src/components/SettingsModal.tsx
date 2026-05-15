@@ -266,64 +266,22 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
               </div>
 
               {/* Chat Background */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5 px-0.5">
-                  <Image className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} />
-                  <span className="text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>خلفية الدردشة</span>
-                </div>
-
-                {/* Preset swatches */}
-                <div className="grid grid-cols-5 gap-2 p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
-                  {/* Default (no bg) */}
-                  {[
-                    { id: null, label: "بلا", style: { background: "hsl(var(--background))" } },
-                    { id: "linear-gradient(135deg,#1a1d2e,#16213e)", label: "", style: { background: "linear-gradient(135deg,#1a1d2e,#16213e)" } },
-                    { id: "linear-gradient(135deg,#0f2027,#203a43,#2c5364)", label: "", style: { background: "linear-gradient(135deg,#0f2027,#203a43,#2c5364)" } },
-                    { id: "linear-gradient(135deg,#1c1c2e,#2d1b4e)", label: "", style: { background: "linear-gradient(135deg,#1c1c2e,#2d1b4e)" } },
-                    { id: "linear-gradient(135deg,#0d1117,#161b22,#0d1117)", label: "", style: { background: "linear-gradient(135deg,#0d1117,#161b22)" } },
-                    { id: "linear-gradient(135deg,#f5f7fa,#e8ecf1)", label: "", style: { background: "linear-gradient(135deg,#f5f7fa,#e8ecf1)" } },
-                    { id: "linear-gradient(135deg,#ffecd2,#fcb69f)", label: "", style: { background: "linear-gradient(135deg,#ffecd2,#fcb69f)" } },
-                    { id: "linear-gradient(135deg,#d4fc79,#96e6a1)", label: "", style: { background: "linear-gradient(135deg,#d4fc79,#96e6a1)" } },
-                    { id: "linear-gradient(135deg,#a18cd1,#fbc2eb)", label: "", style: { background: "linear-gradient(135deg,#a18cd1,#fbc2eb)" } },
-                    { id: "linear-gradient(135deg,#f093fb,#f5576c)", label: "", style: { background: "linear-gradient(135deg,#f093fb,#f5576c)" } },
-                  ].map((preset) => (
-                    <button
-                      key={preset.id ?? "none"}
-                      type="button"
-                      onClick={() => onChatBgChange(preset.id)}
-                      className="relative w-full aspect-square rounded-lg overflow-hidden transition-all active:scale-95 flex items-center justify-center"
-                      style={{
-                        ...preset.style,
-                        border: chatBg === preset.id
-                          ? "2px solid hsl(var(--primary))"
-                          : "1.5px solid hsl(var(--border))",
-                        boxShadow: chatBg === preset.id ? "0 0 0 1px hsl(var(--primary))" : "none",
-                      }}
-                    >
-                      {preset.id === null && (
-                        <span className="text-[9px] font-bold" style={{ color: "hsl(var(--muted-foreground))" }}>بلا</span>
-                      )}
-                      {chatBg === preset.id && preset.id !== null && (
-                        <span className="text-white text-xs font-bold drop-shadow">✓</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Custom image upload */}
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
-                  <span className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>أو ارفع صورة مخصصة</span>
                   <div className="flex items-center gap-1.5">
-                    {chatBg && chatBg.startsWith("data:") && (
+                    <Image className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} />
+                    <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>خلفية الدردشة</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {chatBg && (
                       <button type="button" onClick={() => onChatBgChange(null)} className="p-1 rounded-lg hover:opacity-70 transition-colors" style={{ color: "hsl(var(--destructive))" }}>
                         <Trash2 className="w-3 h-3" />
                       </button>
                     )}
                     <button type="button" onClick={() => bgInputRef.current?.click()}
-                      className="px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all active:scale-95 flex items-center gap-1"
+                      className="px-2.5 py-0.5 rounded-lg text-[10px] font-medium transition-all active:scale-95"
                       style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}>
-                      <Image className="w-3 h-3" />
-                      {chatBg?.startsWith("data:") ? "تغيير" : "رفع صورة"}
+                      {chatBg ? "تغيير" : "اختيار"}
                     </button>
                   </div>
                   <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
@@ -334,10 +292,8 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
                     reader.readAsDataURL(file);
                   }} />
                 </div>
-
-                {/* Preview of custom image */}
-                {chatBg?.startsWith("data:") && (
-                  <div className="w-full h-14 rounded-lg overflow-hidden" style={{ border: "1px solid hsl(var(--border))" }}>
+                {chatBg && (
+                  <div className="w-full h-12 rounded-lg overflow-hidden" style={{ border: "1px solid hsl(var(--border))" }}>
                     <img src={chatBg} alt="خلفية" className="w-full h-full object-cover" />
                   </div>
                 )}
