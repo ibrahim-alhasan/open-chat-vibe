@@ -1,0 +1,163 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* WhatsApp-inspired dark theme */
+    --background: 200 12% 7%;
+    --foreground: 0 0% 93%;
+
+    --card: 200 10% 10%;
+    --card-foreground: 0 0% 93%;
+
+    --popover: 200 10% 10%;
+    --popover-foreground: 0 0% 93%;
+
+    --primary: 142 70% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 200 8% 14%;
+    --secondary-foreground: 0 0% 70%;
+
+    --muted: 200 8% 12%;
+    --muted-foreground: 200 5% 50%;
+
+    --accent: 142 70% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 200 8% 16%;
+    --input: 200 8% 14%;
+    --ring: 142 70% 45%;
+
+    --radius: 0.5rem;
+
+    /* Chat specific tokens - WhatsApp style */
+    --chat-bg: 200 12% 7%;
+    --chat-header: 200 10% 11%;
+    --chat-sidebar: 200 10% 10%;
+    --chat-input-bg: 200 8% 12%;
+    --chat-bubble-own: 142 35% 15%;
+    --chat-bubble-other: 200 8% 14%;
+    --chat-bubble-own-border: 142 40% 22%;
+    --chat-bubble-other-border: 200 8% 20%;
+    --chat-reply-bg: 200 8% 10%;
+    --chat-timestamp: 200 5% 48%;
+    --chat-online: 142 71% 45%;
+    --chat-glow: 142 70% 45%;
+    --chat-admin: 45 93% 58%;
+    
+    --gradient-header: linear-gradient(135deg, hsl(200, 10%, 11%), hsl(200, 12%, 7%));
+    --gradient-primary: linear-gradient(135deg, hsl(142, 70%, 45%), hsl(142, 60%, 38%));
+    --shadow-glow: 0 0 15px hsl(142 70% 45% / 0.2);
+    --shadow-card: 0 4px 24px hsl(200 12% 4% / 0.6);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 2px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+}
+
+@layer utilities {
+  .chat-bubble-own {
+    background: hsl(var(--chat-bubble-own));
+    border: 1px solid hsl(var(--chat-bubble-own-border));
+  }
+
+  .chat-bubble-other {
+    background: hsl(var(--chat-bubble-other));
+    border: 1px solid hsl(var(--chat-bubble-other-border));
+  }
+
+  .glow-primary {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .text-gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glass {
+    background: hsl(var(--card) / 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.2s ease-out;
+  }
+
+  .animate-pulse-dot {
+    animation: pulseDot 2s ease-in-out infinite;
+  }
+}
+#lovable-badge{
+  display: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+.chat-bubble-own,
+.chat-bubble-other {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
