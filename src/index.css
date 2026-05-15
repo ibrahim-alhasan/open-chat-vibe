@@ -57,6 +57,104 @@
     --shadow-glow: 0 0 15px hsl(142 70% 45% / 0.2);
     --shadow-card: 0 4px 24px hsl(200 12% 4% / 0.6);
   }
+
+  :root.light {
+    --background: 0 0% 98%;
+    --foreground: 218 20% 18%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 218 20% 18%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 218 20% 18%;
+
+    --primary: 142 70% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 16% 94%;
+    --secondary-foreground: 218 20% 36%;
+
+    --muted: 210 16% 90%;
+    --muted-foreground: 218 20% 48%;
+
+    --accent: 142 70% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 210 16% 84%;
+    --input: 0 0% 100%;
+    --ring: 142 70% 45%;
+
+    --chat-bg: 0 0% 98%;
+    --chat-header: 0 0% 100%;
+    --chat-sidebar: 0 0% 100%;
+    --chat-input-bg: 0 0% 96%;
+    --chat-bubble-own: 142 35% 15%;
+    --chat-bubble-other: 210 16% 94%;
+    --chat-bubble-own-border: 142 40% 22%;
+    --chat-bubble-other-border: 210 16% 85%;
+    --chat-reply-bg: 0 0% 95%;
+    --chat-timestamp: 215 20% 60%;
+    --chat-online: 142 71% 45%;
+    --chat-glow: 142 70% 45%;
+    --chat-admin: 45 93% 58%;
+
+    --gradient-header: linear-gradient(135deg, hsl(210, 16%, 96%), hsl(210, 16%, 98%));
+    --gradient-primary: linear-gradient(135deg, hsl(142, 70%, 45%), hsl(142, 60%, 38%));
+    --shadow-glow: 0 0 15px hsl(142 70% 45% / 0.2);
+    --shadow-card: 0 4px 24px hsl(218 20% 18% / 0.12);
+  }
+
+  :root.dark {
+    --background: 200 12% 7%;
+    --foreground: 0 0% 93%;
+
+    --card: 200 10% 10%;
+    --card-foreground: 0 0% 93%;
+
+    --popover: 200 10% 10%;
+    --popover-foreground: 0 0% 93%;
+
+    --primary: 142 70% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 200 8% 14%;
+    --secondary-foreground: 0 0% 70%;
+
+    --muted: 200 8% 12%;
+    --muted-foreground: 200 5% 50%;
+
+    --accent: 142 70% 45%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 200 8% 16%;
+    --input: 200 8% 14%;
+    --ring: 142 70% 45%;
+
+    --chat-bg: 200 12% 7%;
+    --chat-header: 200 10% 11%;
+    --chat-sidebar: 200 10% 10%;
+    --chat-input-bg: 200 8% 12%;
+    --chat-bubble-own: 142 35% 15%;
+    --chat-bubble-other: 200 8% 14%;
+    --chat-bubble-own-border: 142 40% 22%;
+    --chat-bubble-other-border: 200 8% 20%;
+    --chat-reply-bg: 200 8% 10%;
+    --chat-timestamp: 200 5% 48%;
+    --chat-online: 142 71% 45%;
+    --chat-glow: 142 70% 45%;
+    --chat-admin: 45 93% 58%;
+
+    --gradient-header: linear-gradient(135deg, hsl(200, 10%, 11%), hsl(200, 12%, 7%));
+    --gradient-primary: linear-gradient(135deg, hsl(142, 70%, 45%), hsl(142, 60%, 38%));
+    --shadow-glow: 0 0 15px hsl(142 70% 45% / 0.2);
+    --shadow-card: 0 4px 24px hsl(200 12% 4% / 0.6);
+  }
 }
 
 @layer base {
