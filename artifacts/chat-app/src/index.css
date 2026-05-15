@@ -5,109 +5,109 @@
 @tailwind utilities;
 
 @layer base {
-  /* Dark mode (default) */
+  /* Dark mode (default) — navy + orange accent */
   :root,
   :root.dark {
-    --background: 200 12% 7%;
-    --foreground: 0 0% 93%;
+    --background: 235 22% 9%;
+    --foreground: 0 0% 95%;
 
-    --card: 200 10% 10%;
-    --card-foreground: 0 0% 93%;
+    --card: 233 20% 13%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 200 10% 10%;
-    --popover-foreground: 0 0% 93%;
+    --popover: 233 20% 13%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 142 70% 45%;
+    --primary: 38 90% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 200 8% 14%;
+    --secondary: 233 18% 18%;
     --secondary-foreground: 0 0% 70%;
 
-    --muted: 200 8% 12%;
-    --muted-foreground: 200 5% 50%;
+    --muted: 233 18% 16%;
+    --muted-foreground: 233 10% 52%;
 
-    --accent: 142 70% 45%;
+    --accent: 38 90% 55%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 200 8% 16%;
-    --input: 200 8% 14%;
-    --ring: 142 70% 45%;
+    --border: 233 15% 21%;
+    --input: 233 18% 17%;
+    --ring: 38 90% 55%;
 
     --radius: 0.5rem;
 
-    --chat-bg: 200 12% 7%;
-    --chat-header: 200 10% 11%;
-    --chat-sidebar: 200 10% 10%;
-    --chat-input-bg: 200 8% 12%;
-    --chat-bubble-own: 142 35% 15%;
-    --chat-bubble-other: 200 8% 14%;
-    --chat-bubble-own-border: 142 40% 22%;
-    --chat-bubble-other-border: 200 8% 20%;
-    --chat-reply-bg: 200 8% 10%;
-    --chat-timestamp: 200 5% 48%;
-    --chat-online: 142 71% 45%;
-    --chat-glow: 142 70% 45%;
-    --chat-admin: 45 93% 58%;
+    --chat-bg: 235 22% 9%;
+    --chat-header: 233 20% 13%;
+    --chat-sidebar: 233 20% 13%;
+    --chat-input-bg: 233 18% 16%;
+    --chat-bubble-own: 38 60% 18%;
+    --chat-bubble-other: 233 18% 17%;
+    --chat-bubble-own-border: 38 65% 26%;
+    --chat-bubble-other-border: 233 15% 23%;
+    --chat-reply-bg: 233 20% 11%;
+    --chat-timestamp: 233 10% 48%;
+    --chat-online: 142 68% 45%;
+    --chat-glow: 38 90% 55%;
+    --chat-admin: 38 90% 55%;
 
-    --gradient-header: linear-gradient(135deg, hsl(200, 10%, 11%), hsl(200, 12%, 7%));
-    --gradient-primary: linear-gradient(135deg, hsl(142, 70%, 45%), hsl(142, 60%, 38%));
-    --shadow-glow: 0 0 15px hsl(142 70% 45% / 0.2);
-    --shadow-card: 0 4px 24px hsl(200 12% 4% / 0.6);
+    --gradient-header: linear-gradient(135deg, hsl(233, 20%, 14%), hsl(235, 22%, 10%));
+    --gradient-primary: linear-gradient(135deg, hsl(38, 90%, 55%), hsl(38, 85%, 46%));
+    --shadow-glow: 0 0 15px hsl(38 90% 55% / 0.25);
+    --shadow-card: 0 4px 24px hsl(235 22% 4% / 0.7);
   }
 
-  /* Light mode */
+  /* Light mode — light gray + orange accent */
   :root.light {
-    --background: 0 0% 97%;
-    --foreground: 200 15% 12%;
+    --background: 240 9% 96%;
+    --foreground: 235 30% 13%;
 
     --card: 0 0% 100%;
-    --card-foreground: 200 15% 12%;
+    --card-foreground: 235 30% 13%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 200 15% 12%;
+    --popover-foreground: 235 30% 13%;
 
-    --primary: 142 65% 38%;
+    --primary: 38 90% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 200 10% 92%;
-    --secondary-foreground: 200 15% 25%;
+    --secondary: 220 12% 91%;
+    --secondary-foreground: 235 20% 25%;
 
-    --muted: 200 10% 94%;
-    --muted-foreground: 200 8% 45%;
+    --muted: 220 10% 93%;
+    --muted-foreground: 220 8% 48%;
 
-    --accent: 142 65% 38%;
+    --accent: 38 90% 50%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 200 10% 86%;
-    --input: 200 10% 90%;
-    --ring: 142 65% 38%;
+    --border: 220 12% 87%;
+    --input: 220 10% 92%;
+    --ring: 38 90% 50%;
 
     --radius: 0.5rem;
 
-    --chat-bg: 200 15% 95%;
+    --chat-bg: 240 9% 96%;
     --chat-header: 0 0% 100%;
-    --chat-sidebar: 0 0% 98%;
+    --chat-sidebar: 0 0% 100%;
     --chat-input-bg: 0 0% 100%;
-    --chat-bubble-own: 142 45% 88%;
+    --chat-bubble-own: 38 80% 88%;
     --chat-bubble-other: 0 0% 100%;
-    --chat-bubble-own-border: 142 40% 76%;
-    --chat-bubble-other-border: 200 10% 88%;
-    --chat-reply-bg: 200 10% 92%;
-    --chat-timestamp: 200 8% 55%;
+    --chat-bubble-own-border: 38 70% 76%;
+    --chat-bubble-other-border: 220 12% 88%;
+    --chat-reply-bg: 220 10% 92%;
+    --chat-timestamp: 220 8% 55%;
     --chat-online: 142 65% 38%;
-    --chat-glow: 142 65% 38%;
-    --chat-admin: 38 92% 45%;
+    --chat-glow: 38 90% 50%;
+    --chat-admin: 38 90% 50%;
 
-    --gradient-header: linear-gradient(135deg, hsl(0, 0%, 100%), hsl(200, 15%, 95%));
-    --gradient-primary: linear-gradient(135deg, hsl(142, 65%, 38%), hsl(142, 58%, 30%));
-    --shadow-glow: 0 0 15px hsl(142 65% 38% / 0.15);
-    --shadow-card: 0 4px 24px hsl(200 12% 70% / 0.3);
+    --gradient-header: linear-gradient(135deg, hsl(0, 0%, 100%), hsl(240, 9%, 96%));
+    --gradient-primary: linear-gradient(135deg, hsl(38, 90%, 50%), hsl(38, 85%, 42%));
+    --shadow-glow: 0 0 15px hsl(38 90% 50% / 0.2);
+    --shadow-card: 0 4px 24px hsl(220 12% 70% / 0.25);
   }
 }
 
