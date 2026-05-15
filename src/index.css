@@ -5,155 +5,231 @@
 @tailwind utilities;
 
 @layer base {
+  /* =========================
+     الوضع الافتراضي = ليلي
+  ========================= */
   :root {
-    /* WhatsApp-inspired dark theme */
-    --background: 200 12% 7%;
-    --foreground: 0 0% 93%;
+    /* الخلفية */
+    --background: 232 65% 7%;
+    --foreground: 0 0% 96%;
 
-    --card: 200 10% 10%;
-    --card-foreground: 0 0% 93%;
+    /* الكروت */
+    --card: 232 52% 10%;
+    --card-foreground: 0 0% 96%;
 
-    --popover: 200 10% 10%;
-    --popover-foreground: 0 0% 93%;
+    --popover: 232 52% 10%;
+    --popover-foreground: 0 0% 96%;
 
-    --primary: 142 70% 45%;
+    /* اللون البرتقالي */
+    --primary: 39 100% 52%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 200 8% 14%;
-    --secondary-foreground: 0 0% 70%;
+    /* العناصر الثانوية */
+    --secondary: 232 34% 14%;
+    --secondary-foreground: 240 10% 72%;
 
-    --muted: 200 8% 12%;
-    --muted-foreground: 200 5% 50%;
+    --muted: 232 34% 12%;
+    --muted-foreground: 240 10% 58%;
 
-    --accent: 142 70% 45%;
+    --accent: 39 100% 52%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 200 8% 16%;
-    --input: 200 8% 14%;
-    --ring: 142 70% 45%;
+    /* الحدود */
+    --border: 232 28% 18%;
+    --input: 232 28% 14%;
+    --ring: 39 100% 52%;
 
-    --radius: 0.5rem;
+    --radius: 0.8rem;
 
-    /* Chat specific tokens - WhatsApp style */
-    --chat-bg: 200 12% 7%;
-    --chat-header: 200 10% 11%;
-    --chat-sidebar: 200 10% 10%;
-    --chat-input-bg: 200 8% 12%;
-    --chat-bubble-own: 142 35% 15%;
-    --chat-bubble-other: 200 8% 14%;
-    --chat-bubble-own-border: 142 40% 22%;
-    --chat-bubble-other-border: 200 8% 20%;
-    --chat-reply-bg: 200 8% 10%;
-    --chat-timestamp: 200 5% 48%;
-    --chat-online: 142 71% 45%;
-    --chat-glow: 142 70% 45%;
-    --chat-admin: 45 93% 58%;
-    
-    --gradient-header: linear-gradient(135deg, hsl(200, 10%, 11%), hsl(200, 12%, 7%));
-    --gradient-primary: linear-gradient(135deg, hsl(142, 70%, 45%), hsl(142, 60%, 38%));
-    --shadow-glow: 0 0 15px hsl(142 70% 45% / 0.2);
-    --shadow-card: 0 4px 24px hsl(200 12% 4% / 0.6);
+    /* ألوان التطبيق */
+    --chat-bg: 232 65% 7%;
+    --chat-header: 232 52% 10%;
+    --chat-sidebar: 232 52% 10%;
+    --chat-input-bg: 232 28% 14%;
+
+    /* الفقاعات */
+    --chat-bubble-own: 39 100% 20%;
+    --chat-bubble-other: 232 28% 14%;
+
+    --chat-bubble-own-border: 39 100% 28%;
+    --chat-bubble-other-border: 232 24% 20%;
+
+    --chat-reply-bg: 232 24% 12%;
+
+    /* النصوص */
+    --chat-timestamp: 240 8% 55%;
+    --chat-online: 39 100% 52%;
+    --chat-glow: 39 100% 52%;
+    --chat-admin: 39 100% 52%;
+
+    /* التدرجات */
+    --gradient-header: linear-gradient(
+      135deg,
+      hsl(232 52% 10%),
+      hsl(232 65% 7%)
+    );
+
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(39 100% 52%),
+      hsl(35 100% 48%)
+    );
+
+    --shadow-glow: 0 0 18px hsl(39 100% 52% / 0.22);
+    --shadow-card: 0 6px 30px hsl(232 70% 3% / 0.55);
   }
 
+  /* =========================
+        الوضع النهاري
+  ========================= */
   :root.light {
-    --background: 0 0% 98%;
-    --foreground: 218 20% 18%;
+    /* الخلفية العامة */
+    --background: 240 14% 95%;
+    --foreground: 232 42% 16%;
 
+    /* الكروت */
     --card: 0 0% 100%;
-    --card-foreground: 218 20% 18%;
+    --card-foreground: 232 42% 16%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 218 20% 18%;
+    --popover-foreground: 232 42% 16%;
 
-    --primary: 142 70% 45%;
+    /* البرتقالي */
+    --primary: 39 100% 48%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 16% 94%;
-    --secondary-foreground: 218 20% 36%;
+    /* العناصر الثانوية */
+    --secondary: 240 16% 96%;
+    --secondary-foreground: 232 22% 45%;
 
-    --muted: 210 16% 90%;
-    --muted-foreground: 218 20% 48%;
+    --muted: 240 12% 92%;
+    --muted-foreground: 232 14% 65%;
 
-    --accent: 142 70% 45%;
+    --accent: 39 100% 48%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 210 16% 84%;
+    /* الحدود */
+    --border: 240 10% 86%;
     --input: 0 0% 100%;
-    --ring: 142 70% 45%;
+    --ring: 39 100% 48%;
 
-    --chat-bg: 0 0% 98%;
-    --chat-header: 0 0% 100%;
+    /* ألوان التطبيق */
+    --chat-bg: 240 14% 95%;
+    --chat-header: 240 14% 95%;
     --chat-sidebar: 0 0% 100%;
-    --chat-input-bg: 0 0% 96%;
-    --chat-bubble-own: 142 35% 15%;
-    --chat-bubble-other: 210 16% 94%;
-    --chat-bubble-own-border: 142 40% 22%;
-    --chat-bubble-other-border: 210 16% 85%;
-    --chat-reply-bg: 0 0% 95%;
-    --chat-timestamp: 215 20% 60%;
-    --chat-online: 142 71% 45%;
-    --chat-glow: 142 70% 45%;
-    --chat-admin: 45 93% 58%;
+    --chat-input-bg: 0 0% 100%;
 
-    --gradient-header: linear-gradient(135deg, hsl(210, 16%, 96%), hsl(210, 16%, 98%));
-    --gradient-primary: linear-gradient(135deg, hsl(142, 70%, 45%), hsl(142, 60%, 38%));
-    --shadow-glow: 0 0 15px hsl(142 70% 45% / 0.2);
-    --shadow-card: 0 4px 24px hsl(218 20% 18% / 0.12);
+    /* الفقاعات */
+    --chat-bubble-own: 39 100% 48%;
+    --chat-bubble-other: 0 0% 100%;
+
+    --chat-bubble-own-border: 39 100% 44%;
+    --chat-bubble-other-border: 240 10% 86%;
+
+    --chat-reply-bg: 240 14% 92%;
+
+    /* النصوص */
+    --chat-timestamp: 232 12% 62%;
+    --chat-online: 39 100% 48%;
+    --chat-glow: 39 100% 48%;
+    --chat-admin: 39 100% 48%;
+
+    /* التدرجات */
+    --gradient-header: linear-gradient(
+      135deg,
+      hsl(240 14% 96%),
+      hsl(240 14% 93%)
+    );
+
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(39 100% 50%),
+      hsl(35 100% 46%)
+    );
+
+    --shadow-glow: 0 0 18px hsl(39 100% 48% / 0.25);
+    --shadow-card: 0 4px 18px hsl(232 42% 16% / 0.08);
   }
 
+  /* =========================
+        الوضع الليلي
+  ========================= */
   :root.dark {
-    --background: 200 12% 7%;
-    --foreground: 0 0% 93%;
+    /* الخلفية */
+    --background: 232 65% 7%;
+    --foreground: 0 0% 96%;
 
-    --card: 200 10% 10%;
-    --card-foreground: 0 0% 93%;
+    /* الكروت */
+    --card: 232 52% 10%;
+    --card-foreground: 0 0% 96%;
 
-    --popover: 200 10% 10%;
-    --popover-foreground: 0 0% 93%;
+    --popover: 232 52% 10%;
+    --popover-foreground: 0 0% 96%;
 
-    --primary: 142 70% 45%;
+    /* البرتقالي */
+    --primary: 39 100% 52%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 200 8% 14%;
-    --secondary-foreground: 0 0% 70%;
+    /* العناصر الثانوية */
+    --secondary: 232 34% 14%;
+    --secondary-foreground: 240 10% 72%;
 
-    --muted: 200 8% 12%;
-    --muted-foreground: 200 5% 50%;
+    --muted: 232 34% 12%;
+    --muted-foreground: 240 10% 58%;
 
-    --accent: 142 70% 45%;
+    --accent: 39 100% 52%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 200 8% 16%;
-    --input: 200 8% 14%;
-    --ring: 142 70% 45%;
+    /* الحدود */
+    --border: 232 28% 18%;
+    --input: 232 28% 14%;
+    --ring: 39 100% 52%;
 
-    --chat-bg: 200 12% 7%;
-    --chat-header: 200 10% 11%;
-    --chat-sidebar: 200 10% 10%;
-    --chat-input-bg: 200 8% 12%;
-    --chat-bubble-own: 142 35% 15%;
-    --chat-bubble-other: 200 8% 14%;
-    --chat-bubble-own-border: 142 40% 22%;
-    --chat-bubble-other-border: 200 8% 20%;
-    --chat-reply-bg: 200 8% 10%;
-    --chat-timestamp: 200 5% 48%;
-    --chat-online: 142 71% 45%;
-    --chat-glow: 142 70% 45%;
-    --chat-admin: 45 93% 58%;
+    /* ألوان التطبيق */
+    --chat-bg: 232 65% 7%;
+    --chat-header: 232 52% 10%;
+    --chat-sidebar: 232 52% 10%;
+    --chat-input-bg: 232 28% 14%;
 
-    --gradient-header: linear-gradient(135deg, hsl(200, 10%, 11%), hsl(200, 12%, 7%));
-    --gradient-primary: linear-gradient(135deg, hsl(142, 70%, 45%), hsl(142, 60%, 38%));
-    --shadow-glow: 0 0 15px hsl(142 70% 45% / 0.2);
-    --shadow-card: 0 4px 24px hsl(200 12% 4% / 0.6);
+    /* الفقاعات */
+    --chat-bubble-own: 39 100% 20%;
+    --chat-bubble-other: 232 28% 14%;
+
+    --chat-bubble-own-border: 39 100% 28%;
+    --chat-bubble-other-border: 232 24% 20%;
+
+    --chat-reply-bg: 232 24% 12%;
+
+    /* النصوص */
+    --chat-timestamp: 240 8% 55%;
+    --chat-online: 39 100% 52%;
+    --chat-glow: 39 100% 52%;
+    --chat-admin: 39 100% 52%;
+
+    /* التدرجات */
+    --gradient-header: linear-gradient(
+      135deg,
+      hsl(232 52% 10%),
+      hsl(232 65% 7%)
+    );
+
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(39 100% 52%),
+      hsl(35 100% 48%)
+    );
+
+    --shadow-glow: 0 0 18px hsl(39 100% 52% / 0.22);
+    --shadow-card: 0 6px 30px hsl(232 70% 3% / 0.55);
   }
 }
 
@@ -166,6 +242,7 @@
     @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
 
   ::-webkit-scrollbar {
@@ -213,7 +290,7 @@
   }
 
   .glass {
-    background: hsl(var(--card) / 0.8);
+    background: hsl(var(--card) / 0.82);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
@@ -223,31 +300,20 @@
   }
 
   .animate-slide-up {
-    animation: slideUp 0.2s ease-out;
+    animation: slideUp 0.25s ease-out;
   }
 
   .animate-pulse-dot {
     animation: pulseDot 2s ease-in-out infinite;
   }
 }
-#lovable-badge{
-  display: none;
+
+/* إخفاء شعار Lovable */
+#lovable-badge {
+  display: none !important;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pulseDot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.85); }
-}
+/* تحسين الأداء */
 .chat-bubble-own,
 .chat-bubble-other {
   transform: translateZ(0);
@@ -258,4 +324,44 @@
 
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+/* =========================
+        الحركات
+========================= */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.6;
+    transform: scale(0.85);
+  }
 }
