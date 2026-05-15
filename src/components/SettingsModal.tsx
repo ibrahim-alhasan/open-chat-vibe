@@ -266,38 +266,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
               </div>
 
               {/* Chat Background */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
-                  <div className="flex items-center gap-1.5">
-                    <Image className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary))" }} />
-                    <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>خلفية الدردشة</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {chatBg && (
-                      <button type="button" onClick={() => onChatBgChange(null)} className="p-1 rounded-lg hover:opacity-70 transition-colors" style={{ color: "hsl(var(--destructive))" }}>
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    )}
-                    <button type="button" onClick={() => bgInputRef.current?.click()}
-                      className="px-2.5 py-0.5 rounded-lg text-[10px] font-medium transition-all active:scale-95"
-                      style={{ background: "hsl(var(--primary) / 0.15)", color: "hsl(var(--primary))" }}>
-                      {chatBg ? "تغيير" : "اختيار"}
-                    </button>
-                  </div>
-                  <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = (ev) => onChatBgChange(ev.target?.result as string);
-                    reader.readAsDataURL(file);
-                  }} />
-                </div>
-                {chatBg && (
-                  <div className="w-full h-12 rounded-lg overflow-hidden" style={{ border: "1px solid hsl(var(--border))" }}>
-                    <img src={chatBg} alt="خلفية" className="w-full h-full object-cover" />
-                  </div>
-                )}
-              </div>
+              
 
               {/* Buttons */}
               {isAuthenticated && (
