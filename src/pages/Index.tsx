@@ -1186,10 +1186,7 @@ const Index = () => {
               {chatLocked ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
             </button>
           )}
-          <button onClick={() => window.open('go:aimain')} title="الذكاء الاصطناعي"
-            className="relative p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
-            <Bot className="w-5 h-5" />
-          </button>
+          
           
           {/* زر الرسائل الخاصة مع فحص تسجيل الدخول */}
           <button 
