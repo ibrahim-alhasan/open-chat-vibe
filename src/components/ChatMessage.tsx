@@ -620,7 +620,7 @@ const ChatMessage = memo(({
               {stickerEmoji}
             </div>
           ) : isPoll ? (
-            <PollMessage pollData={JSON.parse(message.content.replace("poll:", ""))} />
+            <PollMessage pollId={message.content.replace("poll:", "")} currentUserId={currentUserId} />
           ) : (cleanText || urls.length > 0) ? (
             <>
               {/* النص النظيف بدون روابط */}
