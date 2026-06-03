@@ -134,13 +134,29 @@ const UrlButton = ({ url, onOpen }: { url: string; onOpen?: (url: string) => voi
   };
   
   const handleOpen = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onOpen) {
-      onOpen(url);
-    } else {
-      window.open(url, '_blank', 'noopener,noreferrer');
+  e.stopPropagation();
+
+  if (onOpen) {
+    onOpen(url);
+    return;
+  }
+
+  try {
+    const message = `open_url|${url}`;
+
+    if (
+      window.AppInventor &&
+      typeof window.AppInventor.setWebViewString === "function"
+    ) {
+      window.AppInventor.setWebViewString(message);
+      return;
     }
-  };
+  } catch (err) {
+    console.error("AppInventor Error:", err);
+  }
+
+  window.open(url, "_blank", "noopener,noreferrer");
+};
   
   return (
     <div className="flex items-center gap-2 p-2 rounded-lg mt-1" style={{ 
