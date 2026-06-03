@@ -1043,10 +1043,7 @@ const Index = () => {
         return (
           <PollMessage 
             pollId={pId} 
-            question={pollData.question} 
-            options={pollData.options} 
             currentUserId={userId} 
-            isActive={pollData.is_active} 
           />
         );
       }

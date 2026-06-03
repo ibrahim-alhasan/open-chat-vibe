@@ -4,18 +4,35 @@ import { BarChart3, Check } from "lucide-react";
 
 interface PollMessageProps {
   pollId: string;
-  question: string;
-  options: string[];
   currentUserId: string;
-  isActive: boolean;
 }
 
-const PollMessage = ({ pollId, question, options, currentUserId, isActive }: PollMessageProps) => {
+const PollMessage = ({ pollId, currentUserId }: PollMessageProps) => {
+  const [poll, setPoll] = useState<{ question: string; options: string[]; is_active: boolean } | null>(null);
   const [votes, setVotes] = useState<{ user_id: string; option_index: number }[]>([]);
   const [myVote, setMyVote] = useState<number | null>(null);
   const [voting, setVoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const fetchPoll = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("polls")
+        .select("question, options, is_active")
+        .eq("id", pollId)
+        .single();
+      if (error) throw error;
+      setPoll({
+        question: data.question,
+        options: (Array.isArray(data.options) ? data.options : []).filter((o): o is string => typeof o === "string"),
+        is_active: data.is_active,
+      });
+    } catch (err) {
+      console.error("Error fetching poll:", err);
+      setError("حدث خطأ في تحميل الاستطلاع");
+    }
+  }, [pollId]);
 
   const fetchVotes = useCallback(async () => {
     try {
@@ -40,7 +57,8 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
   }, [pollId, currentUserId]);
 
   useEffect(() => {
-    fetchVotes();
+    setIsLoading(true);
+    Promise.all([fetchPoll(), fetchVotes()]);
 
     const channel = supabase.channel(`poll-${pollId}`)
       .on(
@@ -60,10 +78,10 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchVotes, pollId]);
+  }, [fetchPoll, fetchVotes, pollId]);
 
   const handleVote = async (index: number) => {
-    if (!isActive || voting) return;
+    if (!poll?.is_active || voting) return;
     
     setVoting(true);
     setError(null);
@@ -79,7 +97,6 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
         
         if (deleteError) throw deleteError;
         
-        // تحديث محلي
         setMyVote(null);
         setVotes(prev => prev.filter(v => v.user_id !== currentUserId));
       } else {
@@ -102,7 +119,6 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
         
         if (insertError) throw insertError;
         
-        // تحديث محلي
         setMyVote(index);
         setVotes(prev => {
           const filtered = prev.filter(v => v.user_id !== currentUserId);
@@ -128,18 +144,11 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
     );
   }
 
-  if (error) {
+  if (error || !poll) {
     return (
       <div className="w-full max-w-[300px] rounded-xl overflow-hidden" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--destructive))" }}>
         <div className="px-3 py-2 text-center">
-          <span className="text-[12px]" style={{ color: "hsl(var(--destructive))" }}>{error}</span>
-          <button 
-            onClick={() => fetchVotes()}
-            className="block mx-auto mt-1 text-[11px] underline hover:opacity-70"
-            style={{ color: "hsl(var(--primary))" }}
-          >
-            إعادة المحاولة
-          </button>
+          <span className="text-[12px]" style={{ color: "hsl(var(--destructive))" }}>{error || "الاستطلاع غير متاح"}</span>
         </div>
       </div>
     );
@@ -151,10 +160,10 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
     <div className="w-full max-w-[300px] rounded-xl overflow-hidden" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}>
       <div className="px-3 py-2 flex items-center gap-2" style={{ background: "hsl(var(--primary) / 0.1)", borderBottom: "1px solid hsl(var(--border))" }}>
         <BarChart3 className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
-        <span className="text-[13px] font-semibold" style={{ color: "hsl(var(--foreground))", direction: "rtl" }}>{question}</span>
+        <span className="text-[13px] font-semibold" style={{ color: "hsl(var(--foreground))", direction: "rtl" }}>{poll.question}</span>
       </div>
       <div className="p-2 space-y-1.5">
-        {options.map((option, i) => {
+        {poll.options.map((option, i) => {
           const count = votes.filter(v => v.option_index === i).length;
           const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
           const isMyVote = myVote === i;
@@ -163,7 +172,7 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
             <button
               key={i}
               onClick={() => handleVote(i)}
-              disabled={!isActive || voting}
+              disabled={!poll.is_active || voting}
               className="w-full relative rounded-lg px-3 py-2 text-right transition-all hover:opacity-90 active:scale-[0.98] overflow-hidden disabled:cursor-not-allowed disabled:opacity-60"
               style={{ 
                 background: isMyVote ? "hsl(var(--primary) / 0.15)" : "hsl(var(--secondary))",
@@ -195,7 +204,7 @@ const PollMessage = ({ pollId, question, options, currentUserId, isActive }: Pol
       <div className="px-3 py-1.5 text-center" style={{ borderTop: "1px solid hsl(var(--border))" }}>
         <span className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}>
           {totalVotes} {totalVotes === 1 ? "صوت" : "أصوات"} 
-          {!isActive && " • انتهى التصويت"}
+          {!poll.is_active && " • انتهى التصويت"}
           {voting && " • جاري التسجيل..."}
         </span>
       </div>
