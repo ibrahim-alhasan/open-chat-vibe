@@ -8,10 +8,12 @@ interface LinkifiedTextProps {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const openUrl = (url: string) => {
-  const app = (window as any).AppInventor;
-  if (app && typeof app.setWebViewString === "function") {
-    app.setWebViewString(`open_url|${url}`);
-  } else {
+  const message = `open_url|${url}`;
+
+  if (window.AppInventor && window.AppInventor.setWebViewString) {
+    window.AppInventor.setWebViewString(message);
+  }
+  else {
     window.open(url, "_blank", "noopener,noreferrer");
   }
 };
