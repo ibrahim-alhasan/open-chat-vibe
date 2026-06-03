@@ -25,7 +25,7 @@ const PollMessage = ({ pollId, currentUserId }: PollMessageProps) => {
       if (error) throw error;
       setPoll({
         question: data.question,
-        options: Array.isArray(data.options) ? data.options : [],
+        options: (Array.isArray(data.options) ? data.options : []).filter((o): o is string => typeof o === "string"),
         is_active: data.is_active,
       });
     } catch (err) {
