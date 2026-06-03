@@ -1,25 +1,31 @@
 import { ExternalLink } from "lucide-react";
 
-const URL_REGEX = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]}>'"'])/g;
-
 interface LinkifiedTextProps {
   text: string;
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// Regex بدون flag g لتجنب مشاكل test() المتكرر
+const URL_REGEX = /https?:\/\/[^\s<]+[^\s<.,;:!?)\]}>'"]?/;
+
 const openUrl = (url: string) => {
   const message = `open_url|${url}`;
 
-  if (window.AppInventor && window.AppInventor.setWebViewString) {
-    window.AppInventor.setWebViewString(message);
-  }
-  else {
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
+  const sendMessage = () => {
+    if (window.AppInventor && window.AppInventor.setWebViewString) {
+      // App Inventor جاهز، أرسل الرسالة
+      window.AppInventor.setWebViewString(message);
+    } else {
+      // أعد المحاولة بعد 50ms حتى يكون جاهز
+      setTimeout(sendMessage, 50);
+    }
+  };
+
+  sendMessage();
 };
 
 const LinkifiedText = ({ text }: LinkifiedTextProps) => {
-  const parts = text.split(URL_REGEX);
+  // نفصل النص على الروابط باستخدام split
+  const parts = text.split(/(https?:\/\/[^\s<]+[^\s<.,;:!?)\]}>'"]?)/);
 
   if (parts.length === 1) return <>{text}</>;
 
@@ -27,8 +33,6 @@ const LinkifiedText = ({ text }: LinkifiedTextProps) => {
     <>
       {parts.map((part, i) => {
         if (URL_REGEX.test(part)) {
-          // Reset lastIndex since we're reusing the regex
-          URL_REGEX.lastIndex = 0;
           let displayUrl = part.replace(/^https?:\/\/(www\.)?/, '');
           if (displayUrl.length > 35) displayUrl = displayUrl.slice(0, 35) + '…';
 
@@ -52,6 +56,7 @@ const LinkifiedText = ({ text }: LinkifiedTextProps) => {
             </span>
           );
         }
+
         return <span key={i}>{part}</span>;
       })}
     </>
