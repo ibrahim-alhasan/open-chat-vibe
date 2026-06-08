@@ -11,9 +11,9 @@ const openUrl = (url: string) => {
   const message = `open_url|${url}`;
 
   const sendMessage = () => {
-    if (window.AppInventor && window.AppInventor.setWebViewString) {
-      // App Inventor جاهز، أرسل الرسالة
-      window.AppInventor.setWebViewString(message);
+    const app = (window as any).AppInventor;
+    if (app && app.setWebViewString) {
+      app.setWebViewString(message);
     } else {
       // أعد المحاولة بعد 50ms حتى يكون جاهز
       setTimeout(sendMessage, 50);
