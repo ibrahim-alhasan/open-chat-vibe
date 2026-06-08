@@ -144,11 +144,9 @@ const UrlButton = ({ url, onOpen }: { url: string; onOpen?: (url: string) => voi
   try {
     const message = `open_url|${url}`;
 
-    if (
-      window.AppInventor &&
-      typeof window.AppInventor.setWebViewString === "function"
-    ) {
-      window.AppInventor.setWebViewString(message);
+    const app = (window as any).AppInventor;
+    if (app && typeof app.setWebViewString === "function") {
+      app.setWebViewString(message);
       return;
     }
   } catch (err) {
