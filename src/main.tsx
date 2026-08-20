@@ -61,3 +61,18 @@ themeObserver.observe(document.documentElement, {
 });
 
 createRoot(document.getElementById("root")!).render(<App />);
+
+/* ── Notify native shell that the app is ready (hide splash screen) ── */
+const removeSplashScreen = () => {
+  try {
+    window.AppBridge?.removeSplashScreen?.();
+  } catch {
+    // native bridge unavailable
+  }
+};
+
+if (document.readyState === "complete") {
+  removeSplashScreen();
+} else {
+  window.addEventListener("load", removeSplashScreen, { once: true });
+}
