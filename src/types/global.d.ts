@@ -5,5 +5,8 @@ declare global {
     AppInventor?: {
       setWebViewString?: (message: string) => void;
     };
+    AppBridge?: {
+      removeSplashScreen?: () => void;
+    };
   }
 }
