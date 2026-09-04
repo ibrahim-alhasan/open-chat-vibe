@@ -668,8 +668,7 @@ const ChatMessage = memo(({
 
           {/* Actions popup */}
           {showActionsMenu && (
-             <div className="chat-actions-popup"
-              className="absolute left-0 right-0 animate-fade-in pointer-events-none"
+             <div className="chat-actions-popup absolute left-0 right-0 animate-fade-in pointer-events-none"
               style={{
                 bottom: "calc(100% + 10px)",
                 zIndex: 999999,
