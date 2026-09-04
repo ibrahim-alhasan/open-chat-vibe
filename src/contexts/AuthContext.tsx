@@ -53,10 +53,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session: sess } }) => {
-      setSession(sess);
-      setUser(sess?.user ?? null);
-      if (sess?.user) fetchProfileAndRole(sess.user.id);
+    // دخول تلقائي كمستخدم مجهول عند أول زيارة
+    supabase.auth.getSession().then(async ({ data: { session: sess } }) => {
+      if (sess?.user) {
+        setSession(sess);
+        setUser(sess.user);
+        await fetchProfileAndRole(sess.user.id);
+      } else {
+        const { data, error } = await supabase.auth.signInAnonymously();
+        if (!error && data.user) {
+          setSession(data.session);
+          setUser(data.user);
+          // إعطاء المُشغّل وقتاً لإنشاء الملف الشخصي
+          for (let i = 0; i < 5; i++) {
+            await fetchProfileAndRole(data.user.id);
+            const { data: p } = await supabase.from("profiles").select("username").eq("user_id", data.user.id).maybeSingle();
+            if (p) break;
+            await new Promise((r) => setTimeout(r, 400));
+          }
+        }
+      }
       setLoading(false);
     });
 

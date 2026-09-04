@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,230 +6,84 @@
 
 @layer base {
   /* =========================
-     الوضع الافتراضي = ليلي
+     هوية "نبض التفوق" — فاتحة
   ========================= */
-  :root {
-    /* الخلفية */
-    --background: 232 65% 7%;
-    --foreground: 0 0% 96%;
+  :root,
+  :root.light,
+  :root.dark {
+    /* الأسطح */
+    --background: 212 45% 96%;      /* #f0f4f9 */
+    --foreground: 222 47% 11%;      /* #0f172a */
 
-    /* الكروت */
-    --card: 232 52% 10%;
-    --card-foreground: 0 0% 96%;
-
-    --popover: 232 52% 10%;
-    --popover-foreground: 0 0% 96%;
-
-    /* اللون البرتقالي */
-    --primary: 39 100% 52%;
-    --primary-foreground: 0 0% 100%;
-
-    /* العناصر الثانوية */
-    --secondary: 232 34% 14%;
-    --secondary-foreground: 240 10% 72%;
-
-    --muted: 232 34% 12%;
-    --muted-foreground: 240 10% 58%;
-
-    --accent: 39 100% 52%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-
-    /* الحدود */
-    --border: 232 28% 18%;
-    --input: 232 28% 14%;
-    --ring: 39 100% 52%;
-
-    --radius: 0.8rem;
-
-    /* ألوان التطبيق */
-    --chat-bg: 232 65% 7%;
-    --chat-header: 232 52% 10%;
-    --chat-sidebar: 232 52% 10%;
-    --chat-input-bg: 232 28% 14%;
-
-    /* الفقاعات */
-    --chat-bubble-own: 39 100% 20%;
-    --chat-bubble-other: 232 28% 14%;
-
-    --chat-bubble-own-border: 39 100% 28%;
-    --chat-bubble-other-border: 232 24% 20%;
-
-    --chat-reply-bg: 232 24% 12%;
-
-    /* النصوص */
-    --chat-timestamp: 240 8% 55%;
-    --chat-online: 39 100% 52%;
-    --chat-glow: 39 100% 52%;
-    --chat-admin: 39 100% 52%;
-
-    /* التدرجات */
-    --gradient-header: linear-gradient(
-      135deg,
-      hsl(232 52% 10%),
-      hsl(232 65% 7%)
-    );
-
-    --gradient-primary: linear-gradient(
-      135deg,
-      hsl(39 100% 52%),
-      hsl(35 100% 48%)
-    );
-
-    --shadow-glow: 0 0 18px hsl(39 100% 52% / 0.22);
-    --shadow-card: 0 6px 30px hsl(232 70% 3% / 0.55);
-  }
-
-  /* =========================
-        الوضع النهاري
-  ========================= */
-  :root.light {
-    /* الخلفية العامة */
-    --background: 240 14% 95%;
-    --foreground: 232 42% 16%;
-
-    /* الكروت */
     --card: 0 0% 100%;
-    --card-foreground: 232 42% 16%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 232 42% 16%;
+    --popover-foreground: 222 47% 11%;
 
-    /* البرتقالي */
-    --primary: 39 100% 48%;
+    /* اللون الأساسي = التركوازي */
+    --primary: 175 84% 32%;         /* #0d9488 */
     --primary-foreground: 0 0% 100%;
 
-    /* العناصر الثانوية */
-    --secondary: 240 16% 96%;
-    --secondary-foreground: 232 22% 45%;
+    --secondary: 210 40% 96%;       /* #f1f5f9 */
+    --secondary-foreground: 215 16% 47%;
 
-    --muted: 240 12% 92%;
-    --muted-foreground: 232 14% 65%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%; /* #64748b */
 
-    --accent: 39 100% 48%;
+    --accent: 221 83% 53%;          /* #2563eb */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 84% 60%;       /* #ef4444 */
+    --destructive-foreground: 0 0% 100%;
 
-    /* الحدود */
-    --border: 240 10% 86%;
-    --input: 0 0% 100%;
-    --ring: 39 100% 48%;
+    --border: 214 32% 91%;          /* #e2e8f0 */
+    --input: 210 40% 96%;
+    --ring: 175 84% 32%;
+
+    --radius: 1rem;
 
     /* ألوان التطبيق */
-    --chat-bg: 240 14% 95%;
-    --chat-header: 240 14% 95%;
+    --chat-bg: 212 45% 96%;
+    --chat-header: 0 0% 100%;
     --chat-sidebar: 0 0% 100%;
-    --chat-input-bg: 0 0% 100%;
+    --chat-input-bg: 210 40% 96%;
 
     /* الفقاعات */
-    --chat-bubble-own: 39 100% 48%;
+    --chat-bubble-own: 232 52% 19%;      /* #181e4b */
+    --chat-bubble-own-2: 230 55% 34%;    /* #293482 */
     --chat-bubble-other: 0 0% 100%;
 
-    --chat-bubble-own-border: 39 100% 44%;
-    --chat-bubble-other-border: 240 10% 86%;
+    --chat-bubble-own-border: 232 52% 19%;
+    --chat-bubble-other-border: 214 32% 91%;
 
-    --chat-reply-bg: 240 14% 92%;
+    --chat-reply-bg: 210 40% 96%;
 
     /* النصوص */
-    --chat-timestamp: 232 12% 62%;
-    --chat-online: 39 100% 48%;
-    --chat-glow: 39 100% 48%;
-    --chat-admin: 39 100% 48%;
+    --chat-timestamp: 215 16% 55%;
+    --chat-online: 175 84% 32%;
+    --chat-glow: 175 84% 32%;
+    --chat-admin: 199 89% 60%;      /* #38bdf8 */
 
-    /* التدرجات */
-    --gradient-header: linear-gradient(
-      135deg,
-      hsl(240 14% 96%),
-      hsl(240 14% 93%)
-    );
+    /* التدرجات والظلال */
+    --gradient-header: linear-gradient(135deg, hsl(0 0% 100%), hsl(0 0% 100%));
 
     --gradient-primary: linear-gradient(
       135deg,
-      hsl(39 100% 50%),
-      hsl(35 100% 46%)
+      hsl(175 84% 32%) 0%,
+      hsl(175 84% 25%) 100%
     );
 
-    --shadow-glow: 0 0 18px hsl(39 100% 48% / 0.25);
-    --shadow-card: 0 4px 18px hsl(232 42% 16% / 0.08);
-  }
-
-  /* =========================
-        الوضع الليلي
-  ========================= */
-  :root.dark {
-    /* الخلفية */
-    --background: 232 65% 7%;
-    --foreground: 0 0% 96%;
-
-    /* الكروت */
-    --card: 232 52% 10%;
-    --card-foreground: 0 0% 96%;
-
-    --popover: 232 52% 10%;
-    --popover-foreground: 0 0% 96%;
-
-    /* البرتقالي */
-    --primary: 39 100% 52%;
-    --primary-foreground: 0 0% 100%;
-
-    /* العناصر الثانوية */
-    --secondary: 232 34% 14%;
-    --secondary-foreground: 240 10% 72%;
-
-    --muted: 232 34% 12%;
-    --muted-foreground: 240 10% 58%;
-
-    --accent: 39 100% 52%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-
-    /* الحدود */
-    --border: 232 28% 18%;
-    --input: 232 28% 14%;
-    --ring: 39 100% 52%;
-
-    /* ألوان التطبيق */
-    --chat-bg: 232 65% 7%;
-    --chat-header: 232 52% 10%;
-    --chat-sidebar: 232 52% 10%;
-    --chat-input-bg: 232 28% 14%;
-
-    /* الفقاعات */
-    --chat-bubble-own: 39 100% 20%;
-    --chat-bubble-other: 232 28% 14%;
-
-    --chat-bubble-own-border: 39 100% 28%;
-    --chat-bubble-other-border: 232 24% 20%;
-
-    --chat-reply-bg: 232 24% 12%;
-
-    /* النصوص */
-    --chat-timestamp: 240 8% 55%;
-    --chat-online: 39 100% 52%;
-    --chat-glow: 39 100% 52%;
-    --chat-admin: 39 100% 52%;
-
-    /* التدرجات */
-    --gradient-header: linear-gradient(
+    --gradient-bubble-own: linear-gradient(
       135deg,
-      hsl(232 52% 10%),
-      hsl(232 65% 7%)
+      #181e4b 0%,
+      #293482 100%
     );
 
-    --gradient-primary: linear-gradient(
-      135deg,
-      hsl(39 100% 52%),
-      hsl(35 100% 48%)
-    );
+    --shadow-glow: 0 4px 10px hsl(175 84% 32% / 0.25);
+    --shadow-card: 0 10px 30px hsl(222 47% 11% / 0.10);
 
-    --shadow-glow: 0 0 18px hsl(39 100% 52% / 0.22);
-    --shadow-card: 0 6px 30px hsl(232 70% 3% / 0.55);
+    --safe-bottom: env(safe-area-inset-bottom, 8px);
   }
 }
 
@@ -238,40 +92,45 @@
     @apply border-border;
   }
 
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
   }
 
   ::-webkit-scrollbar {
-    width: 4px;
+    width: 3px;
   }
 
   ::-webkit-scrollbar-track {
-    background: hsl(var(--background));
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
     background: hsl(var(--border));
     border-radius: 2px;
   }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground));
-  }
 }
 
 @layer utilities {
   .chat-bubble-own {
-    background: hsl(var(--chat-bubble-own));
-    border: 1px solid hsl(var(--chat-bubble-own-border));
+    background: var(--gradient-bubble-own);
+    border: none;
+    color: #ffffff;
+    box-shadow: 0 3px 12px rgba(24, 30, 75, 0.15);
   }
 
   .chat-bubble-other {
     background: hsl(var(--chat-bubble-other));
-    border: 1px solid hsl(var(--chat-bubble-other-border));
+    border: none;
+    color: hsl(var(--foreground));
+    box-shadow: 0 2px 7px rgba(0, 0, 0, 0.04);
   }
 
   .glow-primary {
@@ -290,7 +149,7 @@
   }
 
   .glass {
-    background: hsl(var(--card) / 0.82);
+    background: rgba(255, 255, 255, 0.96);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
@@ -306,6 +165,10 @@
   .animate-pulse-dot {
     animation: pulseDot 2s ease-in-out infinite;
   }
+
+  .sheet-up {
+    animation: sheetUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
 }
 
 /* إخفاء شعار Lovable */
@@ -313,13 +176,11 @@
   display: none !important;
 }
 
-/* تحسين الأداء */
 .chat-bubble-own,
 .chat-bubble-other {
   transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  will-change: transform;
 }
 
 * {
@@ -349,6 +210,16 @@
 
   to {
     opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
     transform: translateY(0);
   }
 }
