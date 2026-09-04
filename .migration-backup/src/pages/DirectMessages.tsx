@@ -693,9 +693,9 @@ const DirectMessages = ({
   }
 
   return (
-    <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
+    <div className="chat-screen-shell flex flex-col h-screen select-none" dir="rtl" style={{ background: "hsl(var(--chat-bg))" }}>
       {/* Header */}
-      <header className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3"
+      <header className="chat-app-header flex-shrink-0 px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3"
         style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
         {activeConversation && activeProfile ? (
           <div className="flex items-center justify-between flex-1">
@@ -751,7 +751,7 @@ const DirectMessages = ({
 
       {!activeConversation ? (
         /* Conversation list */
-        <div className="flex-1 overflow-y-auto">
+         <div className="chat-conversation-list flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex justify-center items-center h-full">
               <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
@@ -767,7 +767,7 @@ const DirectMessages = ({
               const blockedByOther = blockedMe.has(conv.userId);
               return (
                 <div key={conv.userId} onClick={() => setActiveConversation(conv.userId)}
-                  className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 cursor-pointer transition-colors hover:opacity-80"
+                  className="chat-conversation-item flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 cursor-pointer transition-colors hover:opacity-80"
                   style={{ borderBottom: "1px solid hsl(var(--border) / 0.5)" }}>
                   <div className="relative flex-shrink-0">
                     {conv.avatarUrl ? (
@@ -809,7 +809,7 @@ const DirectMessages = ({
       ) : (
         /* Active conversation */
         <>
-          <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-4 space-y-3">
+           <div className="chat-app-messages chat-private-messages flex-1 overflow-y-auto px-2 sm:px-4 py-4 space-y-3">
             {loadingMessages ? (
               <div className="flex justify-center items-center h-32">
                  <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
@@ -1011,7 +1011,7 @@ const DirectMessages = ({
           )}
 
           {/* Input or blocked message */}
-          <div className="flex-shrink-0 px-2 sm:px-4 pb-4 pt-2">
+           <div className="chat-private-composer flex-shrink-0 px-2 sm:px-4 pb-4 pt-2">
             {isConversationBlocked ? (
               <div className="flex items-center justify-center py-3 rounded-2xl text-sm"
                 style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))", border: "1px solid hsl(var(--border))" }}>

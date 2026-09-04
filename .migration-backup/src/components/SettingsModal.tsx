@@ -105,13 +105,13 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center z-50"
+      className="chat-sheet-backdrop fixed inset-0 flex items-center justify-center z-50"
       style={{ background: "hsl(220 16% 5% / 0.8)", backdropFilter: "blur(8px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       dir="rtl"
     >
-      <div className="w-full max-w-sm mx-4 h-[90vh] flex flex-col">
-        <div className="rounded-2xl flex flex-col h-full" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "var(--shadow-card)" }}>
+      <div className="chat-sheet-frame w-full max-w-sm mx-4 h-[90vh] flex flex-col">
+        <div className="chat-bottom-sheet rounded-2xl flex flex-col h-full" style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "var(--shadow-card)" }}>
           {/* Fixed Header */}
           <div className="flex-shrink-0 p-4 border-b" style={{ borderColor: "hsl(var(--border))" }}>
             <div className="flex items-center justify-between">

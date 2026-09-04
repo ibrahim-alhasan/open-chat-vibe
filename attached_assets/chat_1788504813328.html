@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>نبض التفوق - الدردشة</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-surface: #f0f4f9;
+      --card-bg: #ffffff;
+      --primary-dark: #151a36;
+      --primary-blue: #1e266d;
+      --accent-blue: #2563eb;
+      --accent-teal: #0d9488;
+      --ticks-blue: #38bdf8;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --danger: #ef4444;
+      --safe-bottom: env(safe-area-inset-bottom, 8px);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      background-color: #0b0f19;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .app-viewport {
+      width: 100%;
+      max-width: 430px;
+      height: 100vh;
+      background: var(--bg-surface);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    @media (min-width: 450px) {
+      .app-viewport {
+        height: 900px;
+        border-radius: 40px;
+        border: 10px solid #1e2430;
+        box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+      }
+    }
+
+    /* الشريط العلوي */
+    .app-header {
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      z-index: 25;
+    }
+
+    .header-user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-avatar-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 17px;
+    }
+
+    .header-titles h1 {
+      font-size: 16px;
+      color: var(--text-main);
+      font-weight: 700;
+    }
+
+    .header-titles span {
+      font-size: 11px;
+      color: var(--accent-teal);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-action-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid var(--border-color);
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-main);
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.1s ease;
+    }
+
+    .icon-action-btn:active {
+      transform: scale(0.92);
+    }
+
+    .notification-dot {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 18px;
+      height: 18px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #fff;
+    }
+
+    /* مساحة التمرير */
+    .chat-scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      scroll-behavior: smooth;
+    }
+
+    /* بنية السحب للرد (Swipe Container) */
+    .swipe-container {
+      position: relative;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      touch-action: pan-y;
+      overflow: visible;
+    }
+
+    .swipe-reply-icon {
+      position: absolute;
+      right: 12px;
+      color: var(--accent-blue);
+      font-size: 18px;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .message-item {
+      display: flex;
+      gap: 10px;
+      max-width: 86%;
+      position: relative;
+      transition: transform 0.12s ease-out;
+      will-change: transform;
+      z-index: 2;
+    }
+
+    .message-item.incoming {
+      align-self: flex-start;
+      align-items: flex-end;
+    }
+
+    .message-item.outgoing {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+      align-items: flex-end;
+      margin-inline-start: auto;
+    }
+
+    .avatar-interactive {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      object-fit: cover;
+      cursor: pointer;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+      flex-shrink: 0;
+    }
+
+    .message-content-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .sender-tag {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-inline-start: 6px;
+    }
+
+    .bubble {
+      padding: 10px 14px;
+      border-radius: 18px;
+      font-size: 13.5px;
+      line-height: 1.45;
+      position: relative;
+      word-break: break-word;
+      user-select: text;
+      cursor: pointer;
+    }
+
+    .incoming .bubble {
+      background: #ffffff;
+      color: var(--text-main);
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 2px 7px rgba(0,0,0,0.04);
+    }
+
+    .outgoing .bubble {
+      background: linear-gradient(135deg, #181e4b 0%, #293482 100%);
+      color: #ffffff;
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 3px 12px rgba(24, 30, 75, 0.15);
+    }
+
+    .bubble a {
+      color: #3b82f6;
+      text-decoration: underline;
+      font-weight: 600;
+      word-break: break-all;
+    }
+
+    .outgoing .bubble a {
+      color: #93c5fd;
+    }
+
+    .quote-box {
+      border-right: 3px solid var(--accent-blue);
+      padding: 4px 8px;
+      margin-bottom: 6px;
+      background: rgba(0, 0, 0, 0.04);
+      border-radius: 4px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .outgoing .quote-box {
+      background: rgba(255, 255, 255, 0.15);
+      border-right-color: #93c5fd;
+      color: #e2e8f0;
+    }
+
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      margin-top: 4px;
+      font-size: 10px;
+      opacity: 0.75;
+    }
+
+    .outgoing .msg-meta {
+      color: #cbd5e1;
+    }
+
+    .ticks-icon {
+      color: var(--ticks-blue);
+      font-size: 12px;
+      letter-spacing: -3px;
+      margin-right: 2px;
+    }
+
+    .reactions-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 2px 7px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      position: absolute;
+      bottom: -10px;
+      font-size: 12px;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .incoming .reactions-badge { left: 8px; }
+    .outgoing .reactions-badge { right: 8px; }
+
+    /* شريط التفاعلات العائم السريع */
+    .reaction-bar-popup {
+      position: absolute;
+      background: #ffffff;
+      border-radius: 28px;
+      padding: 6px 10px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      border: 1px solid var(--border-color);
+      z-index: 60;
+      animation: popScale 0.15s ease-out;
+    }
+
+    .reaction-bar-popup.show { display: flex; }
+
+    .reaction-bar-popup span {
+      font-size: 20px;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    .reaction-bar-popup span:active { transform: scale(1.35); }
+
+    @keyframes popScale {
+      from { transform: scale(0.6); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* شريط معاينة الرد المعلق */
+    .reply-preview-bar {
+      display: none;
+      padding: 8px 16px;
+      background: #f8fafc;
+      border-top: 1px solid var(--border-color);
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .reply-preview-bar.show { display: flex; }
+
+    .reply-preview-bar span {
+      border-right: 3px solid var(--accent-blue);
+      padding-right: 8px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 80%;
+    }
+
+    /* شريط الإدخال */
+    .chat-input-bar {
+      padding: 10px 14px calc(10px + var(--safe-bottom)) 14px;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .input-field-wrapper {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      background: #f1f5f9;
+      border-radius: 24px;
+      padding: 8px 14px;
+      gap: 8px;
+    }
+
+    .input-field-wrapper input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      outline: none;
+      font-size: 14px;
+      color: var(--text-main);
+      user-select: text;
+    }
+
+    .send-action-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-teal) 0%, #0f766e 100%);
+      color: #fff;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(13, 148, 136, 0.25);
+    }
+
+    /* النوافذ السفلية (Sheets) */
+    .modal-backdrop {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(5px);
+      display: none;
+      justify-content: center;
+      align-items: flex-end;
+      z-index: 100;
+    }
+
+    .modal-backdrop.active { display: flex; }
+
+    .bottom-sheet {
+      width: 100%;
+      background: #ffffff;
+      border-radius: 28px 28px 0 0;
+      padding: 22px 20px calc(20px + var(--safe-bottom)) 20px;
+      max-height: 88vh;
+      overflow-y: auto;
+      animation: sheetUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes sheetUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .sheet-header h3 {
+      font-size: 17px;
+      color: var(--text-main);
+      font-weight: 700;
+    }
+
+    .sheet-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-top: 6px;
+      margin-bottom: 14px;
+      font-size: 13.5px;
+      outline: none;
+      user-select: text;
+      background: #f8fafc;
+    }
+
+    .sheet-input:focus {
+      border-color: var(--accent-blue);
+      background: #ffffff;
+    }
+
+    /* مفاتيح التبديل (Switches) */
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .setting-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .setting-title span {
+      font-size: 11.5px;
+      font-weight: 400;
+      color: var(--text-muted);
+      display: block;
+    }
+
+    .switch-toggle {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch-toggle input { opacity: 0; width: 0; height: 0; }
+
+    .switch-slider {
+      position: absolute; cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #cbd5e1;
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .switch-slider:before {
+      position: absolute; content: "";
+      height: 18px; width: 18px;
+      left: 3px; bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .switch-slider { background-color: var(--accent-teal); }
+    input:checked + .switch-slider:before { transform: translateX(20px); }
+
+    .btn-action-primary {
+      width: 100%;
+      padding: 13px;
+      border-radius: 14px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--primary-dark);
+      color: #fff;
+    }
+
+    .btn-action-primary:active { transform: scale(0.98); }
+
+    /* تفاصيل البروفايل */
+    .profile-banner-card {
+      background: linear-gradient(180deg, #f8fafc 0%, #edf2f7 100%);
+      border-radius: 20px;
+      padding: 16px;
+      text-align: center;
+      border: 1px solid var(--border-color);
+      margin-bottom: 16px;
+    }
+
+    .profile-img-large {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid var(--accent-teal);
+      margin-bottom: 10px;
+    }
+
+    .profile-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .stat-card {
+      background: #ffffff;
+      padding: 10px 6px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      text-align: center;
+    }
+
+    .stat-card strong {
+      display: block;
+      color: var(--primary-dark);
+      font-size: 14px;
+    }
+
+    .stat-card span {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* عناصر قائمة الإشعارات */
+    .request-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f8fafc;
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border-color);
+      margin-bottom: 10px;
+    }
+
+    .request-details {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-group-req {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-req {
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-accept { background: var(--accent-teal); color: #fff; }
+    .btn-reject { background: #fee2e2; color: var(--danger); }
+
+    /* شاشة المحادثة الخاصة */
+    .screen-view {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: var(--bg-surface);
+      z-index: 80;
+      display: none;
+      flex-direction: column;
+    }
+
+    .screen-view.active { display: flex; }
+
+    /* توست التنبيه */
+    .app-toast {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-60px);
+      background: rgba(15, 23, 42, 0.9);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 24px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+      z-index: 200;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .app-toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-viewport">
+    
+    <!-- إشعار توست منبثق -->
+    <div class="app-toast" id="appToast">
+      <i class="fa-solid fa-circle-check" style="color: var(--accent-teal);"></i>
+      <span id="toastMsg">تم الحفظ بنجاح</span>
+    </div>
+
+    <!-- ================= الشريط العلوي ================= -->
+    <header class="app-header">
+      <div class="header-user-info">
+        <div class="header-avatar-badge">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <div class="header-titles">
+          <h1>دردشة نبض التفوق</h1>
+          <span><i class="fa-solid fa-circle" style="font-size: 7px;"></i> 324 متصلاً الآن</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <!-- زر الإشعارات وطلبات الرسائل الخاصة -->
+        <button class="icon-action-btn" onclick="openModal('notificationsSheet')" title="الإشعارات والطلبات">
+          <i class="fa-regular fa-bell"></i>
+          <span class="notification-dot" id="notifBadge">1</span>
+        </button>
+        <!-- زر الإعدادات والملف الشخصي -->
+        <button class="icon-action-btn" onclick="openModal('settingsSheet')" title="الإعدادات">
+          <i class="fa-solid fa-sliders"></i>
+        </button>
+        <button class="icon-action-btn" title="الرجوع">
+          <i class="fa-solid fa-arrow-left"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- ================= مساحة المحادثة العامة (مع السحب للرد) ================= -->
+    <main class="chat-scroll-area" id="publicChatArea">
+      
+      <!-- رسالة سارة -->
+      <div class="swipe-container" ontouchstart="handleSwipeStart(event, this)" ontouchmove="handleSwipeMove(event, this)" ontouchend="handleSwipeEnd(this)" onmousedown="handleMouseStart(event, this)">
+        <i class="fa-solid fa-reply swipe-reply-icon"></i>
+        <div class="message-item incoming" data-user="سارة النجار" data-study="بكالوريا علمي - دمشق" data-badge="طالبة متميزة" data-score="98.4%" data-rank="الأولى" data-bio="أطمح لكلية الطب البشري، والمشاركة في النماذج الامتحانية." data-locked="true" data-img="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150">
+          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" class="avatar-interactive" onclick="viewDetailedProfile(this)" alt="سارة">
+          <div class="message-content-wrapper">
+            <span class="sender-tag">سارة النجار</span>
+            <div class="bubble" onclick="openReactions(event, this)">
+              أهلاً بكم! يمكنكم متابعة النماذج الامتحانية الوزارية عبر الرابط: https://moed.gov.sy بالتوفيق للجميع!
+              <div class="reactions-badge">❤️ 4</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- رسالة عمر -->
+      <div class="swipe-container" ontouchstart="handleSwipeStart(event, this)" ontouchmove="handleSwipeMove(event, this)" ontouchend="handleSwipeEnd(this)" onmousedown="handleMouseStart(event, this)">
+        <i class="fa-solid fa-reply swipe-reply-icon"></i>
+        <div class="message-item incoming" data-user="م. عمر خليل" data-study="مدرس رياضيات معتمد" data-badge="كادر تدريسي" data-score="خريج 2021" data-rank="مشرف" data-bio="مدرس ومعد أسئلة تخصصية لاختبارات البكالوريا في منصة نبض التفوق." data-locked="false" data-img="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150">
+          <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150" class="avatar-interactive" onclick="viewDetailedProfile(this)" alt="عمر">
+          <div class="message-content-wrapper">
+            <span class="sender-tag">م. عمر خليل</span>
+            <div class="bubble" onclick="openReactions(event, this)">
+              اسحبوا أي رسالة إلى اليسار للرد عليها مباشرة، أو انقروا عليها لإضافة تفاعل سريع!
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- رسالة صادرة -->
+      <div class="swipe-container" ontouchstart="handleSwipeStart(event, this)" ontouchmove="handleSwipeMove(event, this)" ontouchend="handleSwipeEnd(this)" onmousedown="handleMouseStart(event, this)">
+        <i class="fa-solid fa-reply swipe-reply-icon"></i>
+        <div class="message-item outgoing">
+          <div class="message-content-wrapper">
+            <div class="bubble" onclick="openReactions(event, this)">
+              تمت استعادة زر الإشعارات وقفل الرسائل الخاصة بنجاح، وميزة السحب تعمل الآن بكل سلاسة.
+              <div class="reactions-badge">👍 3</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- شريط التفاعلات العائم -->
+    <div class="reaction-bar-popup" id="reactionBar">
+      <span onclick="selectReaction('❤️')">❤️</span>
+      <span onclick="selectReaction('👍')">👍</span>
+      <span onclick="selectReaction('🔥')">🔥</span>
+      <span onclick="selectReaction('😂')">😂</span>
+      <span onclick="selectReaction('👏')">👏</span>
+      <span onclick="selectReaction('😢')">😢</span>
+    </div>
+
+    <!-- شريط المعاينة للرد المقتبس -->
+    <div class="reply-preview-bar" id="publicReplyBar">
+      <span id="publicReplyText">الرد على: ...</span>
+      <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="cancelReply('public')"></i>
+    </div>
+
+    <!-- شريط الإدخال الرئيسي -->
+    <div class="chat-input-bar">
+      <button class="icon-action-btn" style="border:none;"><i class="fa-solid fa-paperclip"></i></button>
+      <div class="input-field-wrapper">
+        <input type="text" id="publicMsgInput" placeholder="اكتب رسالتك أو شارك رابطاً..." onkeydown="handleEnter(event, 'public')">
+        <i class="fa-regular fa-face-smile" style="color: #94a3b8; cursor: pointer;"></i>
+      </div>
+      <button class="send-action-btn" onclick="sendPublicMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+
+    <!-- ================= شاشة الإشعارات وطلبات المراسلة ================= -->
+    <div class="modal-backdrop" id="notificationsSheet" onclick="closeBackdrop(event, 'notificationsSheet')">
+      <div class="bottom-sheet">
+        <div class="sheet-header">
+          <h3>الإشعارات وطلبات المراسلة</h3>
+          <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('notificationsSheet')"></i>
+        </div>
+
+        <div id="requestsList">
+          <div class="request-item" id="req-1">
+            <div class="request-details">
+              <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" style="width:42px; height:42px; border-radius:50%; object-fit:cover;">
+              <div>
+                <strong style="font-size: 13.5px; color: var(--text-main);">سارة النجار</strong>
+                <p style="font-size: 11.5px; color: var(--text-muted);">أرسلت لك طلب محادثة خاصة...</p>
+              </div>
+            </div>
+            <div class="btn-group-req">
+              <button class="btn-req btn-accept" onclick="acceptRequest('سارة النجار', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', 'req-1')">قبول</button>
+              <button class="btn-req btn-reject" onclick="rejectRequest('req-1')">رفض</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ================= شاشة الإعدادات وتعديل الحساب والقفل ================= -->
+    <div class="modal-backdrop" id="settingsSheet" onclick="closeBackdrop(event, 'settingsSheet')">
+      <div class="bottom-sheet">
+        <div class="sheet-header">
+          <h3>تعديل الملف الشخصي والإعدادات</h3>
+          <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('settingsSheet')"></i>
+        </div>
+
+        <!-- رفع وحفظ الصورة الشخصية -->
+        <div style="display:flex; flex-direction:column; align-items:center; gap:8px; margin-bottom:16px;">
+          <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" onchange="previewNewAvatar(event)">
+          <div style="width:90px; height:90px; border-radius:50%; position:relative; cursor:pointer; border:3px solid var(--accent-teal); overflow:hidden;" onclick="document.getElementById('avatarFileInput').click()">
+            <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150" id="settingsAvatarImg" style="width:100%; height:100%; object-fit:cover;">
+            <div style="position:absolute; bottom:0; width:100%; background:rgba(0,0,0,0.55); color:#fff; font-size:10px; text-align:center; padding:3px 0;">
+              <i class="fa-solid fa-camera"></i> تغيير
+            </div>
+          </div>
+          <span style="font-size:12px; color:var(--text-muted);">انقر لرفع صورة جديدة من هاتفك</span>
+        </div>
+
+        <label style="font-size: 12.5px; color: var(--text-muted); font-weight: 600;">اسم المستخدم</label>
+        <input type="text" id="editProfileName" class="sheet-input" placeholder="اسمك المعروض...">
+
+        <label style="font-size: 12.5px; color: var(--text-muted); font-weight: 600;">الوصف والنبذة الشخصية (Bio)</label>
+        <textarea id="editProfileBio" class="sheet-input" style="height: 75px; resize: none; padding-top: 10px;" placeholder="اكتب نبذة عنك..."></textarea>
+
+        <!-- زر التحكم بالموافقة على الرسائل الخاصة وقفلها -->
+        <div class="setting-row">
+          <div class="setting-title">
+            <i class="fa-solid fa-shield-halved" style="color:var(--accent-teal); font-size: 18px;"></i>
+            <div>
+              قفل المحادثات الخاصة
+              <span>يتطلب موافقتك المسبقة عبر الإشعارات</span>
+            </div>
+          </div>
+          <label class="switch-toggle">
+            <input type="checkbox" id="privateLockToggle" checked onchange="toggleLockState(this.checked)">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+
+        <button class="btn-action-primary" style="margin-top: 16px;" onclick="saveProfileChanges()">
+          <i class="fa-solid fa-floppy-disk"></i> حفظ الصورة والبيانات
+        </button>
+      </div>
+    </div>
+
+    <!-- ================= بطاقة الملف الشخصي ================= -->
+    <div class="modal-backdrop" id="userProfileSheet" onclick="closeBackdrop(event, 'userProfileSheet')">
+      <div class="bottom-sheet">
+        <div class="sheet-header">
+          <h3>الملف الشخصي للطالب</h3>
+          <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('userProfileSheet')"></i>
+        </div>
+        <div class="profile-banner-card">
+          <img src="" id="sheetUserImg" class="profile-img-large">
+          <h4 id="sheetUserName" style="font-size: 17px; color: var(--text-main); font-weight: 700;"></h4>
+          <span style="display:inline-block; font-size: 11px; background: #e0f2fe; color: #0284c7; padding: 3px 12px; border-radius: 12px; margin-top: 4px;" id="sheetUserBadge"></span>
+          <p id="sheetUserStudy" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;"></p>
+          
+          <div class="profile-stats-grid">
+            <div class="stat-card">
+              <strong id="sheetUserScore">98%</strong>
+              <span>المعدل المتوقع</span>
+            </div>
+            <div class="stat-card">
+              <strong id="sheetUserRank">الأول</strong>
+              <span>الترتيب</span>
+            </div>
+            <div class="stat-card">
+              <strong>142</strong>
+              <span>مشاركة ومساعدة</span>
+            </div>
+          </div>
+        </div>
+
+        <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 6px;">النبذة التعريفية:</label>
+        <div style="background:#f8fafc; border-radius:12px; padding:12px; font-size:13px; color:#334155; line-height:1.5; border:1px solid var(--border-color); margin-bottom:16px;" id="sheetUserBio"></div>
+
+        <button class="btn-action-primary" id="startChatBtn" onclick="handleStartChatAction()">
+          <i class="fa-solid fa-paper-plane"></i> <span id="btnChatText">بدء محادثة خاصة</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ================= واجهة المحادثة الخاصة (مع صحين الواتس الزرقاء) ================= -->
+    <div class="screen-view" id="privateChatScreen">
+      <header class="app-header">
+        <div class="header-user-info">
+          <button class="icon-action-btn" onclick="closePrivateChat()" style="margin-left: 6px;">
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+          <img src="" id="privateHeaderAvatar" class="avatar-interactive" style="width: 38px; height: 38px;" alt="">
+          <div class="header-titles">
+            <h1 id="privateHeaderName">المستخدم</h1>
+            <span style="color: var(--accent-teal);"><i class="fa-solid fa-circle" style="font-size: 6px;"></i> متصل الآن</span>
+          </div>
+        </div>
+        <button class="icon-action-btn"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+      </header>
+
+      <main class="chat-scroll-area" id="privateChatArea">
+        <div style="align-self:center; font-size:11px; background:#e2e8f0; color:#475569; padding:4px 12px; border-radius:12px; margin-bottom:8px;">
+          محادثة خاصة ومباشرة
+        </div>
+      </main>
+
+      <div class="chat-input-bar">
+        <button class="icon-action-btn" style="border:none;"><i class="fa-solid fa-image"></i></button>
+        <div class="input-field-wrapper">
+          <input type="text" id="privateMsgInput" placeholder="اكتب رسالة خاصة..." onkeydown="handleEnter(event, 'private')">
+        </div>
+        <button class="send-action-btn" onclick="sendPrivateMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // الحساب الشخصي المحفوظ
+    let myProfile = {
+      name: localStorage.getItem('profile_name') || "طالب متفوق",
+      bio: localStorage.getItem('profile_bio') || "بكالوريا علمي - أسعى لنيل العلامة الكاملة بإذن الله.",
+      avatar: localStorage.getItem('profile_avatar') || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+      isPrivateLocked: localStorage.getItem('private_locked') !== "false"
+    };
+
+    let activeBubbleForReaction = null;
+    let tempAvatarBase64 = null;
+    let activeTargetUser = null;
+    let pendingReply = { channel: null, text: null };
+
+    // تحميل وتعبئة البيانات في الواجهة
+    function initProfileData() {
+      document.getElementById('editProfileName').value = myProfile.name;
+      document.getElementById('editProfileBio').value = myProfile.bio;
+      document.getElementById('settingsAvatarImg').src = myProfile.avatar;
+      document.getElementById('privateLockToggle').checked = myProfile.isPrivateLocked;
+    }
+    initProfileData();
+
+    function toggleLockState(checked) {
+      myProfile.isPrivateLocked = checked;
+      localStorage.setItem('private_locked', checked);
+    }
+
+    function previewNewAvatar(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          tempAvatarBase64 = evt.target.result;
+          document.getElementById('settingsAvatarImg').src = tempAvatarBase64;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function saveProfileChanges() {
+      const newName = document.getElementById('editProfileName').value.trim();
+      const newBio = document.getElementById('editProfileBio').value.trim();
+
+      if (newName) myProfile.name = newName;
+      if (newBio) myProfile.bio = newBio;
+      if (tempAvatarBase64) myProfile.avatar = tempAvatarBase64;
+
+      localStorage.setItem('profile_name', myProfile.name);
+      localStorage.setItem('profile_bio', myProfile.bio);
+      localStorage.setItem('profile_avatar', myProfile.avatar);
+
+      closeModal('settingsSheet');
+      showToast("تم حفظ الصورة وبيانات الملف الشخصي!");
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('appToast');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    // التعرف على الروابط
+    function linkify(text) {
+      const urlPattern = /(\b(https?:\/\/|www\.)[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+      return text.replace(urlPattern, function(match) {
+        let url = match;
+        if (!match.startsWith('http://') && !match.startsWith('https://')) {
+          url = 'https://' + match;
+        }
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+      });
+    }
+
+    // النوافذ
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    function closeBackdrop(e, id) { if (e.target.id === id) closeModal(id); }
+
+    // إدارة الإشعارات وطلبات الرسائل
+    function acceptRequest(name, avatar, reqId) {
+      document.getElementById(reqId).remove();
+      updateNotifBadge();
+      closeModal('notificationsSheet');
+      startDirectPrivateChat(name, avatar);
+    }
+
+    function rejectRequest(reqId) {
+      document.getElementById(reqId).remove();
+      updateNotifBadge();
+    }
+
+    function updateNotifBadge() {
+      const list = document.getElementById('requestsList');
+      const count = list.children.length;
+      const badge = document.getElementById('notifBadge');
+      if (count > 0) {
+        badge.innerText = count;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+        list.innerHTML = '<p style="text-align:center; color:#94a3b8; font-size:13px; padding:20px;">لا توجد طلبات جديدة حالياً.</p>';
+      }
+    }
+
+    // عرض بروفايل الآخرين والتحقق من القفل
+    function viewDetailedProfile(avatarEl) {
+      const parent = avatarEl.closest('.message-item');
+      activeTargetUser = {
+        name: parent.getAttribute('data-user'),
+        study: parent.getAttribute('data-study'),
+        badge: parent.getAttribute('data-badge') || "طالب مميز",
+        score: parent.getAttribute('data-score') || "95%",
+        rank: parent.getAttribute('data-rank') || "الأول",
+        bio: parent.getAttribute('data-bio') || "لا توجد تفاصيل إضافية.",
+        locked: parent.getAttribute('data-locked') === "true",
+        avatar: parent.getAttribute('data-img') || avatarEl.src
+      };
+
+      document.getElementById('sheetUserName').innerText = activeTargetUser.name;
+      document.getElementById('sheetUserStudy').innerText = activeTargetUser.study;
+      document.getElementById('sheetUserBadge').innerText = activeTargetUser.badge;
+      document.getElementById('sheetUserScore').innerText = activeTargetUser.score;
+      document.getElementById('sheetUserRank').innerText = activeTargetUser.rank;
+      document.getElementById('sheetUserBio').innerText = activeTargetUser.bio;
+      document.getElementById('sheetUserImg').src = activeTargetUser.avatar;
+
+      const btnChatText = document.getElementById('btnChatText');
+      btnChatText.innerText = activeTargetUser.locked ? "إرسال طلب محادثة (الحساب مقفل)" : "بدء محادثة خاصة مباشرة";
+
+      openModal('userProfileSheet');
+    }
+
+    function handleStartChatAction() {
+      closeModal('userProfileSheet');
+      if (activeTargetUser.locked) {
+        showToast(`تم إرسال طلب محادثة إلى ${activeTargetUser.name}`);
+      } else {
+        startDirectPrivateChat(activeTargetUser.name, activeTargetUser.avatar);
+      }
+    }
+
+    function startDirectPrivateChat(name, avatar) {
+      document.getElementById('privateHeaderName').innerText = name;
+      document.getElementById('privateHeaderAvatar').src = avatar;
+      document.getElementById('privateChatScreen').classList.add('active');
+    }
+
+    function closePrivateChat() {
+      document.getElementById('privateChatScreen').classList.remove('active');
+    }
+
+    // ================= ميزة السحب للرد (Swipe to Reply) =================
+    let startX = 0;
+    let deltaX = 0;
+    let targetSwipeEl = null;
+
+    function handleSwipeStart(e, container) {
+      startX = e.touches[0].clientX;
+      deltaX = 0;
+      targetSwipeEl = container.querySelector('.message-item');
+    }
+
+    function handleSwipeMove(e, container) {
+      if (!targetSwipeEl) return;
+      const currentX = e.touches[0].clientX;
+      const diff = currentX - startX;
+
+      // في الواجهة العربية RTL السحب لليسار هو الاتجاه الطبيعي لسحب الفقاعة (diff < 0)
+      if (diff < 0 && diff > -90) {
+        deltaX = diff;
+        targetSwipeEl.style.transform = `translateX(${diff}px)`;
+        const replyIcon = container.querySelector('.swipe-reply-icon');
+        if (Math.abs(diff) > 35) {
+          replyIcon.style.opacity = '1';
+          replyIcon.style.transform = 'scale(1.1)';
+        } else {
+          replyIcon.style.opacity = '0.3';
+          replyIcon.style.transform = 'scale(0.7)';
+        }
+      }
+    }
+
+    function handleSwipeEnd(container) {
+      if (!targetSwipeEl) return;
+      if (Math.abs(deltaX) > 40) {
+        triggerReply(targetSwipeEl);
+      }
+      targetSwipeEl.style.transform = 'translateX(0px)';
+      const replyIcon = container.querySelector('.swipe-reply-icon');
+      if (replyIcon) replyIcon.style.opacity = '0';
+      targetSwipeEl = null;
+      deltaX = 0;
+    }
+
+    // دعم السحب بالماوس
+    let isMouseDown = false;
+    function handleMouseStart(e, container) {
+      if (e.target.tagName.toLowerCase() === 'a') return;
+      isMouseDown = true;
+      startX = e.clientX;
+      targetSwipeEl = container.querySelector('.message-item');
+
+      const onMouseMove = (ev) => {
+        if (!isMouseDown || !targetSwipeEl) return;
+        const diff = ev.clientX - startX;
+        if (diff < 0 && diff > -90) {
+          deltaX = diff;
+          targetSwipeEl.style.transform = `translateX(${diff}px)`;
+        }
+      };
+
+      const onMouseUp = () => {
+        if (Math.abs(deltaX) > 40) triggerReply(targetSwipeEl);
+        if (targetSwipeEl) targetSwipeEl.style.transform = 'translateX(0px)';
+        isMouseDown = false;
+        targetSwipeEl = null;
+        deltaX = 0;
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    }
+
+    function triggerReply(messageEl) {
+      const bubble = messageEl.querySelector('.bubble');
+      const text = bubble.innerText.split('\n')[0].substring(0, 32);
+      pendingReply = { channel: 'public', text: text };
+      
+      const bar = document.getElementById('publicReplyBar');
+      document.getElementById('publicReplyText').innerText = `رد على: ${text}...`;
+      bar.classList.add('show');
+      document.getElementById('publicMsgInput').focus();
+    }
+
+    function cancelReply(channel) {
+      pendingReply = { channel: null, text: null };
+      document.getElementById(`${channel}ReplyBar`).classList.remove('show');
+    }
+
+    // التفاعلات
+    function openReactions(e, bubble) {
+      if (e.target.tagName.toLowerCase() === 'a') return;
+      e.stopPropagation();
+      activeBubbleForReaction = bubble;
+      const bar = document.getElementById('reactionBar');
+      const rect = bubble.getBoundingClientRect();
+      const frameRect = document.querySelector('.app-viewport').getBoundingClientRect();
+
+      let top = rect.top - frameRect.top - 48;
+      if (top < 10) top = rect.bottom - frameRect.top + 8;
+
+      bar.style.top = `${top}px`;
+      bar.style.right = '20px';
+      bar.classList.add('show');
+    }
+
+    document.addEventListener('click', (e) => {
+      const bar = document.getElementById('reactionBar');
+      if (!e.target.closest('#reactionBar')) {
+        bar.classList.remove('show');
+      }
+    });
+
+    function selectReaction(emoji) {
+      if (!activeBubbleForReaction) return;
+      let badge = activeBubbleForReaction.querySelector('.reactions-badge');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'reactions-badge';
+        activeBubbleForReaction.appendChild(badge);
+      }
+      badge.innerText = `${emoji} 1`;
+      document.getElementById('reactionBar').classList.remove('show');
+    }
+
+    // إرسال الرسائل
+    function sendPublicMessage() {
+      const input = document.getElementById('publicMsgInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const chat = document.getElementById('publicChatArea');
+      const wrapper = document.createElement('div');
+      wrapper.className = 'swipe-container';
+      wrapper.setAttribute('ontouchstart', 'handleSwipeStart(event, this)');
+      wrapper.setAttribute('ontouchmove', 'handleSwipeMove(event, this)');
+      wrapper.setAttribute('ontouchend', 'handleSwipeEnd(this)');
+      wrapper.setAttribute('onmousedown', 'handleMouseStart(event, this)');
+
+      const quote = pendingReply.channel === 'public' ? pendingReply.text : null;
+      const formattedHtml = linkify(text);
+
+      wrapper.innerHTML = `
+        <i class="fa-solid fa-reply swipe-reply-icon"></i>
+        <div class="message-item outgoing">
+          <div class="message-content-wrapper">
+            <div class="bubble" onclick="openReactions(event, this)">
+              ${quote ? `<div class="quote-box">${quote}</div>` : ''}
+              ${formattedHtml}
+            </div>
+          </div>
+        </div>
+      `;
+
+      chat.appendChild(wrapper);
+      input.value = '';
+      cancelReply('public');
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function sendPrivateMessage() {
+      const input = document.getElementById('privateMsgInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const chat = document.getElementById('privateChatArea');
+      const item = document.createElement('div');
+      item.className = 'message-item outgoing';
+
+      const timeNow = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+      const formattedHtml = linkify(text);
+
+      item.innerHTML = `
+        <div class="message-content-wrapper">
+          <div class="bubble" onclick="openReactions(event, this)">
+            ${formattedHtml}
+            <div class="msg-meta">
+              <span>${timeNow}</span>
+              <span class="ticks-icon">✓✓</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      chat.appendChild(item);
+      input.value = '';
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function handleEnter(e, channel) {
+      if (e.key === 'Enter') {
+        if (channel === 'public') sendPublicMessage();
+        if (channel === 'private') sendPrivateMessage();
+      }
+    }
+
+    // تفعيل الروابط التلقائية للرسائل الافتراضية
+    document.querySelectorAll('.bubble').forEach(b => {
+      b.innerHTML = linkify(b.innerHTML);
+    });
+
+    updateNotifBadge();
+  </script>
+</body>
+</html>

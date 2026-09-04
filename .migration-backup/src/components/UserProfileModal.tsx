@@ -108,12 +108,12 @@ const UserProfileModal = ({ userId, username, avatarUrl, currentUserId, isOnline
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="chat-sheet-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "hsl(220 16% 4% / 0.7)", backdropFilter: "blur(8px)" }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm rounded-3xl overflow-hidden animate-scale-in"
+        className="chat-bottom-sheet w-full max-w-sm rounded-3xl overflow-hidden animate-scale-in"
         style={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", boxShadow: "0 24px 64px hsl(220 16% 4% / 0.8)" }}
         onClick={(e) => e.stopPropagation()}
       >

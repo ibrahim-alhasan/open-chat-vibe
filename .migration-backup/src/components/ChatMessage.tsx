@@ -465,9 +465,9 @@ const ChatMessage = memo(({
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!touchStartRef.current || !isSwiping || isClickOnButtonRef.current) return;
     const deltaX = e.touches[0].clientX - touchStartRef.current.x;
-    if (deltaX > 0) {
+    if (deltaX < 0) {
       e.preventDefault();
-      const newOffset = Math.min(deltaX, 100);
+      const newOffset = Math.min(Math.abs(deltaX), 100);
       setSwipeOffset(newOffset);
       setShowReplyIndicator(newOffset > 30);
     }
@@ -493,7 +493,7 @@ const ChatMessage = memo(({
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!touchStartRef.current || !isSwiping || isClickOnButtonRef.current) return;
     const deltaX = e.clientX - touchStartRef.current.x;
-    if (deltaX > 0) { e.preventDefault(); const newOffset = Math.min(deltaX, 100); setSwipeOffset(newOffset); setShowReplyIndicator(newOffset > 30); }
+    if (deltaX < 0) { e.preventDefault(); const newOffset = Math.min(Math.abs(deltaX), 100); setSwipeOffset(newOffset); setShowReplyIndicator(newOffset > 30); }
   };
 
   const handleMouseUp = () => {
@@ -521,11 +521,11 @@ const ChatMessage = memo(({
   };
 
   return (
-    <div id={`message-${message.id}`} ref={messageRef} className={`flex gap-2 group animate-fade-in relative ${isOwn ? "flex-row-reverse" : "flex-row"}`} onMouseLeave={handleMouseLeave}>
+    <div id={`message-${message.id}`} ref={messageRef} className={`chat-message-row ${isOwn ? "is-own flex-row-reverse" : "is-incoming flex-row"} flex gap-2 group animate-fade-in relative`} onMouseLeave={handleMouseLeave}>
       
       {/* Avatar */}
       <div className="relative flex-shrink-0">
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${!isOwn ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`} 
+        <div className={`chat-message-avatar ${isOwn ? "chat-own-avatar" : ""} w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${!isOwn ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
           style={{ background: isAdmin ? "#1D9BF018" : `${userColor}18`, color: isAdmin ? "#1D9BF0" : userColor, border: isAdmin ? "2px solid #1D9BF0" : undefined }} 
           onClick={handleAvatarClick}>
           {getInitials(displayName)}
@@ -534,16 +534,16 @@ const ChatMessage = memo(({
       </div>
 
       {/* Message content */}
-      <div className={`max-w-[75%] space-y-0.5 ${isOwn ? "items-end" : "items-start"} flex flex-col relative`}
+      <div className={`chat-message-content max-w-[75%] space-y-0.5 ${isOwn ? "items-end" : "items-start"} flex flex-col relative`}
         onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
         style={{
-          transform: swipeOffset
-            ? `translate3d(${swipeOffset}px,0,0)`
+           transform: swipeOffset
+             ? `translate3d(-${swipeOffset}px,0,0)`
             : "translate3d(0,0,0)",
 
           WebkitTransform: swipeOffset
-            ? `translate3d(${swipeOffset}px,0,0)`
+             ? `translate3d(-${swipeOffset}px,0,0)`
             : "translate3d(0,0,0)",
 
           transition: isSwiping
@@ -563,7 +563,7 @@ const ChatMessage = memo(({
         }}>
         
         {showReplyIndicator && (
-          <div className="absolute -right-10 top-1/2 transform -translate-y-1/2 flex items-center gap-1 animate-pulse" style={{ color: "hsl(var(--primary))", direction: 'ltr' }}>
+          <div className="chat-reply-indicator absolute -right-10 top-1/2 transform -translate-y-1/2 flex items-center gap-1 animate-pulse" style={{ color: "hsl(var(--primary))", direction: 'ltr' }}>
             <Reply className="w-3.5 h-3.5" />
           </div>
         )}
@@ -640,7 +640,7 @@ const ChatMessage = memo(({
               {/* النص النظيف بدون روابط */}
               {cleanText && (
                 <div 
-                  className={`px-3 py-2 rounded-lg text-[14px] leading-[1.4] break-words select-none ${isOwn ? "rounded-tr-none chat-bubble-own" : "rounded-tl-none chat-bubble-other"} ${isSwiping ? 'opacity-80' : ''} cursor-pointer active:brightness-90 transition-all`}
+                   className={`chat-bubble px-3 py-2 rounded-lg text-[14px] leading-[1.4] break-words select-none ${isOwn ? "rounded-tr-none chat-bubble-own" : "rounded-tl-none chat-bubble-other"} ${isSwiping ? 'opacity-80' : ''} cursor-pointer active:brightness-90 transition-all`}
                   style={{ 
                     direction: "rtl", 
                     textAlign: "right",
@@ -668,7 +668,7 @@ const ChatMessage = memo(({
 
           {/* Actions popup */}
           {showActionsMenu && (
-            <div
+             <div className="chat-actions-popup"
               className="absolute left-0 right-0 animate-fade-in pointer-events-none"
               style={{
                 bottom: "calc(100% + 10px)",
@@ -740,7 +740,7 @@ const ChatMessage = memo(({
 
         {/* Reactions */}
         {Object.keys(reactionGroups).length > 0 && (
-          <div className={`flex flex-wrap gap-1 relative ${isOwn ? "justify-end" : "justify-start"}`}>
+           <div className={`chat-reactions flex flex-wrap gap-1 relative ${isOwn ? "justify-end" : "justify-start"}`}>
             {Object.entries(reactionGroups).map(([emoji, group]) => {
               const myReaction = group.find((r) => (r as any).user_id === currentUserId);
               return (

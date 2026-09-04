@@ -1141,19 +1141,19 @@ const Index = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen select-none" style={{ background: "hsl(var(--chat-bg))" }}>
+    <div className="chat-app-shell flex flex-col h-screen select-none" dir="rtl" style={{ background: "hsl(var(--chat-bg))" }}>
       {/* Header */}
-      <header className="flex-shrink-0 px-3 py-2.5 flex items-center justify-between overflow-hidden fixed top-0 left-0 right-0 z-20" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
+      <header className="chat-app-header flex-shrink-0 px-3 py-2.5 flex items-center justify-between overflow-hidden fixed top-0 left-0 right-0 z-20" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
+          <div className="chat-brand-icon w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
             <MessageCircle className="w-5 h-5" style={{ color: "hsl(var(--primary-foreground))" }} />
           </div>
           <button onClick={() => navigate('/chat-info')} className="text-right hover:opacity-80 transition-opacity">
-            <h1 className="font-semibold text-[15px]" style={{ color: "hsl(var(--foreground))" }}>الدردشة العامة</h1>
+              <h1 className="font-semibold text-[15px]" style={{ color: "hsl(var(--foreground))" }}>دردشة نبض التفوق</h1>
             <div className="flex items-center gap-2.5">
               <div className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full animate-pulse-dot" style={{ background: "hsl(var(--chat-online))" }} />
-                <span className="text-[11px]" style={{ color: "hsl(var(--chat-online))" }}>{onlineCount} متصل</span>
+                 <span className="text-[11px]" style={{ color: "hsl(var(--chat-online))" }}>{onlineCount} متصلاً الآن</span>
               </div>
               <div className="flex items-center gap-1">
                 <Users className="w-3 h-3" style={{ color: "hsl(var(--muted-foreground))" }} />
@@ -1210,7 +1210,7 @@ const Index = () => {
 
       {/* Pinned message banner */}
       {pinnedMessage && (
-        <div className="flex-shrink-0 px-3 py-2 flex items-start gap-2 animate-fade-in mt-14" style={{ background: "hsl(var(--primary) / 0.08)", borderBottom: "1px solid hsl(var(--primary) / 0.2)" }}>
+        <div className="chat-app-pinned flex-shrink-0 px-3 py-2 flex items-start gap-2 animate-fade-in mt-14" style={{ background: "hsl(var(--primary) / 0.08)", borderBottom: "1px solid hsl(var(--primary) / 0.2)" }}>
           <Pin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
           <button onClick={() => setShowPinnedExpanded(v => !v)} className="flex-1 min-w-0 text-right">
             <div className="text-[10px] font-semibold mb-0.5" style={{ color: "hsl(var(--primary))" }}>رسالة مثبّتة · {pinnedMessage.username}</div>
@@ -1227,7 +1227,7 @@ const Index = () => {
       {/* Messages area */}
       <div 
         ref={messagesContainerRef} 
-        className="flex-1 overflow-y-auto px-3 space-y-2 relative"
+        className="chat-app-messages flex-1 overflow-y-auto px-3 space-y-2 relative"
         style={{ 
           marginTop: pinnedMessage ? '108px' : '56px',
           marginBottom: '0px',
@@ -1341,7 +1341,7 @@ const Index = () => {
         </div>
       ) : (
         /* Input area */
-        <div className="flex-shrink-0 px-3 pb-3 pt-1.5 fixed bottom-0 left-0 right-0 z-20" style={{ background: "hsl(var(--chat-bg))" }}>
+        <div className="chat-app-composer flex-shrink-0 px-3 pb-3 pt-1.5 fixed bottom-0 left-0 right-0 z-20" style={{ background: "hsl(var(--chat-bg))" }}>
            {chatLocked && isCurrentUserAdmin && (
             <div className="flex items-center justify-center gap-2 mb-2 px-3 py-1.5 rounded-full" style={{ background: "hsl(var(--destructive) / 0.1)" }}>
               <Lock className="w-3 h-3" style={{ color: "hsl(var(--destructive))" }} />
@@ -1456,10 +1456,10 @@ const Index = () => {
               <Paperclip className="w-4 h-4" />
             </button>
             
-            <div className="flex-1 flex items-end rounded-2xl overflow-hidden" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
+            <div className="chat-input-field flex-1 flex items-end rounded-2xl overflow-hidden" style={{ background: "hsl(var(--chat-input-bg))", border: "1px solid hsl(var(--border))" }}>
               <textarea ref={inputRef} value={input}
                 onChange={handleInputChange}
-                placeholder="اكتب رسالتك ...."
+                placeholder="اكتب رسالتك أو شارك رابطاً..."
                 rows={1} maxLength={500}
                 className="flex-1 resize-none bg-transparent outline-none text-[14px] leading-relaxed select-text px-3 py-2"
                 style={{ color: "hsl(var(--foreground))", minHeight: "24px", maxHeight: "120px", direction: "rtl", textAlign: "right" }}
