@@ -32,15 +32,14 @@ const applyTheme = (theme: "dark" | "light") => {
   notifyParentTheme(theme);
 };
 
-const savedTheme = (localStorage.getItem("theme") ?? "dark") as "dark" | "light";
-applyTheme(savedTheme);
+/* التصميم الرسمي للتطبيق فاتح دائمًا */
+applyTheme("light");
 
 /* ── Listen to parent iframe theme messages ── */
 const handleMessage = (event: MessageEvent) => {
   if (event.data?.type === "THEME_CHANGE") {
-    const dark = event.data.isDarkMode as boolean;
-    const theme: "dark" | "light" = dark ? "dark" : "light";
-    applyTheme(theme);
+    // التطبيق يستخدم الوضع الفاتح فقط
+    applyTheme("light");
   }
 };
 window.addEventListener("message", handleMessage);
