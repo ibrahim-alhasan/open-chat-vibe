@@ -128,7 +128,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
 
     setSaving(false);
     await refreshProfile();
-    onSave(trimmed, avatarUrl);
+    onSave(trimmed, localAvatar);
     onClose();
   };
 
