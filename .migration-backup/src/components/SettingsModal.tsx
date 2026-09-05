@@ -12,12 +12,13 @@ interface SettingsModalProps {
   currentAvatarUrl: string | null;
   userId: string;
   onClose: () => void;
+  onNavigateToAuth?: () => void;
   onSave: (newUsername: string, newAvatarUrl: string | null) => void;
   chatBg: string | null;
   onChatBgChange: (bg: string | null) => void;
 }
 
-const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onSave, chatBg, onChatBgChange }: SettingsModalProps) => {
+const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onNavigateToAuth, onSave, chatBg, onChatBgChange }: SettingsModalProps) => {
   const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState(currentUsername);
@@ -342,7 +343,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
                 <>
                   <button
                     type="button"
-                    onClick={() => { onClose(); navigate("/auth"); }}
+                    onClick={() => { onNavigateToAuth?.(); if (!onNavigateToAuth) { onClose(); navigate("/auth"); } }}
                     className="w-full py-2 rounded-lg font-semibold text-sm transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
                     style={{ background: "var(--gradient-primary)", color: "hsl(var(--primary-foreground))" }}
                   >

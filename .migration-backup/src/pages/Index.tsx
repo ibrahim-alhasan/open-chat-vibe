@@ -19,6 +19,11 @@ import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, C
 
 const MESSAGES_PER_PAGE = 100;
 const AUTH_REQUIRED_MESSAGE = "يجب عليك تسجيل الدخول أولاً";
+type ChatOverlay = { kind: "settings" | "profile"; profileId?: string };
+
+const currentHistoryUrl = () => (
+  `${window.location.pathname}${window.location.search}${window.location.hash}`
+);
 
 const Index = () => {
   const navigate = useNavigate();
@@ -118,6 +123,67 @@ const Index = () => {
   const fileInputRef2 = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const overlayHistoryRef = useRef<ChatOverlay | null>(null);
+
+  const writeOverlayHistory = useCallback((overlay: ChatOverlay, replace = false) => {
+    const nextState = {
+      ...(window.history.state ?? {}),
+      chatOverlay: overlay.kind,
+      profileUserId: overlay.profileId,
+    };
+    if (replace) {
+      window.history.replaceState(nextState, "", currentHistoryUrl());
+    } else {
+      window.history.pushState(nextState, "", currentHistoryUrl());
+    }
+    overlayHistoryRef.current = overlay;
+  }, []);
+
+  const openSettings = useCallback(() => {
+    if (overlayHistoryRef.current?.kind !== "settings") {
+      writeOverlayHistory({ kind: "settings" }, Boolean(overlayHistoryRef.current));
+    }
+    setProfileModal(null);
+    setShowSettings(true);
+  }, [writeOverlayHistory]);
+
+  const openProfile = useCallback((profileId: string) => {
+    writeOverlayHistory(
+      { kind: "profile", profileId },
+      Boolean(overlayHistoryRef.current),
+    );
+    setShowSettings(false);
+    setProfileModal(profileId);
+  }, [writeOverlayHistory]);
+
+  const clearOverlayHistory = useCallback(() => {
+    if (!overlayHistoryRef.current) return;
+    const nextState = { ...(window.history.state ?? {}) } as Record<string, unknown>;
+    delete nextState.chatOverlay;
+    delete nextState.profileUserId;
+    window.history.replaceState(nextState, "", currentHistoryUrl());
+    overlayHistoryRef.current = null;
+  }, []);
+
+  const closeOverlay = useCallback(() => {
+    if (overlayHistoryRef.current) {
+      window.history.back();
+      return;
+    }
+    setShowSettings(false);
+    setProfileModal(null);
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      overlayHistoryRef.current = null;
+      setShowSettings(false);
+      setProfileModal(null);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -804,8 +870,8 @@ const Index = () => {
   }, [isGuest, showAuthRequiredModal, adminIds, userId]);
 
   const handleUsernameClick = useCallback((uid: string) => {
-    setProfileModal(uid);
-  }, []);
+    openProfile(uid);
+  }, [openProfile]);
 
   const handleScrollToOriginalMessage = useCallback(async (messageId: string) => {
     await scrollToMessage(messageId);
@@ -1136,7 +1202,7 @@ const Index = () => {
   
   if (showChatInfo) {
     return (
-      <ChatInfo totalUsers={totalUsers} onlineCount={onlineCount} profilesMap={profilesMap} adminIds={adminIds} onlineUsers={onlineUsers} onUsernameClick={(uid) => { navigate('/'); setProfileModal(uid); }} />
+      <ChatInfo totalUsers={totalUsers} onlineCount={onlineCount} profilesMap={profilesMap} adminIds={adminIds} onlineUsers={onlineUsers} onUsernameClick={(uid) => { navigate('/'); openProfile(uid); }} />
     );
   }
 
@@ -1222,10 +1288,10 @@ const Index = () => {
           </button>
           
           {avatarUrl && (
-            <img src={avatarUrl} alt="avatar" className="chat-header-avatar w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-              style={{ border: "2px solid hsl(var(--primary) / 0.4)" }} onClick={() => setShowSettings(true)} />
+              <img src={avatarUrl} alt="avatar" className="chat-header-avatar w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+              style={{ border: "2px solid hsl(var(--primary) / 0.4)" }} onClick={openSettings} />
           )}
-          <button onClick={() => setShowSettings(true)} title="الإعدادات" className="chat-header-action p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
+          <button onClick={openSettings} title="الإعدادات" className="chat-header-action p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
             <Settings className="w-5 h-5" />
           </button>
         </div>
@@ -1498,14 +1564,16 @@ const Index = () => {
       )}
 
       {showSettings && (
-        <SettingsModal currentUsername={username ?? ""} currentAvatarUrl={avatarUrl} userId={userId} onClose={() => setShowSettings(false)} onSave={handleSettingsSave} chatBg={chatBg} onChatBgChange={(bg) => { setChatBg(bg); if (bg) localStorage.setItem("chat_bg_image", bg); else localStorage.removeItem("chat_bg_image"); }} />
+        <SettingsModal currentUsername={username ?? ""} currentAvatarUrl={avatarUrl} userId={userId} onClose={closeOverlay} onNavigateToAuth={() => { clearOverlayHistory(); setShowSettings(false); navigate("/auth"); }} onSave={handleSettingsSave} chatBg={chatBg} onChatBgChange={(bg) => { setChatBg(bg); if (bg) localStorage.setItem("chat_bg_image", bg); else localStorage.removeItem("chat_bg_image"); }} />
       )}
 
       {profileModal && (
-        <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} isCurrentUserAdmin={isCurrentUserAdmin} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={() => setProfileModal(null)} onStartDM={(uid) => {
+        <UserProfileModal userId={profileModal} username={getProfile(profileModal).username} avatarUrl={getProfile(profileModal).avatar_url} currentUserId={userId} isOnline={onlineUsers.has(profileModal)} isAdmin={adminIds.has(profileModal)} isCurrentUserAdmin={isCurrentUserAdmin} allowDms={profilesMap[profileModal]?.allow_dms ?? true} onClose={closeOverlay} onStartDM={(uid) => {
           if (isGuest) {
+            clearOverlayHistory();
             showAuthRequiredModal("private");
           } else {
+            clearOverlayHistory();
             navigate(`/dm/${uid}`);
             setProfileModal(null);
           }
