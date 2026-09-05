@@ -243,6 +243,16 @@ const Index = () => {
   }, [messages]);
 
   const getProfile = useCallback((uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null }, [profilesMap]);
+
+  // مزامنة الصورة المحلية مع بيانات العرض
+  useEffect(() => {
+    if (!userId) return;
+    setProfilesMap((prev) => {
+      const current = prev[userId];
+      if (!current || current.avatar_url === localAvatar) return prev;
+      return { ...prev, [userId]: { ...current, avatar_url: localAvatar } };
+    });
+  }, [localAvatar, userId]);
   const isCurrentUserAdmin = adminIds.has(userId);
   const isUserBanned = bannedUserIds.has(userId);
 
