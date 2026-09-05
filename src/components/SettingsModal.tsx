@@ -28,8 +28,35 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
   const [saving, setSaving] = useState(false);
   const [soundEnabled, setSoundEnabledState] = useState(getIsSoundEnabled());
   const bgInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [localAvatar, setLocalAvatarState] = useState<string | null>(() => getLocalAvatar(userId));
 
   const isAuthenticated = !!user;
+
+  useEffect(() => {
+    setLocalAvatarState(getLocalAvatar(userId));
+  }, [userId]);
+
+  const handleAvatarPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("الرجاء اختيار صورة"); return; }
+    try {
+      const dataUrl = await compressImageToDataUrl(file);
+      setLocalAvatar(userId, dataUrl);
+      setLocalAvatarState(dataUrl);
+      setError("");
+    } catch {
+      setError("تعذّر تحميل الصورة");
+    }
+  };
+
+  const handleAvatarRemove = () => {
+    clearLocalAvatar(userId);
+    setLocalAvatarState(null);
+  };
+
 
   const handleSignOut = async () => {
     onClose();
