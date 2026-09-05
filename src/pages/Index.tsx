@@ -14,6 +14,7 @@ import PollCreator from "@/components/PollCreator";
 import PollMessage from "@/components/PollMessage";
 import MediaViewer from "@/components/MediaViewer";
 import { playSound } from "@/lib/sounds";
+import { getLocalAvatar, LOCAL_AVATAR_EVENT } from "@/lib/localAvatar";
 import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 100;
