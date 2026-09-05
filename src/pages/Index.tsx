@@ -35,8 +35,18 @@ const Index = () => {
   // Identity comes from auth session
   const userId = user?.id ?? "";
   const username = profile?.username ?? null;
-  const avatarUrl = profile?.avatar_url ?? null;
+  const [localAvatar, setLocalAvatarState] = useState<string | null>(null);
+  const avatarUrl = localAvatar ?? profile?.avatar_url ?? null;
   const isGuest = !user;
+
+  // الصورة الشخصية المحفوظة محلياً على الجهاز
+  useEffect(() => {
+    setLocalAvatarState(getLocalAvatar(userId));
+    const onChange = () => setLocalAvatarState(getLocalAvatar(userId));
+    window.addEventListener(LOCAL_AVATAR_EVENT, onChange);
+    return () => window.removeEventListener(LOCAL_AVATAR_EVENT, onChange);
+  }, [userId]);
+
 
   // Helper: prompt guest to sign in
   const requireAuth = useCallback((action?: string) => {
