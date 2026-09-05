@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogOut, LogIn, FileText, GraduationCap, Camera } from "lucide-react";
+import { X, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogIn, FileText, GraduationCap, Camera } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getIsSoundEnabled, setSoundEnabled } from "@/lib/sounds";
 import { getLocalAvatar, setLocalAvatar, clearLocalAvatar, compressImageToDataUrl } from "@/lib/localAvatar";
@@ -18,7 +18,7 @@ interface SettingsModalProps {
 }
 
 const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onSave, chatBg, onChatBgChange }: SettingsModalProps) => {
-  const { signOut, user, refreshProfile } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState(currentUsername);
   const [allowDms, setAllowDms] = useState(true);
@@ -58,11 +58,6 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
   };
 
 
-  const handleSignOut = async () => {
-    onClose();
-    await signOut();
-    navigate("/auth");
-  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -340,12 +335,6 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
                     )}
                   </button>
 
-                  <button type="button" onClick={handleSignOut}
-                    className="w-full py-2 rounded-lg font-semibold text-sm transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
-                    style={{ background: "hsl(var(--destructive) / 0.12)", color: "hsl(var(--destructive))", border: "1px solid hsl(var(--destructive) / 0.25)" }}>
-                    <LogOut className="w-3.5 h-3.5" />
-                    تسجيل الخروج
-                  </button>
                 </>
               )}
 
