@@ -475,6 +475,7 @@ const Index = () => {
           profilesRes.data.forEach((p: any) => {
             if (p.user_id) map[p.user_id] = { username: p.username, avatar_url: p.avatar_url, allow_dms: p.allow_dms ?? true };
           });
+          if (userId && map[userId]) map[userId].avatar_url = getLocalAvatar(userId);
           setProfilesMap(map);
         }
         if (!totalCountRes.error) setTotalUsers(totalCountRes.count || 0);
