@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { X, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogOut, LogIn, FileText, GraduationCap } from "lucide-react";
+import { X, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogOut, LogIn, FileText, GraduationCap, Camera } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getIsSoundEnabled, setSoundEnabled } from "@/lib/sounds";
+import { getLocalAvatar, setLocalAvatar, clearLocalAvatar, compressImageToDataUrl } from "@/lib/localAvatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+
 
 interface SettingsModalProps {
   currentUsername: string;
