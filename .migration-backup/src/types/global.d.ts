@@ -7,6 +7,8 @@ declare global {
     };
     AppBridge?: {
       removeSplashScreen?: () => void;
+      getTheme?: () => "dark" | "light" | string;
     };
+    __APP_THEME__?: "dark" | "light" | string;
   }
 }

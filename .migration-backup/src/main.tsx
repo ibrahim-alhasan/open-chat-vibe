@@ -2,7 +2,24 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-/* ── Theme helpers ── */
+type Theme = "dark" | "light";
+
+const isTheme = (value: unknown): value is Theme => value === "dark" || value === "light";
+
+const getNativeTheme = (): Theme | null => {
+  try {
+    const bridgeTheme = window.AppBridge?.getTheme?.();
+    if (isTheme(bridgeTheme)) return bridgeTheme;
+  } catch {
+    // The native bridge is unavailable in a normal browser.
+  }
+
+  if (isTheme(window.__APP_THEME__)) return window.__APP_THEME__;
+  if (isTheme(document.documentElement.dataset.theme)) return document.documentElement.dataset.theme;
+
+  return null;
+};
+
 const notifyParentTheme = (theme: "dark" | "light") => {
   try {
     if (window.parent !== window) {
@@ -32,17 +49,30 @@ const applyTheme = (theme: "dark" | "light") => {
   notifyParentTheme(theme);
 };
 
-/* التصميم الرسمي للتطبيق فاتح دائمًا */
-applyTheme("light");
+const initialTheme = getNativeTheme()
+  ?? (isTheme(localStorage.getItem("theme")) ? localStorage.getItem("theme") as Theme : null)
+  ?? (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light");
 
-/* ── Listen to parent iframe theme messages ── */
+applyTheme(initialTheme);
+
+const applyIncomingTheme = (value: unknown, isDarkMode?: unknown) => {
+  const nextTheme = isTheme(value) ? value : isDarkMode === true ? "dark" : isDarkMode === false ? "light" : null;
+  if (nextTheme) applyTheme(nextTheme);
+};
+
+/* ── Listen to the Android WebView theme bridge ── */
 const handleMessage = (event: MessageEvent) => {
   if (event.data?.type === "THEME_CHANGE") {
-    // التطبيق يستخدم الوضع الفاتح فقط
-    applyTheme("light");
+    applyIncomingTheme(event.data.theme, event.data.isDarkMode);
   }
 };
 window.addEventListener("message", handleMessage);
+
+const handleNativeThemeEvent = (event: Event) => {
+  const customEvent = event as CustomEvent<{ theme?: unknown; isDarkMode?: unknown }>;
+  applyIncomingTheme(customEvent.detail?.theme, customEvent.detail?.isDarkMode);
+};
+window.addEventListener("theme-change", handleNativeThemeEvent);
 
 const themeObserver = new MutationObserver(() => {
   const nextTheme = document.documentElement.classList.contains("dark") ? "dark" : "light";

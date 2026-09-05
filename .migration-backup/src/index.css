@@ -87,6 +87,60 @@
   }
 }
 
+/* Android WebView sends the native palette through data-theme/class. */
+:root.dark {
+  --background: 240 50% 12%;
+  --foreground: 0 0% 100%;
+
+  --card: 240 50% 15%;
+  --card-foreground: 0 0% 100%;
+
+  --popover: 240 50% 15%;
+  --popover-foreground: 0 0% 100%;
+
+  --primary: 160 84% 39%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 240 31% 19%;
+  --secondary-foreground: 238 30% 78%;
+
+  --muted: 240 31% 19%;
+  --muted-foreground: 238 30% 63%;
+
+  --accent: 160 84% 39%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 240 31% 26%;
+  --input: 240 31% 21%;
+  --ring: 160 84% 39%;
+
+  --chat-bg: 240 50% 12%;
+  --chat-header: 240 50% 15%;
+  --chat-sidebar: 240 50% 15%;
+  --chat-input-bg: 240 31% 21%;
+
+  --chat-bubble-own: 160 84% 28%;
+  --chat-bubble-own-2: 160 84% 21%;
+  --chat-bubble-other: 240 42% 17%;
+  --chat-bubble-own-border: 160 84% 39%;
+  --chat-bubble-other-border: 240 31% 26%;
+  --chat-reply-bg: 240 31% 21%;
+
+  --chat-timestamp: 238 30% 63%;
+  --chat-online: 160 84% 50%;
+  --chat-glow: 160 84% 39%;
+  --chat-admin: 199 89% 60%;
+
+  --gradient-header: linear-gradient(135deg, hsl(240 50% 15%), hsl(240 50% 12%));
+  --gradient-primary: linear-gradient(135deg, hsl(160 84% 39%) 0%, hsl(160 84% 30%) 100%);
+  --gradient-bubble-own: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --shadow-glow: 0 4px 14px hsl(160 84% 39% / 0.25);
+  --shadow-card: 0 10px 30px hsl(0 0% 0% / 0.28);
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -237,6 +291,14 @@ body {
   z-index: 25;
 }
 
+.dark body {
+  background: hsl(var(--chat-bg));
+}
+
+.dark .glass {
+  background: rgba(18, 18, 58, 0.96);
+}
+
 .chat-app-header > div:first-child {
   display: flex;
   align-items: center;
@@ -337,6 +399,54 @@ body {
   overflow-y: auto;
   scroll-behavior: smooth;
   background-color: hsl(var(--chat-bg));
+}
+
+.dark .chat-app-header {
+  background: hsl(var(--chat-header)) !important;
+  border-bottom-color: hsl(var(--border)) !important;
+}
+
+.dark .chat-app-composer,
+.dark .chat-private-composer {
+  background: hsl(var(--chat-header)) !important;
+  border-top-color: hsl(var(--border));
+}
+
+.dark .chat-input-field,
+.dark .chat-private-composer > div {
+  background: hsl(var(--chat-input-bg)) !important;
+}
+
+.dark .chat-message-row.is-incoming .chat-bubble {
+  background: hsl(var(--chat-bubble-other)) !important;
+  color: hsl(var(--foreground)) !important;
+  box-shadow: 0 2px 8px hsl(0 0% 0% / 0.18);
+}
+
+.dark .chat-message-row.is-own .chat-bubble {
+  background: var(--gradient-bubble-own) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  box-shadow: 0 3px 14px hsl(160 84% 20% / 0.28);
+}
+
+.dark .chat-bottom-sheet {
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--foreground));
+}
+
+.dark .chat-bottom-sheet input,
+.dark .chat-bottom-sheet textarea {
+  background: hsl(var(--input)) !important;
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border)) !important;
+}
+
+.dark .chat-screen-shell .chat-conversation-item {
+  background: hsl(var(--card));
+}
+
+.dark .chat-screen-shell .chat-conversation-item:hover {
+  background: hsl(var(--secondary));
 }
 
 .chat-app-pinned {
