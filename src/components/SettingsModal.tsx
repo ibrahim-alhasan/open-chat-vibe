@@ -157,17 +157,44 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onS
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             <form onSubmit={handleSave} className="space-y-3">
-              {/* Avatar - للمستخدمين المسجلين */}
+              {/* Avatar - محفوظة محلياً على الجهاز فقط */}
               {isAuthenticated && (
-                <div className="flex justify-center">
-                  <div
-                    className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold"
+                <div className="flex flex-col items-center gap-2">
+                  <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarPick} />
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="relative w-20 h-20 rounded-full overflow-hidden flex items-center justify-center text-2xl font-bold active:scale-95 transition-transform"
                     style={{ background: "var(--gradient-primary)", border: "2px solid hsl(var(--primary) / 0.5)", color: "hsl(var(--primary-foreground))" }}
                   >
-                    {username.slice(0, 2).toUpperCase()}
-                  </div>
+                    {localAvatar ? (
+                      <img src={localAvatar} alt="الصورة الشخصية" className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{username.slice(0, 2).toUpperCase()}</span>
+                    )}
+                    <span
+                      className="absolute bottom-0 inset-x-0 h-6 flex items-center justify-center"
+                      style={{ background: "hsl(220 16% 5% / 0.45)" }}
+                    >
+                      <Camera className="w-3.5 h-3.5" style={{ color: "hsl(var(--primary-foreground))" }} />
+                    </span>
+                  </button>
+                  {localAvatar && (
+                    <button
+                      type="button"
+                      onClick={handleAvatarRemove}
+                      className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg"
+                      style={{ color: "hsl(var(--destructive))", background: "hsl(var(--destructive) / 0.1)" }}
+                    >
+                      <Trash2 className="w-3 h-3" /> إزالة الصورة
+                    </button>
+                  )}
+                  <p className="text-[9px] text-center" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    الصورة تُحفظ على جهازك فقط ولا يراها الآخرون
+                  </p>
                 </div>
               )}
+
 
               {/* Username input */}
               {isAuthenticated && (
