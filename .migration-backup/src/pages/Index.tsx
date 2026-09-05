@@ -1166,24 +1166,24 @@ const Index = () => {
   return (
     <div className="chat-app-shell flex flex-col h-screen select-none" dir="rtl" style={{ background: "hsl(var(--chat-bg))" }}>
       {/* Header */}
-      <header className="chat-app-header flex-shrink-0 px-3 py-2.5 flex items-center justify-between overflow-hidden fixed top-0 left-0 right-0 z-20" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
+      <header className="chat-app-header flex-shrink-0 px-3 py-2.5 flex items-center justify-between overflow-hidden z-20" style={{ background: "hsl(var(--chat-header))", borderBottom: "1px solid hsl(var(--border))" }}>
         <div className="flex items-center gap-2 min-w-0">
           <div className="chat-brand-icon w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
             <MessageCircle className="w-5 h-5" style={{ color: "hsl(var(--primary-foreground))" }} />
           </div>
-          <button onClick={() => navigate('/chat-info')} className="text-right hover:opacity-80 transition-opacity">
+          <button onClick={() => navigate('/chat-info')} className="chat-header-title text-right hover:opacity-80 transition-opacity">
               <h1 className="font-semibold text-[15px]" style={{ color: "hsl(var(--foreground))" }}>دردشة نبض التفوق</h1>
-            <div className="flex items-center gap-2.5">
+            <div className="chat-header-meta flex items-center gap-2.5">
               <div className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full animate-pulse-dot" style={{ background: "hsl(var(--chat-online))" }} />
                  <span className="text-[11px]" style={{ color: "hsl(var(--chat-online))" }}>{onlineCount} متصلاً الآن</span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="chat-header-member-count flex items-center gap-1">
                 <Users className="w-3 h-3" style={{ color: "hsl(var(--muted-foreground))" }} />
                 <span className="text-[11px]" style={{ color: "hsl(var(--muted-foreground))" }}>{totalUsers}</span>
               </div>
               {realtimeConnected && (
-                <div className="flex items-center gap-1">
+                <div className="chat-header-connection flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                   <span className="text-[10px]" style={{ color: "hsl(var(--muted-foreground))" }}></span>
                 </div>
@@ -1191,17 +1191,17 @@ const Index = () => {
             </div>
           </button>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="chat-header-actions flex items-center gap-1">
           {isCurrentUserAdmin && (
             <button onClick={() => navigate('/admin')} title="لوحة المشرفين"
-              className="p-2 rounded-full transition-colors hover:opacity-70"
+              className="chat-header-action p-2 rounded-full transition-colors hover:opacity-70"
               style={{ color: "hsl(var(--primary))" }}>
               <ShieldCheck className="w-5 h-5" />
             </button>
           )}
           {isCurrentUserAdmin && (
             <button onClick={handleToggleChatLock} title={chatLocked ? "فتح الدردشة" : "إغلاق الدردشة"}
-              className="p-2 rounded-full transition-colors hover:opacity-70"
+              className="chat-header-action p-2 rounded-full transition-colors hover:opacity-70"
               style={{ color: chatLocked ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))" }}>
               {chatLocked ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
             </button>
@@ -1212,7 +1212,7 @@ const Index = () => {
           <button 
             onClick={handleDirectMessageClick} 
             title="الرسائل الخاصة"
-            className="relative p-2 rounded-full transition-colors hover:opacity-70" 
+            className="chat-header-action relative p-2 rounded-full transition-colors hover:opacity-70"
             style={{ color: "hsl(var(--muted-foreground))" }}>
             <MessageSquare className="w-5 h-5" />
             {!isGuest && unreadDMs > 0 && (
@@ -1222,10 +1222,10 @@ const Index = () => {
           </button>
           
           {avatarUrl && (
-            <img src={avatarUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+            <img src={avatarUrl} alt="avatar" className="chat-header-avatar w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
               style={{ border: "2px solid hsl(var(--primary) / 0.4)" }} onClick={() => setShowSettings(true)} />
           )}
-          <button onClick={() => setShowSettings(true)} title="الإعدادات" className="p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
+          <button onClick={() => setShowSettings(true)} title="الإعدادات" className="chat-header-action p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
             <Settings className="w-5 h-5" />
           </button>
         </div>
