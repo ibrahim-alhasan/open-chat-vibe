@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { X, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogIn, FileText, GraduationCap, Camera } from "lucide-react";
+import { X, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogIn, FileText, GraduationCap, Camera, Moon, Sun } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getIsSoundEnabled, setSoundEnabled } from "@/lib/sounds";
 import { getLocalAvatar, setLocalAvatar, clearLocalAvatar, compressImageToDataUrl } from "@/lib/localAvatar";
 import { useAuth } from "@/contexts/AuthContext";
+import { useThemeContext } from "@/contexts/ThemeContext";
 import { useNavigate } from "react-router-dom";
 
 
@@ -20,6 +21,7 @@ interface SettingsModalProps {
 
 const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onNavigateToAuth, onSave, chatBg, onChatBgChange }: SettingsModalProps) => {
   const { user, refreshProfile } = useAuth();
+  const { theme, toggleTheme } = useThemeContext();
   const navigate = useNavigate();
   const [username, setUsername] = useState(currentUsername);
   const [allowDms, setAllowDms] = useState(true);
@@ -314,6 +316,24 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onN
                   style={{ background: soundEnabled ? "hsl(var(--chat-online))" : "hsl(var(--muted))" }}>
                   <span className="absolute top-0.5 w-4 h-4 rounded-full shadow transition-transform duration-200"
                     style={{ background: "hsl(var(--foreground))", left: soundEnabled ? "calc(100% - 18px)" : "2px" }} />
+                </button>
+              </div>
+
+              {/* Theme Toggle */}
+              <div className="flex items-center justify-between p-2 rounded-lg" style={{ background: "hsl(var(--input))", border: "1px solid hsl(var(--border))" }}>
+                <div className="flex items-center gap-1.5">
+                  {theme === "dark"
+                    ? <Moon className="w-3.5 h-3.5" style={{ color: "hsl(var(--chat-online))" }} />
+                    : <Sun className="w-3.5 h-3.5" style={{ color: "hsl(38 92% 50%)" }} />}
+                  <span className="text-xs" style={{ color: "hsl(var(--foreground))" }}>
+                    {theme === "dark" ? "الوضع الليلي" : "الوضع النهاري"}
+                  </span>
+                </div>
+                <button type="button" onClick={toggleTheme}
+                  className="w-9 h-5 rounded-full relative transition-colors duration-200"
+                  style={{ background: theme === "dark" ? "hsl(var(--chat-online))" : "hsl(var(--muted))" }}>
+                  <span className="absolute top-0.5 w-4 h-4 rounded-full shadow transition-all duration-200"
+                    style={{ background: theme === "dark" ? "hsl(var(--foreground))" : "hsl(0 0% 100%)", left: theme === "dark" ? "calc(100% - 18px)" : "2px" }} />
                 </button>
               </div>
 
