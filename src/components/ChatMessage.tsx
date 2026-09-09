@@ -189,8 +189,9 @@ const UrlButton = ({ url, onOpen }: { url: string; onOpen?: (url: string) => voi
 // مكون عرض النص مع المنشنات فقط (بدون روابط تلقائية)
 const TextWithMentions = ({ text, profilesMap, onUsernameClick }: { text: string; profilesMap: Record<string, { username: string; avatar_url: string | null }>; onUsernameClick?: (userId: string) => void }) => {
   // بناء قائمة المستخدمين للمنشنات
-  const knownUsers = Object.entries(profilesMap)
-    .map(([uid, p]) => ({ uid, username: p.username }))
+  const knownUsers = Object.entries(profilesMap || {})
+    .map(([uid, p]) => ({ uid, username: p?.username || "" }))
+    .filter((u) => u.username.length > 0)
     .sort((a, b) => b.username.length - a.username.length);
 
   const parts: (string | { mention: string; userId: string | null })[] = [];
@@ -353,12 +354,12 @@ const SignedFileAttachment = ({
 // ChatMessage Component الرئيسي
 // ============================================
 const ChatMessage = memo(({
-  message, currentUserId, currentUsername, currentAvatarUrl, reactions, profilesMap,
+  message, currentUserId, currentUsername, currentAvatarUrl, reactions = [], profilesMap = {},
   isOnline, isAdmin, isCurrentUserAdmin, messageCounts, onReply, onUsernameClick, onDelete, onPin, onScrollToOriginalMessage, onOpenMedia,
 }: ChatMessageProps) => {
   const isOwn = message.user_id === currentUserId;
-  const profile = message.user_id && profilesMap[message.user_id];
-  const displayName = profile ? profile.username : message.username;
+  const profile = message.user_id ? profilesMap?.[message.user_id] : null;
+  const displayName = profile?.username || message.username || "مستخدم";
   const userColor = isAdmin ? "#1D9BF0" : getUserColor(displayName);
   
   const isSticker = message.content.startsWith("sticker:");
