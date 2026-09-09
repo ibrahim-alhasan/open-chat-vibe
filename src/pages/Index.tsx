@@ -15,7 +15,7 @@ import PollMessage from "@/components/PollMessage";
 import MediaViewer from "@/components/MediaViewer";
 import { playSound } from "@/lib/sounds";
 import { getLocalAvatar, LOCAL_AVATAR_EVENT } from "@/lib/localAvatar";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot, Search } from "lucide-react";
 
 const MESSAGES_PER_PAGE = 100;
 const AUTH_REQUIRED_MESSAGE = "يجب عليك تسجيل الدخول أولاً";
@@ -90,6 +90,8 @@ const Index = () => {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [totalUsers, setTotalUsers] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [profileModal, setProfileModal] = useState<string | null>(null);
   const [unreadDMs, setUnreadDMs] = useState(0);
@@ -1148,7 +1150,12 @@ const Index = () => {
   }, [polls, userId]);
 
   const renderedMessagesList = useMemo(() => {
-    return messages.map((msg) => {
+    const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
+    const visibleMessages = normalizedQuery
+      ? messages.filter((msg) => [msg.content, msg.username, msg.reply_to_content].some((value) => value?.toLocaleLowerCase().includes(normalizedQuery)))
+      : messages;
+
+    return visibleMessages.map((msg) => {
       const isPoll = msg.content && msg.content.startsWith("poll:");
       const pollContent = isPoll ? renderMessageContent(msg) : null;
       
@@ -1190,7 +1197,7 @@ const Index = () => {
         />
       );
     });
-  }, [messages, polls, userId, username, avatarUrl, reactionsByMessageId, profilesMap, onlineUsers, adminIds, messageCounts, handleReply, handleUsernameClick, handleDeleteMessage, handlePinMessage, handleScrollToOriginalMessage, renderMessageContent, handleOpenMedia]);
+  }, [messages, searchQuery, polls, userId, username, avatarUrl, reactionsByMessageId, profilesMap, onlineUsers, adminIds, messageCounts, handleReply, handleUsernameClick, handleDeleteMessage, handlePinMessage, handleScrollToOriginalMessage, renderMessageContent, handleOpenMedia]);
 
   if (authLoading || (user && !profile && !username)) {
     return (
@@ -1258,6 +1265,11 @@ const Index = () => {
           </button>
         </div>
         <div className="chat-header-actions flex items-center gap-1">
+          <button onClick={() => { setShowSearch((value) => !value); if (showSearch) setSearchQuery(""); }} title="البحث داخل الدردشة"
+            className={`chat-header-action p-2 rounded-full transition-colors hover:opacity-70 ${showSearch ? "is-active" : ""}`}
+            style={{ color: showSearch ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
+            <Search className="w-5 h-5" />
+          </button>
           {isCurrentUserAdmin && (
             <button onClick={() => navigate('/admin')} title="لوحة المشرفين"
               className="chat-header-action p-2 rounded-full transition-colors hover:opacity-70"
@@ -1296,6 +1308,20 @@ const Index = () => {
           </button>
         </div>
       </header>
+
+      {showSearch && (
+        <div className="chat-search-bar absolute top-[60px] inset-x-0 z-30 px-3 py-2 animate-slide-down">
+          <div className="flex items-center gap-2 rounded-2xl px-3 py-2">
+            <Search className="w-4 h-4 flex-shrink-0" style={{ color: "hsl(var(--primary))" }} />
+            <input autoFocus value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="ابحث في الرسائل..." className="flex-1 bg-transparent outline-none text-sm" />
+            {searchQuery && <button onClick={() => setSearchQuery("")} className="p-1 rounded-full hover:opacity-70" aria-label="مسح البحث"><X className="w-4 h-4" /></button>}
+            <span className="text-[10px] whitespace-nowrap" style={{ color: "hsl(var(--muted-foreground))" }}>
+              {searchQuery ? `${messages.filter((msg) => [msg.content, msg.username, msg.reply_to_content].some((value) => value?.toLocaleLowerCase().includes(searchQuery.trim().toLocaleLowerCase()))).length} نتيجة` : "بحث سريع"}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Pinned message banner */}
       {pinnedMessage && (

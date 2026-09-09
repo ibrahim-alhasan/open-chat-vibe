@@ -242,6 +242,157 @@
 }
 
 /* =========================
+   Refined chat system
+   ========================= */
+:root {
+  --chat-content-width: 760px;
+  --chat-motion: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+button, input, textarea {
+  font: inherit;
+}
+
+.chat-app-shell,
+.chat-screen-shell {
+  isolation: isolate;
+  box-shadow: 0 0 0 1px hsl(var(--border) / 0.35), 0 24px 80px hsl(200 25% 4% / 0.22);
+}
+
+.chat-app-header {
+  background: linear-gradient(135deg, hsl(var(--chat-header) / 0.98), hsl(var(--chat-surface) / 0.94)) !important;
+  border-bottom: 1px solid hsl(var(--border) / 0.75) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.chat-brand-icon {
+  box-shadow: 0 8px 20px hsl(var(--primary) / 0.22);
+  transition: transform 220ms var(--chat-motion), box-shadow 220ms var(--chat-motion);
+}
+
+.chat-brand-icon:hover {
+  transform: translateY(-1px) rotate(-4deg);
+  box-shadow: 0 10px 24px hsl(var(--primary) / 0.32);
+}
+
+.chat-header-action {
+  transition: transform 180ms var(--chat-motion), background-color 180ms ease, color 180ms ease !important;
+}
+
+.chat-header-action:hover,
+.chat-header-action.is-active {
+  background: hsl(var(--primary) / 0.1) !important;
+}
+
+.chat-search-bar {
+  pointer-events: none;
+}
+
+.chat-search-bar > div {
+  pointer-events: auto;
+  max-width: var(--chat-content-width);
+  margin: 0 auto;
+  color: hsl(var(--foreground));
+  background: hsl(var(--chat-input-bg) / 0.96);
+  border: 1px solid hsl(var(--primary) / 0.22);
+  box-shadow: 0 12px 30px hsl(200 25% 4% / 0.22);
+  backdrop-filter: blur(16px);
+}
+
+.chat-app-messages {
+  scrollbar-width: thin;
+  overscroll-behavior-y: contain;
+  background-blend-mode: soft-light;
+}
+
+.chat-message-row {
+  animation: messageIn 360ms var(--chat-motion) both;
+}
+
+.chat-bubble,
+.chat-bubble-own,
+.chat-bubble-other {
+  border: 1px solid hsl(var(--border) / 0.24) !important;
+  box-shadow: 0 4px 12px hsl(200 25% 4% / 0.08) !important;
+  transition: transform 180ms var(--chat-motion), box-shadow 180ms ease, filter 180ms ease;
+}
+
+.chat-bubble:hover,
+.chat-bubble-own:hover,
+.chat-bubble-other:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px hsl(200 25% 4% / 0.13) !important;
+}
+
+.chat-message-avatar {
+  transition: transform 180ms var(--chat-motion), box-shadow 180ms ease;
+}
+
+.chat-message-avatar:hover {
+  transform: scale(1.06);
+  box-shadow: 0 5px 14px hsl(var(--primary) / 0.2);
+}
+
+.chat-input-field {
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.chat-input-field:focus-within {
+  border-color: hsl(var(--primary) / 0.58) !important;
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.09), 0 8px 20px hsl(200 25% 4% / 0.08);
+}
+
+.chat-conversation-item {
+  position: relative;
+  transition: transform 180ms var(--chat-motion), background-color 180ms ease !important;
+}
+
+.chat-conversation-item:hover {
+  background: hsl(var(--primary) / 0.06);
+  transform: translateX(-2px);
+}
+
+@keyframes messageIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-down { animation: slideDown 220ms var(--chat-motion) both; }
+
+@media (min-width: 700px) {
+  .chat-app-shell,
+  .chat-screen-shell {
+    max-width: 100%;
+  }
+
+  .chat-app-messages,
+  .chat-app-composer,
+  .chat-app-pinned {
+    padding-inline: max(16px, calc((100% - var(--chat-content-width)) / 2)) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =========================
    واجهة الدردشة — نمط تطبيقات الهاتف
    ========================= */
 body {
