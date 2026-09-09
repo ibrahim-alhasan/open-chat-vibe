@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { X, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogIn, FileText, GraduationCap, Camera } from "lucide-react";
+import { X, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogIn, FileText, GraduationCap, Camera, Moon, Sun } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getIsSoundEnabled, setSoundEnabled } from "@/lib/sounds";
 import { getLocalAvatar, setLocalAvatar, clearLocalAvatar, compressImageToDataUrl } from "@/lib/localAvatar";
 import { useAuth } from "@/contexts/AuthContext";
+import { useThemeContext } from "@/contexts/ThemeContext";
 import { useNavigate } from "react-router-dom";
 
 
@@ -20,6 +21,7 @@ interface SettingsModalProps {
 
 const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onNavigateToAuth, onSave, chatBg, onChatBgChange }: SettingsModalProps) => {
   const { user, refreshProfile } = useAuth();
+  const { theme, toggleTheme } = useThemeContext();
   const navigate = useNavigate();
   const [username, setUsername] = useState(currentUsername);
   const [allowDms, setAllowDms] = useState(true);
