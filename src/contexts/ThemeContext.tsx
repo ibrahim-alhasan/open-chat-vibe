@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 type Theme = "dark" | "light";
 
-const STORAGE_KEY = "chat_theme";
+const STORAGE_KEY = "theme";
 
 interface ThemeContextValue {
   theme: Theme;
@@ -14,6 +14,7 @@ const applyTheme = (theme: Theme) => {
   const root = document.documentElement;
   root.classList.toggle("dark", theme === "dark");
   root.classList.toggle("light", theme === "light");
+  root.setAttribute("data-theme", theme);
   root.style.colorScheme = theme;
 };
 
