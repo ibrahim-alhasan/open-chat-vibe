@@ -353,12 +353,12 @@ const SignedFileAttachment = ({
 // ChatMessage Component الرئيسي
 // ============================================
 const ChatMessage = memo(({
-  message, currentUserId, currentUsername, currentAvatarUrl, reactions, profilesMap,
+  message, currentUserId, currentUsername, currentAvatarUrl, reactions = [], profilesMap = {},
   isOnline, isAdmin, isCurrentUserAdmin, messageCounts, onReply, onUsernameClick, onDelete, onPin, onScrollToOriginalMessage, onOpenMedia,
 }: ChatMessageProps) => {
   const isOwn = message.user_id === currentUserId;
-  const profile = message.user_id && profilesMap[message.user_id];
-  const displayName = profile ? profile.username : message.username;
+  const profile = message.user_id ? profilesMap?.[message.user_id] : null;
+  const displayName = profile?.username || message.username || "مستخدم";
   const userColor = isAdmin ? "#1D9BF0" : getUserColor(displayName);
   
   const isSticker = message.content.startsWith("sticker:");
