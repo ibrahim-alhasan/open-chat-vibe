@@ -47,6 +47,17 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     document.dispatchEvent(new CustomEvent("themechange", { detail: { theme } }));
   }, [theme]);
 
+  // مزامنة مع الجسر الأصلي (تطبيق الهاتف) إن غيّر المظهر من الخارج
+  useEffect(() => {
+    const onExternal = (event: Event) => {
+      const detail = (event as CustomEvent<{ theme?: Theme }>).detail;
+      const next = detail?.theme ?? (document.documentElement.classList.contains("dark") ? "dark" : "light");
+      setThemeState((current) => (current === next ? current : next));
+    };
+    document.addEventListener("themechange", onExternal);
+    return () => document.removeEventListener("themechange", onExternal);
+  }, []);
+
   const setTheme = useCallback((next: Theme) => setThemeState(next), []);
   const toggleTheme = useCallback(() => setThemeState((t) => (t === "dark" ? "light" : "dark")), []);
 
