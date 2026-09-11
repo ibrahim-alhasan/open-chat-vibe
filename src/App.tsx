@@ -7,30 +7,33 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import AndroidThemeProvider from "./components/AndroidThemeProvider";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <ThemeProvider>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              <Route path="/auth" element={<Navigate to="/" replace />} />
-              <Route path="/" element={<Index />} />
-              <Route path="/dms" element={<Index />} />
-              <Route path="/dm/:userId" element={<Index />} />
-              <Route path="/admin" element={<Index />} />
-              <Route path="/chat-info" element={<Index />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <AndroidThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AuthProvider>
+              <Routes>
+                <Route path="/auth" element={<Navigate to="/" replace />} />
+                <Route path="/" element={<Index />} />
+                <Route path="/dms" element={<Index />} />
+                <Route path="/dm/:userId" element={<Index />} />
+                <Route path="/admin" element={<Index />} />
+                <Route path="/chat-info" element={<Index />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </AndroidThemeProvider>
   </ThemeProvider>
 );
 
