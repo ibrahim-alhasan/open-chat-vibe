@@ -32,7 +32,7 @@ const App = () => (
             </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>
-      </BrowserRouter_PLACEHOLDER>
+      </QueryClientProvider>
     </AndroidThemeProvider>
   </ThemeProvider>
 );
