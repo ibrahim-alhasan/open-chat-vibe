@@ -15,6 +15,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@fontsource/noto-sans-arabic": "^5.3.0",
     "@fontsource/roboto": "^5.3.0",
     "@hookform/resolvers": "^3.10.0",
     "@mui/icons-material": "^9.4.0",
