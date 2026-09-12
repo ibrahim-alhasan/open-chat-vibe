@@ -15,7 +15,7 @@ import PollMessage from "@/components/PollMessage";
 import MediaViewer from "@/components/MediaViewer";
 import { playSound } from "@/lib/sounds";
 import { getLocalAvatar, LOCAL_AVATAR_EVENT } from "@/lib/localAvatar";
-import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot, Search } from "lucide-react";
+import { Send, X, MessageCircle, Users, CornerUpLeft, ChevronDown, ArrowRight, Reply, Lock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot, Search } from "lucide-react";
 import { Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SearchIcon from "@mui/icons-material/Search";

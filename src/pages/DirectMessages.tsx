@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, Reply, CornerUpLeft, X, Camera, Trash2, Settings, Copy, ChevronUp, Smile, Ban } from "lucide-react";
+import { Send, Reply, CornerUpLeft, X, Camera, Trash2, Copy, ChevronUp, Smile, Ban } from "lucide-react";
 import { playSound } from "@/lib/sounds";
 import LinkifiedText from "@/components/LinkifiedText";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
@@ -129,7 +129,6 @@ const DirectMessages = ({
   const [showActionsForMsg, setShowActionsForMsg] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [typingUser, setTypingUser] = useState(false);
-  const [showConvoSettings, setShowConvoSettings] = useState(false);
   const [headerMenuAnchor, setHeaderMenuAnchor] = useState<HTMLElement | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
   const [showAdminAlert, setShowAdminAlert] = useState(false);
@@ -609,7 +608,6 @@ const DirectMessages = ({
     setConversationMessages([]);
     setConversations(prev => prev.filter(c => c.userId !== activeConversation));
     setActiveConversation(null);
-    setShowConvoSettings(false);
     setShowDeleteConfirm(false);
     setDeletingAll(false);
   };
