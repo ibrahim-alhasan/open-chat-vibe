@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, Reply, CornerUpLeft, X, Camera, Trash2, Settings, Copy, ChevronUp, Smile, Ban } from "lucide-react";
+import { Send, Reply, CornerUpLeft, X, Camera, Trash2, Copy, ChevronUp, Smile, Ban } from "lucide-react";
 import { playSound } from "@/lib/sounds";
 import LinkifiedText from "@/components/LinkifiedText";
 import { useSignedUrl } from "@/hooks/useSignedUrl";
 import UserProfileModal from "@/components/UserProfileModal";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
+import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 
 interface DirectMessage {
   id: string;
@@ -126,7 +129,7 @@ const DirectMessages = ({
   const [showActionsForMsg, setShowActionsForMsg] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [typingUser, setTypingUser] = useState(false);
-  const [showConvoSettings, setShowConvoSettings] = useState(false);
+  const [headerMenuAnchor, setHeaderMenuAnchor] = useState<HTMLElement | null>(null);
   const [deletingAll, setDeletingAll] = useState(false);
   const [showAdminAlert, setShowAdminAlert] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -605,7 +608,6 @@ const DirectMessages = ({
     setConversationMessages([]);
     setConversations(prev => prev.filter(c => c.userId !== activeConversation));
     setActiveConversation(null);
-    setShowConvoSettings(false);
     setShowDeleteConfirm(false);
     setDeletingAll(false);
   };
@@ -718,36 +720,38 @@ const DirectMessages = ({
               </div>
             </button>
 
-            <button onClick={() => setShowConvoSettings(!showConvoSettings)}
-              className="p-2 rounded-lg transition-all active:scale-90"
-              style={{ background: "hsl(var(--secondary))", color: "hsl(var(--muted-foreground))" }}>
-              <Settings className="w-3 sm:w-4 h-3 sm:h-4" />
-            </button>
+            <IconButton
+              className="chat-header-action"
+              aria-label="خيارات المحادثة"
+              aria-controls={headerMenuAnchor ? "dm-header-menu" : undefined}
+              aria-haspopup="true"
+              onClick={(event) => setHeaderMenuAnchor(event.currentTarget)}
+            >
+              <MoreVertIcon />
+            </IconButton>
+            <Menu
+              id="dm-header-menu"
+              anchorEl={headerMenuAnchor}
+              open={Boolean(headerMenuAnchor)}
+              onClose={() => setHeaderMenuAnchor(null)}
+              anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+              transformOrigin={{ vertical: "top", horizontal: "left" }}
+              slotProps={{ paper: { className: "chat-material-menu" } }}
+            >
+              <MenuItem onClick={() => {
+                setHeaderMenuAnchor(null);
+                if (activeConversation && profilesMap[activeConversation]?.is_admin && !isAdmin) setShowAdminAlert(true);
+                else setShowDeleteConfirm(true);
+              }} disabled={deletingAll}>
+                <ListItemIcon><DeleteSweepIcon fontSize="small" color="error" /></ListItemIcon>
+                <ListItemText sx={{ color: "error.main" }}>حذف جميع الرسائل</ListItemText>
+              </MenuItem>
+            </Menu>
           </div>
         ) : (
           <h2 className="font-bold text-sm" style={{ color: "hsl(var(--foreground))" }}>الرسائل الخاصة</h2>
         )}
       </header>
-
-      {/* Conversation settings dropdown */}
-      {showConvoSettings && activeConversation && (
-        <div className="flex-shrink-0 px-3 py-2 animate-fade-in" style={{ background: "hsl(var(--card))", borderBottom: "1px solid hsl(var(--border))" }}>
-          <button onClick={() => {
-            // Check if the other person is an admin and the current user is NOT an admin
-            if (activeConversation && profilesMap[activeConversation]?.is_admin && !isAdmin) {
-              setShowAdminAlert(true);
-              setShowConvoSettings(false);
-            } else {
-              setShowDeleteConfirm(true);
-            }
-          }} disabled={deletingAll}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-50"
-            style={{ background: "hsl(var(--destructive) / 0.1)", color: "hsl(var(--destructive))" }}>
-            <Trash2 className="w-4 h-4" />
-            <span className="text-sm font-medium">حذف جميع الرسائل</span>
-          </button>
-        </div>
-      )}
 
       {!activeConversation ? (
         /* Conversation list */
