@@ -16,6 +16,14 @@ import MediaViewer from "@/components/MediaViewer";
 import { playSound } from "@/lib/sounds";
 import { getLocalAvatar, LOCAL_AVATAR_EVENT } from "@/lib/localAvatar";
 import { Send, X, MessageCircle, Users, CornerUpLeft, Settings, MessageSquare, ChevronDown, ArrowRight, Reply, Lock, Unlock, ShieldCheck, Ban, Smile, Megaphone, BarChart3, Paperclip, Pin, PinOff, Bot, Search } from "lucide-react";
+import { Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import SearchIcon from "@mui/icons-material/Search";
+import ChatIcon from "@mui/icons-material/Chat";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import LockIcon from "@mui/icons-material/Lock";
+import LockOpenIcon from "@mui/icons-material/LockOpen";
+import SettingsIcon from "@mui/icons-material/Settings";
 
 const MESSAGES_PER_PAGE = 100;
 const AUTH_REQUIRED_MESSAGE = "يجب عليك تسجيل الدخول أولاً";
@@ -92,6 +100,7 @@ const Index = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [headerMenuAnchor, setHeaderMenuAnchor] = useState<HTMLElement | null>(null);
 
   const [profileModal, setProfileModal] = useState<string | null>(null);
   const [unreadDMs, setUnreadDMs] = useState(0);
@@ -1264,48 +1273,54 @@ const Index = () => {
             </div>
           </button>
         </div>
-        <div className="chat-header-actions flex items-center gap-1">
-          <button onClick={() => { setShowSearch((value) => !value); if (showSearch) setSearchQuery(""); }} title="البحث داخل الدردشة"
-            className={`chat-header-action p-2 rounded-full transition-colors hover:opacity-70 ${showSearch ? "is-active" : ""}`}
-            style={{ color: showSearch ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
-            <Search className="w-5 h-5" />
-          </button>
-          {isCurrentUserAdmin && (
-            <button onClick={() => navigate('/admin')} title="لوحة المشرفين"
-              className="chat-header-action p-2 rounded-full transition-colors hover:opacity-70"
-              style={{ color: "hsl(var(--primary))" }}>
-              <ShieldCheck className="w-5 h-5" />
-            </button>
-          )}
-          {isCurrentUserAdmin && (
-            <button onClick={handleToggleChatLock} title={chatLocked ? "فتح الدردشة" : "إغلاق الدردشة"}
-              className="chat-header-action p-2 rounded-full transition-colors hover:opacity-70"
-              style={{ color: chatLocked ? "hsl(var(--destructive))" : "hsl(var(--muted-foreground))" }}>
-              {chatLocked ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
-            </button>
-          )}
-          
-          
-          {/* زر الرسائل الخاصة مع فحص تسجيل الدخول */}
-          <button 
-            onClick={handleDirectMessageClick} 
-            title="الرسائل الخاصة"
-            className="chat-header-action relative p-2 rounded-full transition-colors hover:opacity-70"
-            style={{ color: "hsl(var(--muted-foreground))" }}>
-            <MessageSquare className="w-5 h-5" />
-            {!isGuest && unreadDMs > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full text-[10px] font-bold flex items-center justify-center px-1"
-                style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))" }}>{unreadDMs}</span>
+        <div className="chat-header-actions">
+          <IconButton
+            className="chat-header-action"
+            aria-label="المزيد من الخيارات"
+            aria-controls={headerMenuAnchor ? "main-header-menu" : undefined}
+            aria-haspopup="true"
+            aria-expanded={headerMenuAnchor ? "true" : undefined}
+            onClick={(event) => setHeaderMenuAnchor(event.currentTarget)}
+          >
+            <MoreVertIcon />
+            {!isGuest && unreadDMs > 0 && <span className="chat-menu-badge">{unreadDMs > 99 ? "99+" : unreadDMs}</span>}
+          </IconButton>
+          <Menu
+            id="main-header-menu"
+            anchorEl={headerMenuAnchor}
+            open={Boolean(headerMenuAnchor)}
+            onClose={() => setHeaderMenuAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+            transformOrigin={{ vertical: "top", horizontal: "left" }}
+            slotProps={{ paper: { className: "chat-material-menu" } }}
+          >
+            <MenuItem onClick={() => { setHeaderMenuAnchor(null); setShowSearch((value) => !value); if (showSearch) setSearchQuery(""); }}>
+              <ListItemIcon><SearchIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>البحث في الدردشة</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={() => { setHeaderMenuAnchor(null); handleDirectMessageClick(); }}>
+              <ListItemIcon><ChatIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>{unreadDMs > 0 ? `الرسائل الخاصة (${unreadDMs})` : "الرسائل الخاصة"}</ListItemText>
+            </MenuItem>
+            {isCurrentUserAdmin && <Divider />}
+            {isCurrentUserAdmin && (
+              <MenuItem onClick={() => { setHeaderMenuAnchor(null); navigate('/admin'); }}>
+                <ListItemIcon><AdminPanelSettingsIcon fontSize="small" /></ListItemIcon>
+                <ListItemText>لوحة المشرفين</ListItemText>
+              </MenuItem>
             )}
-          </button>
-          
-          {avatarUrl && (
-              <img src={avatarUrl} alt="avatar" className="chat-header-avatar w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-              style={{ border: "2px solid hsl(var(--primary) / 0.4)" }} onClick={openSettings} />
-          )}
-          <button onClick={openSettings} title="الإعدادات" className="chat-header-action p-2 rounded-full transition-colors hover:opacity-70" style={{ color: "hsl(var(--muted-foreground))" }}>
-            <Settings className="w-5 h-5" />
-          </button>
+            {isCurrentUserAdmin && (
+              <MenuItem onClick={() => { setHeaderMenuAnchor(null); handleToggleChatLock(); }}>
+                <ListItemIcon>{chatLocked ? <LockOpenIcon fontSize="small" /> : <LockIcon fontSize="small" />}</ListItemIcon>
+                <ListItemText>{chatLocked ? "فتح الدردشة" : "إغلاق الدردشة"}</ListItemText>
+              </MenuItem>
+            )}
+            <Divider />
+            <MenuItem onClick={() => { setHeaderMenuAnchor(null); openSettings(); }}>
+              <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>الإعدادات</ListItemText>
+            </MenuItem>
+          </Menu>
         </div>
       </header>
 

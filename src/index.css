@@ -244,6 +244,7 @@
    ========================================================= */
 :root {
   --chat-content-width: 760px;
+  --safe-top: env(safe-area-inset-top, 0px);
   /* Material standard easing + durations */
   --md-emphasized: cubic-bezier(0.2, 0, 0, 1);
   --md-standard: cubic-bezier(0.4, 0, 0.2, 1);
@@ -319,9 +320,9 @@ textarea {
 
 /* ── شريط التطبيق العلوي (Top App Bar) ───────────────── */
 .chat-app-header {
-  min-height: 56px;
-  height: 56px;
-  padding: 4px 4px 4px 8px !important;
+  min-height: calc(56px + var(--safe-top));
+  height: calc(56px + var(--safe-top));
+  padding: calc(4px + var(--safe-top)) 4px 4px 8px !important;
   background: hsl(var(--primary)) !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -329,8 +330,8 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 4px;
-  position: relative !important;
-  inset: auto !important;
+  position: sticky !important;
+  top: 0 !important;
   z-index: 25;
   box-shadow: var(--md-elev-1);
   backdrop-filter: none;
@@ -407,6 +408,44 @@ textarea {
   flex: 0 0 auto;
   gap: 0 !important;
   min-width: 0;
+}
+
+.chat-menu-badge {
+  position: absolute;
+  inset-block-start: 4px;
+  inset-inline-end: 3px;
+  min-width: 16px;
+  height: 16px;
+  padding-inline: 4px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary-foreground));
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.chat-material-menu {
+  min-width: 220px;
+  margin-top: 4px;
+  border-radius: 12px !important;
+  color: hsl(var(--foreground)) !important;
+  background: hsl(var(--card)) !important;
+  box-shadow: var(--md-elev-3) !important;
+}
+
+.chat-material-menu .MuiMenuItem-root {
+  min-height: 48px;
+  gap: 4px;
+  font-family: var(--md-font);
+  font-size: 14px;
+}
+
+.chat-material-menu .MuiListItemIcon-root {
+  min-width: 36px;
+  color: hsl(var(--muted-foreground));
 }
 
 /* أزرار أيقونية بمقاس اللمس القياسي 48dp */
@@ -508,6 +547,10 @@ textarea {
 
 .chat-search-bar {
   pointer-events: none;
+}
+
+.chat-app-shell > .chat-search-bar {
+  top: calc(56px + var(--safe-top)) !important;
 }
 
 .chat-search-bar > div {
