@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, supabaseConfigError } from "@/integrations/supabase/client";
 
 interface Profile {
   username: string;
@@ -40,6 +40,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    if (supabaseConfigError) {
+      console.error(supabaseConfigError);
+      setLoading(false);
+      return;
+    }
+
     // Subscribe FIRST, then check current session
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sess) => {
       setSession(sess);

@@ -42,12 +42,28 @@ const notifyParentTheme = (theme: "dark" | "light") => {
   }
 };
 
+const readStoredTheme = (): string | null => {
+  try {
+    return localStorage.getItem("theme");
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredTheme = (theme: "dark" | "light") => {
+  try {
+    localStorage.setItem("theme", theme);
+  } catch {
+    // Storage can be blocked in embedded previews or private browsing.
+  }
+};
+
 const applyTheme = (theme: "dark" | "light") => {
   document.documentElement.classList.remove("dark", "light");
   document.documentElement.classList.add(theme);
   document.documentElement.setAttribute("data-theme", theme);
   document.documentElement.style.colorScheme = theme;
-  localStorage.setItem("theme", theme);
+  writeStoredTheme(theme);
 
   document.dispatchEvent(
     new CustomEvent("themechange", {
@@ -59,7 +75,7 @@ const applyTheme = (theme: "dark" | "light") => {
 };
 
 const initialTheme = getNativeTheme()
-  ?? (isTheme(localStorage.getItem("theme")) ? localStorage.getItem("theme") as Theme : null)
+  ?? (isTheme(readStoredTheme()) ? readStoredTheme() as Theme : null)
   ?? (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light");
 
 applyTheme(initialTheme);

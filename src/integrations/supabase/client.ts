@@ -6,13 +6,24 @@ import { brokeredPreviewStorage } from './previewAuthStorage';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+export const supabaseConfigError =
+  !SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY
+    ? "إعدادات Supabase غير موجودة. أضف VITE_SUPABASE_URL و VITE_SUPABASE_PUBLISHABLE_KEY إلى متغيرات البيئة."
+    : null;
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: brokeredPreviewStorage(),
-    persistSession: true,
-    autoRefreshToken: true,
-  }
-});
+// Keep module loading safe in hosted previews where environment variables may
+// not have been copied yet. AuthContext skips network calls in this state.
+export const supabase = createClient<Database>(
+  SUPABASE_URL || "https://missing-supabase-config.invalid",
+  SUPABASE_PUBLISHABLE_KEY || "missing-supabase-publishable-key",
+  {
+    auth: {
+      storage: brokeredPreviewStorage(),
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  },
+);

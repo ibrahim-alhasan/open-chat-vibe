@@ -1044,6 +1044,23 @@ textarea {
   background: hsl(var(--primary) / 0.18) !important;
 }
 
+/* Keep the three-dot menu visible on the light surface. Material Web reads
+   these custom properties inside its shadow tree, while the fallback SVG
+   reads the inherited color directly. */
+:root.light .chat-app-header .chat-header-action,
+:root.light .chat-app-header .material-chat-icon-button {
+  --md-icon-button-icon-color: #1d1b20 !important;
+  --md-icon-button-hover-icon-color: #1d1b20 !important;
+  color: #1d1b20 !important;
+}
+
+:root.light .chat-app-header .chat-header-action svg,
+:root.light .chat-app-header .material-chat-icon-button svg,
+:root.light .chat-app-header .material-chat-icon-fallback {
+  color: #1d1b20 !important;
+  fill: currentColor;
+}
+
 .chat-message-row {
   animation-duration: 220ms;
 }
