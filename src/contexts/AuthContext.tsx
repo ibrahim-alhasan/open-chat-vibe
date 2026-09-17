@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase, supabaseConfigError } from "@/integrations/supabase/client";
+import { getChatUserFromUrl } from "@/lib/chatUser";
 
 interface Profile {
   username: string;
@@ -39,6 +40,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsAdmin(!!roles?.some((r: any) => r.role === "admin"));
   };
 
+  const syncUsernameFromUrl = async (uid: string) => {
+    const { fullName } = getChatUserFromUrl();
+    if (!fullName) return;
+
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("user_id")
+      .eq("username", fullName)
+      .neq("user_id", uid)
+      .maybeSingle();
+
+    if (existing) {
+      console.warn("The URL name is already in use; keeping the current username.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ username: fullName })
+      .eq("user_id", uid);
+
+    if (error) {
+      console.error("Unable to save the URL display name:", error);
+    }
+  };
+
   useEffect(() => {
     if (supabaseConfigError) {
       console.error(supabaseConfigError);
@@ -52,7 +79,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(sess?.user ?? null);
       if (sess?.user) {
         // Defer DB calls
-        setTimeout(() => { fetchProfileAndRole(sess.user.id); }, 0);
+        setTimeout(async () => {
+          await syncUsernameFromUrl(sess.user.id);
+          await fetchProfileAndRole(sess.user.id);
+        }, 0);
       } else {
         setProfile(null);
         setIsAdmin(false);
@@ -64,12 +94,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (sess?.user) {
         setSession(sess);
         setUser(sess.user);
+        await syncUsernameFromUrl(sess.user.id);
         await fetchProfileAndRole(sess.user.id);
       } else {
         const { data, error } = await supabase.auth.signInAnonymously();
         if (!error && data.user) {
           setSession(data.session);
           setUser(data.user);
+          await syncUsernameFromUrl(data.user.id);
           // إعطاء المُشغّل وقتاً لإنشاء الملف الشخصي
           for (let i = 0; i < 5; i++) {
             await fetchProfileAndRole(data.user.id);
