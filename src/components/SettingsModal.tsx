@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogIn, FileText, GraduationCap, Camera, Moon, Sun } from "lucide-react";
+import { X, User, Save, MessageSquareOff, MessageSquare, Image, Trash2, Volume2, VolumeX, LogIn, GraduationCap, Camera, Moon, Sun } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getIsSoundEnabled, setSoundEnabled } from "@/lib/sounds";
 import { getLocalAvatar, setLocalAvatar, clearLocalAvatar, compressImageToDataUrl } from "@/lib/localAvatar";
@@ -23,9 +23,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onN
   const { user, refreshProfile } = useAuth();
   const { theme, toggleTheme } = useThemeContext();
   const navigate = useNavigate();
-  const [username, setUsername] = useState(currentUsername);
   const [allowDms, setAllowDms] = useState(true);
-  const [bio, setBio] = useState("");
   const [studyStage, setStudyStage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -64,10 +62,9 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onN
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data } = await supabase.from("profiles").select("allow_dms, bio, study_stage").eq("user_id", userId).single();
+      const { data } = await supabase.from("profiles").select("allow_dms, study_stage").eq("user_id", userId).single();
       if (data) {
         setAllowDms(data.allow_dms ?? true);
-        setBio((data as any).bio ?? "");
         setStudyStage((data as any).study_stage ?? "");
       }
     };
@@ -96,37 +93,29 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onN
       return;
     }
     
-    const trimmed = username.trim();
-    if (!trimmed) { setError("الرجاء إدخال اسمك"); return; }
-    if (trimmed.length < 2) { setError("الاسم يجب أن يكون حرفين على الأقل"); return; }
-    if (trimmed.length > 20) { setError("الاسم يجب أن لا يتجاوز 20 حرفاً"); return; }
-    const trimmedBio = bio.trim();
-    if (trimmedBio.length > 200) { setError("الوصف يجب أن لا يتجاوز 200 حرف"); return; }
     const trimmedStage = studyStage.trim();
     if (trimmedStage.length > 50) { setError("المرحلة الدراسية طويلة جداً"); return; }
 
     setSaving(true);
-    const avatarUrl = null;
-
-    await supabase.from("profiles").upsert(
+    const { error: saveError } = await supabase.from("profiles").update(
       {
-        user_id: userId,
-        username: trimmed,
-        avatar_url: avatarUrl,
         allow_dms: allowDms,
-        bio: trimmedBio || null,
         study_stage: trimmedStage || null,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "user_id" }
-    );
+    ).eq("user_id", userId);
 
-    localStorage.setItem("chat_username", trimmed);
+    if (saveError) {
+      setSaving(false);
+      setError("تعذّر حفظ الإعدادات، حاول مجدداً");
+      return;
+    }
+
     localStorage.removeItem("chat_avatar_url");
 
     setSaving(false);
     await refreshProfile();
-    onSave(trimmed, localAvatar);
+    onSave(currentUsername, localAvatar);
     onClose();
   };
 
@@ -194,66 +183,24 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onN
               )}
 
 
-              {/* Username input */}
+              {/* Username - read-only */}
               {isAuthenticated && (
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
                     <User className="w-3 h-3" />
                     <span>الاسم</span>
                   </label>
-                  <div className="relative">
-                    <input 
-                      type="text" 
-                      value={username} 
-                      dir="rtl"
-                      onChange={(e) => { setUsername(e.target.value); setError(""); }}
-                      onFocus={(e) => {
-                        const length = e.target.value.length;
-                        e.target.setSelectionRange(length, length);
-                      }}
-                      placeholder="اسمك..." 
-                      maxLength={20}
-                      className="w-full py-2 px-3 rounded-lg text-sm outline-none transition-all duration-200 text-right"
-                      style={{ 
-                        background: "hsl(var(--input))", 
-                        border: error ? "1px solid hsl(var(--destructive))" : "1px solid hsl(var(--border))", 
-                        color: "hsl(var(--foreground))",
-                        direction: "rtl"
-                      }}
-                    />
-                    {error && <p className="text-[10px] text-right mt-0.5" style={{ color: "hsl(var(--destructive))" }}>{error}</p>}
-                  </div>
-                </div>
-              )}
-
-              {/* Bio */}
-              {isAuthenticated && (
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>
-                    <FileText className="w-3 h-3" />
-                    <span>الوصف</span>
-                  </label>
-                  <div className="relative">
-                    <textarea
-                      value={bio}
-                      dir="rtl"
-                      onChange={(e) => handleRTLInput(e, setBio)}
-                      onFocus={(e) => {
-                        const length = e.target.value.length;
-                        e.target.setSelectionRange(length, length);
-                      }}
-                      placeholder="نبذة عنك..."
-                      maxLength={200}
-                      rows={2}
-                      className="w-full py-2 px-3 rounded-lg text-sm outline-none transition-all duration-200 text-right resize-none"
-                      style={{ 
-                        background: "hsl(var(--input))", 
-                        border: "1px solid hsl(var(--border))", 
-                        color: "hsl(var(--foreground))",
-                        direction: "rtl"
-                      }}
-                    />
-                    <p className="text-[9px] mt-0.5 text-left" style={{ color: "hsl(var(--muted-foreground))" }}>{bio.length}/200</p>
+                  <div
+                    aria-readonly="true"
+                    className="w-full py-2 px-3 rounded-lg text-sm text-right"
+                    style={{
+                      background: "hsl(var(--muted) / 0.55)",
+                      border: "1px solid hsl(var(--border))",
+                      color: "hsl(var(--muted-foreground))",
+                      direction: "rtl",
+                    }}
+                  >
+                    {currentUsername || "لم يتم تحديد الاسم"}
                   </div>
                 </div>
               )}
