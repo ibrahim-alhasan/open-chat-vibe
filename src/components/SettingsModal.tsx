@@ -157,7 +157,7 @@ const SettingsModal = ({ currentUsername, currentAvatarUrl, userId, onClose, onN
                     {localAvatar ? (
                       <img src={localAvatar} alt="الصورة الشخصية" className="w-full h-full object-cover" />
                     ) : (
-                      <span>{username.slice(0, 2).toUpperCase()}</span>
+                      <span>{currentUsername.slice(0, 2).toUpperCase()}</span>
                     )}
                     <span
                       className="absolute bottom-0 inset-x-0 h-6 flex items-center justify-center"
