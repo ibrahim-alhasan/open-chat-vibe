@@ -227,17 +227,26 @@ const Index = () => {
   }, [reactions]);
 
   const scrollToBottom = useCallback((smooth = true) => {
-    if (messagesEndRef.current) {
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTo({
+        top: Math.max(0, container.scrollHeight - container.clientHeight),
+        behavior: smooth ? "smooth" : "auto",
+      });
+    } else if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
     }
     setHasNewMessages(false);
   }, []);
 
   const forceScrollToBottom = useCallback(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-    }
-    if (messagesEndRef.current) {
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTo({
+        top: Math.max(0, container.scrollHeight - container.clientHeight),
+        behavior: "auto",
+      });
+    } else if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "auto", block: "end" });
     }
     setHasNewMessages(false);
@@ -462,8 +471,24 @@ const Index = () => {
 
   useEffect(() => {
     if (!loading && messages.length > 0 && isFirstLoadRef.current) {
-      setTimeout(() => { forceScrollToBottom(); isFirstLoadRef.current = false; }, 100);
+      let frame = 0;
+      const timers = [50, 150, 300].map((delay) => (
+        setTimeout(() => {
+          forceScrollToBottom();
+          if (delay === 300) isFirstLoadRef.current = false;
+        }, delay)
+      ));
+
+      frame = requestAnimationFrame(() => {
+        forceScrollToBottom();
+      });
+
+      return () => {
+        cancelAnimationFrame(frame);
+        timers.forEach(clearTimeout);
+      };
     }
+    return;
   }, [loading, messages.length, forceScrollToBottom]);
 
   // Re-entering the public chat should always resume at the newest message,

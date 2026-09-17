@@ -148,6 +148,7 @@ const DirectMessages = ({
   } | null>(null);
   
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
@@ -188,7 +189,15 @@ const DirectMessages = ({
   }, [activeConversation, viewingImage, navigate]);
 
   const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTo({
+        top: Math.max(0, container.scrollHeight - container.clientHeight),
+        behavior: "smooth",
+      });
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
   }, []);
 
   const getProfile = (uid: string) => profilesMap[uid] || { username: uid.slice(0, 6), avatar_url: null, is_admin: false };
@@ -341,7 +350,11 @@ const DirectMessages = ({
     const frame = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (!cancelled) {
-          bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+          const container = messagesContainerRef.current;
+          container?.scrollTo({
+            top: Math.max(0, container.scrollHeight - container.clientHeight),
+            behavior: "auto",
+          });
         }
       });
     });
@@ -835,7 +848,7 @@ const DirectMessages = ({
       ) : (
         /* Active conversation */
         <>
-           <div className="chat-app-messages chat-private-messages flex-1 overflow-y-auto px-2 sm:px-4 py-4 space-y-3">
+           <div ref={messagesContainerRef} className="chat-app-messages chat-private-messages flex-1 overflow-y-auto px-2 sm:px-4 py-4 space-y-3">
             {loadingMessages ? (
               <div className="flex justify-center items-center h-32">
                  <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "hsl(var(--primary))", borderTopColor: "transparent" }} />
